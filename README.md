@@ -2,9 +2,10 @@ ChromiumWebView
 ================
 
 Android WebView wrapper based on chromium
+
 ## Why you need
 
-The current performance of Android webview is so poor. ChromeView gives your 
+The current performance of Android webview is so poor. ChromiumWebView gives your 
 application early access to the newest features in Chromium, and removes the
 variability due to different WebView implementations in different versions of
 Android.
@@ -21,8 +22,8 @@ This section explains how to set up your Android project to use ChromiumWebView.
 
 Check out the repository in your Eclipse workspace, and make your project use 
 ChromiumWebView as a library. In Eclipse, right-click your project directory, 
-select Properties, choose the Android category, and click on the Add button 
-in the Library section.
+select `Properties`, choose the `Android` category, and click on the `Add` button 
+in the `Library` section.
 
 ### Copy Data
 
@@ -48,7 +49,7 @@ public class MyApplication extends Application {
 }
 ```
 
-Now you can use ChromiumWebView as the same as Android WebView except different
+Now you can use ChromiumWebView as the same as Android WebView except for different
 package name.
 
 ### TestShell
@@ -70,3 +71,6 @@ copyright and license on the project site.
 Some of the source code in `src/com/mogoweb/chrome` has been derived from the
 Android source code, and is therefore covered by the
 [Android project licenses](http://source.android.com/source/licenses.html).
+
+The rest of the code is Copyright 2013, mogoweb, Licensed under the Apache 
+License, Version 2.0 (the "License").
