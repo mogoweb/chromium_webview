@@ -9,6 +9,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.drawable.ClipDrawable;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.KeyEvent;
@@ -24,6 +25,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
 
+import com.mogoweb.chrome.WebChromeClient;
 import com.mogoweb.chrome.WebView;
 import com.mogoweb.chrome.WebViewClient;
 
@@ -38,6 +40,18 @@ public class ShellActivity extends Activity {
     private ImageButton mPrevButton;
     private ImageButton mNextButton;
 
+    private LinearLayout mToolbar;
+    private ClipDrawable mProgressDrawable;
+
+    private static final long COMPLETED_PROGRESS_TIMEOUT_MS = 200;
+
+    private Runnable mClearProgressRunnable = new Runnable() {
+        @Override
+        public void run() {
+            mProgressDrawable.setLevel(0);
+        }
+    };
+
     @SuppressLint("SetJavaScriptEnabled")
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -46,6 +60,9 @@ public class ShellActivity extends Activity {
         setContentView(R.layout.testshell_activity);
 
         mWebView = createWebView();
+
+        mToolbar = (LinearLayout)findViewById(R.id.toolbar);
+        mProgressDrawable = (ClipDrawable) mToolbar.getBackground();
 
         mWebView.getSettings().setJavaScriptEnabled(true);
 
@@ -78,7 +95,17 @@ public class ShellActivity extends Activity {
             }
         };
 
+        WebChromeClient webChromeClient = new WebChromeClient() {
+            @Override
+            public void onProgressChanged(WebView view, int newProgress) {
+                mToolbar.removeCallbacks(mClearProgressRunnable);
+                mProgressDrawable.setLevel(newProgress * 100);
+                if (newProgress == 100) mToolbar.postDelayed(mClearProgressRunnable, COMPLETED_PROGRESS_TIMEOUT_MS);
+            }
+        };
+
         webView.setWebViewClient(webViewClient);
+        webView.setWebChromeClient(webChromeClient);
         return webView;
     }
 
