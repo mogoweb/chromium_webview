@@ -1,3 +1,23 @@
+// Copyright (c) 2013 mogoweb. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+/*
+ * Copyright (C) 2006 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.mogoweb.chrome;
 
 import java.util.Map;
@@ -28,8 +48,6 @@ import android.view.inputmethod.InputConnection;
 import android.webkit.DownloadListener;
 import android.webkit.ValueCallback;
 import android.webkit.WebBackForwardList;
-import android.webkit.WebView.FindListener;
-import android.webkit.WebView.HitTestResult;
 import android.webkit.WebViewDatabase;
 import android.widget.FrameLayout;
 
@@ -241,6 +259,115 @@ import com.mogoweb.chrome.impl.ChromeSettingsProxy;
  * </p>
  */
 public class WebView extends FrameLayout {
+
+    /**
+     * Interface to listen for find results.
+     */
+    public interface FindListener {
+        /**
+         * Notifies the listener about progress made by a find operation.
+         *
+         * @param activeMatchOrdinal the zero-based ordinal of the currently selected match
+         * @param numberOfMatches how many matches have been found
+         * @param isDoneCounting whether the find operation has actually completed. The listener
+         *                       may be notified multiple times while the
+         *                       operation is underway, and the numberOfMatches
+         *                       value should not be considered final unless
+         *                       isDoneCounting is true.
+         */
+        public void onFindResultReceived(int activeMatchOrdinal, int numberOfMatches,
+            boolean isDoneCounting);
+    }
+
+    public static class HitTestResult {
+        /**
+         * Default HitTestResult, where the target is unknown.
+         */
+        public static final int UNKNOWN_TYPE = 0;
+        /**
+         * @deprecated This type is no longer used.
+         */
+        @Deprecated
+        public static final int ANCHOR_TYPE = 1;
+        /**
+         * HitTestResult for hitting a phone number.
+         */
+        public static final int PHONE_TYPE = 2;
+        /**
+         * HitTestResult for hitting a map address.
+         */
+        public static final int GEO_TYPE = 3;
+        /**
+         * HitTestResult for hitting an email address.
+         */
+        public static final int EMAIL_TYPE = 4;
+        /**
+         * HitTestResult for hitting an HTML::img tag.
+         */
+        public static final int IMAGE_TYPE = 5;
+        /**
+         * @deprecated This type is no longer used.
+         */
+        @Deprecated
+        public static final int IMAGE_ANCHOR_TYPE = 6;
+        /**
+         * HitTestResult for hitting a HTML::a tag with src=http.
+         */
+        public static final int SRC_ANCHOR_TYPE = 7;
+        /**
+         * HitTestResult for hitting a HTML::a tag with src=http + HTML::img.
+         */
+        public static final int SRC_IMAGE_ANCHOR_TYPE = 8;
+        /**
+         * HitTestResult for hitting an edit text area.
+         */
+        public static final int EDIT_TEXT_TYPE = 9;
+
+        private int mType;
+        private String mExtra;
+
+        /**
+         * @hide Only for use by WebViewProvider implementations
+         */
+        public HitTestResult() {
+            mType = UNKNOWN_TYPE;
+        }
+
+        /**
+         * @hide Only for use by WebViewProvider implementations
+         */
+        public void setType(int type) {
+            mType = type;
+        }
+
+        /**
+         * @hide Only for use by WebViewProvider implementations
+         */
+        public void setExtra(String extra) {
+            mExtra = extra;
+        }
+
+        /**
+         * Gets the type of the hit test result. See the XXX_TYPE constants
+         * defined in this class.
+         *
+         * @return the type of the hit test result
+         */
+        public int getType() {
+            return mType;
+        }
+
+        /**
+         * Gets additional type-dependant information about the result. See
+         * {@link WebView#getHitTestResult()} for details. May either be null
+         * or contain extra information about this result.
+         *
+         * @return additional type-dependant information about the result
+         */
+        public String getExtra() {
+            return mExtra;
+        }
+    }
 
     /** The closest thing to a WebView that Chromium has to offer. */
     private AwContents mAwContents;
@@ -960,7 +1087,7 @@ public class WebView extends FrameLayout {
      * @param listener an implementation of {@link FindListener}
      */
     public void setFindListener(FindListener listener) {
-
+        mAwContentsClient.setFindListener(listener);
     }
 
     /**

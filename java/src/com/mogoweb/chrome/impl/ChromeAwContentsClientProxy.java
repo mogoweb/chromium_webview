@@ -19,12 +19,11 @@ import android.webkit.DownloadListener;
 import android.webkit.GeolocationPermissions.Callback;
 import android.webkit.ValueCallback;
 import android.webkit.WebResourceResponse;
-import android.webkit.WebView.FindListener;
 
 import com.mogoweb.chrome.JsResult;
 import com.mogoweb.chrome.WebChromeClient;
-import com.mogoweb.chrome.WebChromeClient.CustomViewCallback;
 import com.mogoweb.chrome.WebView;
+import com.mogoweb.chrome.WebView.FindListener;
 import com.mogoweb.chrome.WebViewClient;
 
 /** Glue that passes calls from the Chromium view to a WebChromeClient. */
