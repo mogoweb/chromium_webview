@@ -26,6 +26,8 @@ import org.chromium.android_webview.AwBrowserContext;
 import org.chromium.android_webview.AwContents;
 import org.chromium.content.browser.ContentViewCore;
 import org.chromium.content.browser.LoadUrlParams;
+import org.chromium.content.browser.NavigationEntry;
+import org.chromium.content.browser.NavigationHistory;
 
 import android.app.Activity;
 import android.content.Context;
@@ -1077,6 +1079,13 @@ public class WebView extends FrameLayout {
      * updated to reflect any new state.
      */
     public WebBackForwardList copyBackForwardList() {
+        NavigationHistory navHistory = mAwContents.getNavigationHistory();
+        WebBackForwardList backForwardList = new WebBackForwardList();
+        for (int i = 0; i < navHistory.getEntryCount(); i++) {
+            WebHistoryItem item = new WebHistoryItem();
+            NavigationEntry entry = navHistory.getEntryAtIndex(i);
+            item.
+        }
         return null;
     }
 
