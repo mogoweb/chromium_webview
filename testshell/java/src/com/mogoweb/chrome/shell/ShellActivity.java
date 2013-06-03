@@ -25,6 +25,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.mogoweb.chrome.WebChromeClient;
 import com.mogoweb.chrome.WebView;
 import com.mogoweb.chrome.WebViewClient;
@@ -42,6 +43,8 @@ public class ShellActivity extends Activity {
 
     private LinearLayout mToolbar;
     private ClipDrawable mProgressDrawable;
+
+    private boolean mIsLoading = false;
 
     private static final long COMPLETED_PROGRESS_TIMEOUT_MS = 200;
 
@@ -89,9 +92,15 @@ public class ShellActivity extends Activity {
         WebViewClient webViewClient = new WebViewClient() {
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                mIsLoading = true;
                 if (mUrlTextView != null) {
                     mUrlTextView.setText(url);
                 }
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                mIsLoading = false;
             }
         };
 
@@ -174,5 +183,15 @@ public class ShellActivity extends Activity {
                 }
             }
         });
+    }
+
+    @VisibleForTesting
+    public WebView getWebView() {
+        return mWebView;
+    }
+
+    @VisibleForTesting
+    public boolean isLoading() {
+        return mIsLoading;
     }
 }

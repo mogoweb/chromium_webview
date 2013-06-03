@@ -20,8 +20,9 @@ PROGDIR=$(dirname "$0")
 # Location of Chromium-top-level sources.
 CHROMIUM_SRC=$(cd "$PROGDIR"/.. && pwd 2>/dev/null)
 
-BUILDTYPE==Debug
+BUILDTYPE=Debug
 CHROMIUMVIEW_PROJECT_ROOT=java
+SHELLVIEW_TEST_PROJECT_ROOT=testshell/javatests
 
 for opt; do
   optarg=$(expr "x$opt" : 'x[^=]*=\(.*\)')
@@ -103,3 +104,8 @@ rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/lib.java/jsr_305_javalib.jar ${CHROM
 
 # android_webview generated sources. Must come after all the other sources.
 rsync -avz ${CHROMIUM_SRC}/android_webview/java/generated_src/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
+
+
+# sync test class
+rsync -avz ${CHROMIUM_SRC}/base/test/android/javatests/src/ ${SHELLVIEW_TEST_PROJECT_ROOT}/src/
+rsync -avz ${CHROMIUM_SRC}/content/public/test/android/javatests/src/ ${SHELLVIEW_TEST_PROJECT_ROOT}/src/
