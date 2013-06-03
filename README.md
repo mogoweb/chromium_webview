@@ -72,5 +72,5 @@ Some of the source code in `src/com/mogoweb/chrome` has been derived from the
 Android source code, and is therefore covered by the
 [Android project licenses](http://source.android.com/source/licenses.html).
 
-The rest of the code is Copyright 2013, mogoweb, Licensed under the Apache 
-License, Version 2.0 (the "License").
+The rest of the code is Copyright 2013 mogoweb, All rights reserved. Use of 
+this source code is governed by a BSD-style license that can be found in the LICENSE file.
