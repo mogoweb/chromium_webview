@@ -1,10 +1,16 @@
 package com.mogoweb.chrome.shell.test;
 
+import java.util.concurrent.Callable;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.chromium.content.browser.LoadUrlParams;
+import org.chromium.content.browser.test.util.CallbackHelper;
 import org.chromium.content.browser.test.util.Criteria;
 import org.chromium.content.browser.test.util.CriteriaHelper;
 
+import android.app.Instrumentation;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.net.Uri;
@@ -19,6 +25,9 @@ public class WebViewShellTestBase extends
 
     /** The maximum time the waitForWebViewToBeDoneLoading method will wait. */
     private static final long WAIT_FOR_WEBVIEW_LOADING_TIMEOUT = 10000;
+
+    protected final static int WAIT_TIMEOUT_SECONDS = 15;
+    private static final int CHECK_INTERVAL = 100;
 
     WebViewShellTestBase() {
         super(ShellActivity.class);
@@ -79,5 +88,134 @@ public class WebViewShellTestBase extends
                 }
             }
         }, WAIT_FOR_WEBVIEW_LOADING_TIMEOUT, CriteriaHelper.DEFAULT_POLLING_INTERVAL);
+    }
+
+    /**
+     * Runs a {@link Callable} on the main thread, blocking until it is
+     * complete, and returns the result. Calls
+     * {@link Instrumentation#waitForIdleSync()} first to help avoid certain
+     * race conditions.
+     *
+     * @param <R> Type of result to return
+     */
+    public <R> R runTestOnUiThreadAndGetResult(Callable<R> callable)
+            throws Exception {
+        FutureTask<R> task = new FutureTask<R>(callable);
+        getInstrumentation().waitForIdleSync();
+        getInstrumentation().runOnMainSync(task);
+        return task.get();
+    }
+
+    /**
+     * Loads url on the UI thread and blocks until onPageFinished is called.
+     */
+    protected void loadUrlSync(final WebView webview,
+                               CallbackHelper onPageFinishedHelper,
+                               final String url) throws Exception {
+        int currentCallCount = onPageFinishedHelper.getCallCount();
+        loadUrlAsync(webview, url);
+        onPageFinishedHelper.waitForCallback(currentCallCount, 1, WAIT_TIMEOUT_SECONDS,
+                TimeUnit.SECONDS);
+    }
+
+    protected void loadUrlSyncAndExpectError(final WebView webview,
+            CallbackHelper onPageFinishedHelper,
+            CallbackHelper onReceivedErrorHelper,
+            final String url) throws Exception {
+        int onErrorCallCount = onReceivedErrorHelper.getCallCount();
+        int onFinishedCallCount = onPageFinishedHelper.getCallCount();
+        loadUrlAsync(webview, url);
+        onReceivedErrorHelper.waitForCallback(onErrorCallCount, 1, WAIT_TIMEOUT_SECONDS,
+                TimeUnit.SECONDS);
+        onPageFinishedHelper.waitForCallback(onFinishedCallCount, 1, WAIT_TIMEOUT_SECONDS,
+                TimeUnit.SECONDS);
+    }
+
+    /**
+     * Loads url on the UI thread but does not block.
+     */
+    protected void loadUrlAsync(final WebView webview,
+                                final String url) throws Exception {
+        getInstrumentation().runOnMainSync(new Runnable() {
+            @Override
+            public void run() {
+                webview.loadUrl(url);
+            }
+        });
+    }
+
+//    /**
+//     * Posts url on the UI thread and blocks until onPageFinished is called.
+//     */
+//    protected void postUrlSync(final WebView webview,
+//            CallbackHelper onPageFinishedHelper, final String url,
+//            byte[] postData) throws Exception {
+//        int currentCallCount = onPageFinishedHelper.getCallCount();
+//        postUrlAsync(webview, url, postData);
+//        onPageFinishedHelper.waitForCallback(currentCallCount, 1, WAIT_TIMEOUT_SECONDS,
+//                TimeUnit.SECONDS);
+//    }
+//
+//    /**
+//     * Loads url on the UI thread but does not block.
+//     */
+//    protected void postUrlAsync(final WebView webview,
+//            final String url, byte[] postData) throws Exception {
+//        class PostUrl implements Runnable {
+//            byte[] mPostData;
+//            public PostUrl(byte[] postData) {
+//                mPostData = postData;
+//            }
+//            @Override
+//            public void run() {
+//                webview.loadUrl(LoadUrlParams.createLoadHttpPostParams(url,
+//                        mPostData));
+//            }
+//        }
+//        getInstrumentation().runOnMainSync(new PostUrl(postData));
+//    }
+//
+//    /**
+//     * Loads data on the UI thread and blocks until onPageFinished is called.
+//     */
+//    protected void loadDataSync(final WebView webview,
+//                                CallbackHelper onPageFinishedHelper,
+//                                final String data, final String mimeType,
+//                                final boolean isBase64Encoded) throws Exception {
+//        int currentCallCount = onPageFinishedHelper.getCallCount();
+//        loadDataAsync(webview, data, mimeType, isBase64Encoded);
+//        onPageFinishedHelper.waitForCallback(currentCallCount, 1, WAIT_TIMEOUT_SECONDS,
+//                TimeUnit.SECONDS);
+//    }
+//
+//    protected void loadDataSyncWithCharset(final WebView webview,
+//                                           CallbackHelper onPageFinishedHelper,
+//                                           final String data, final String mimeType,
+//                                           final boolean isBase64Encoded, final String charset)
+//            throws Exception {
+//        int currentCallCount = onPageFinishedHelper.getCallCount();
+//        getInstrumentation().runOnMainSync(new Runnable() {
+//            @Override
+//            public void run() {
+//                webview.loadUrl(LoadUrlParams.createLoadDataParams(
+//                        data, mimeType, isBase64Encoded, charset));
+//            }
+//        });
+//        onPageFinishedHelper.waitForCallback(currentCallCount, 1, WAIT_TIMEOUT_SECONDS,
+//                TimeUnit.SECONDS);
+//    }
+
+    /**
+     * Loads data on the UI thread but does not block.
+     */
+    protected void loadDataAsync(final WebView webview, final String data,
+                                 final String mimeType, final String encoding)
+            throws Exception {
+        getInstrumentation().runOnMainSync(new Runnable() {
+            @Override
+            public void run() {
+                webview.loadData(data, mimeType, encoding);
+            }
+        });
     }
 }
