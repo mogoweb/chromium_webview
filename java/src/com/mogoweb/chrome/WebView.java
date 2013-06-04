@@ -26,7 +26,6 @@ import org.chromium.android_webview.AwBrowserContext;
 import org.chromium.android_webview.AwContents;
 import org.chromium.content.browser.ContentViewCore;
 import org.chromium.content.browser.LoadUrlParams;
-import org.chromium.content.browser.NavigationEntry;
 import org.chromium.content.browser.NavigationHistory;
 
 import android.app.Activity;
@@ -49,12 +48,12 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.webkit.DownloadListener;
 import android.webkit.ValueCallback;
-import android.webkit.WebBackForwardList;
 import android.webkit.WebViewDatabase;
 import android.widget.FrameLayout;
 
 import com.mogoweb.chrome.impl.ChromeAwContentsClientProxy;
 import com.mogoweb.chrome.impl.ChromeSettingsProxy;
+import com.mogoweb.chrome.impl.WebBackForwardListImpl;
 
 /**
  * <p>A View that displays web pages. This class is the basis upon which you
@@ -562,8 +561,8 @@ public class WebView extends FrameLayout {
      *         saveState fails, the returned list will be null.
      */
     public WebBackForwardList saveState(Bundle outState) {
-        //TODO
-        return null;
+        mAwContents.saveState(outState);
+        return copyBackForwardList();
     }
 
     /**
@@ -579,7 +578,8 @@ public class WebView extends FrameLayout {
      * @return the restored back/forward list or null if restoreState failed
      */
     public WebBackForwardList restoreState(Bundle inState) {
-        return null;
+        mAwContents.restoreState(inState);
+        return copyBackForwardList();
     }
 
     /**
@@ -1080,13 +1080,9 @@ public class WebView extends FrameLayout {
      */
     public WebBackForwardList copyBackForwardList() {
         NavigationHistory navHistory = mAwContents.getNavigationHistory();
-        WebBackForwardList backForwardList = new WebBackForwardList();
-        for (int i = 0; i < navHistory.getEntryCount(); i++) {
-            WebHistoryItem item = new WebHistoryItem();
-            NavigationEntry entry = navHistory.getEntryAtIndex(i);
-            item.
-        }
-        return null;
+        WebBackForwardListImpl backForwardList = new WebBackForwardListImpl(navHistory);
+
+        return backForwardList.clone();
     }
 
     /**
