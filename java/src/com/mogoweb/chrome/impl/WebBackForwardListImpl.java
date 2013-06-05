@@ -16,7 +16,9 @@ public class WebBackForwardListImpl extends WebBackForwardList {
     private ArrayList<WebHistoryItem> mArray;
 
     public WebBackForwardListImpl(NavigationHistory history) {
-        for (int i = 0; i < history.getEntryCount(); i++) {
+        int size = history.getEntryCount();
+        mArray = new ArrayList<WebHistoryItem>(size);
+        for (int i = 0; i < size; i++) {
             NavigationEntry entry = history.getEntryAtIndex(i);
             WebHistoryItemImpl item = new WebHistoryItemImpl(entry);
             mArray.add(item);
