@@ -23,10 +23,12 @@ import com.mogoweb.chrome.shell.ShellActivity;
 public class WebViewShellTestBase extends
         ActivityInstrumentationTestCase2<ShellActivity> {
 
+    protected WebView mWebView;
+
     /** The maximum time the waitForWebViewToBeDoneLoading method will wait. */
     private static final long WAIT_FOR_WEBVIEW_LOADING_TIMEOUT = 10000;
 
-    protected final static int WAIT_TIMEOUT_SECONDS = 15;
+    protected final static int WAIT_TIMEOUT_SECONDS = 60;
     private static final int CHECK_INTERVAL = 100;
 
     WebViewShellTestBase() {
@@ -36,6 +38,8 @@ public class WebViewShellTestBase extends
     @Override
     protected void setUp() throws Exception {
         super.setUp();
+
+        mWebView = getActivity().getWebView();
     }
 
     /**

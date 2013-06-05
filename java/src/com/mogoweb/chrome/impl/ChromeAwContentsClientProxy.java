@@ -1,3 +1,7 @@
+// Copyright (c) 2013 mogoweb. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
 package com.mogoweb.chrome.impl;
 
 import org.chromium.android_webview.AwContentsClient;
@@ -15,11 +19,11 @@ import android.os.Message;
 import android.view.KeyEvent;
 import android.view.View;
 import android.webkit.ConsoleMessage;
-import android.webkit.DownloadListener;
 import android.webkit.GeolocationPermissions.Callback;
 import android.webkit.ValueCallback;
 import android.webkit.WebResourceResponse;
 
+import com.mogoweb.chrome.DownloadListener;
 import com.mogoweb.chrome.JsResult;
 import com.mogoweb.chrome.WebChromeClient;
 import com.mogoweb.chrome.WebView;
