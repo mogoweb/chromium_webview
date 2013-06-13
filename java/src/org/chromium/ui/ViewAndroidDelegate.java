@@ -7,28 +7,25 @@ package org.chromium.ui;
 import android.view.View;
 
 /**
- * Interface to acquire and release anchor views from the implementing View.
+ * Interface to add and remove views from the implementing view.
  */
 public interface ViewAndroidDelegate {
 
     /**
-     * @return An anchor view that can be used to anchor decoration views like Autofill popup.
+     * Add the view.
+     * @param view The view to be added.
      */
-    View acquireAnchorView();
+    void addViewToContainerView(View view);
 
     /**
-     * Set the anchor view to specified position and width (all units in dp).
-     * @param view The anchor view that needs to be positioned.
-     * @param x X coordinate of the top left corner of the anchor view.
-     * @param y Y coordinate of the top left corner of the anchor view.
-     * @param width The width of the anchor view.
-     * @param height The height of the anchor view.
+     * Remove the view if it is present, otherwise do nothing.
+     * @param view The view to be removed.
      */
-    void setAnchorViewPosition(View view, float x, float y, float width, float height);
+    void removeViewFromContainerView(View view);
 
     /**
-     * Release given anchor view.
-     * @param anchorView The anchor view that needs to be released.
+     * Used for any calculations that need to place a View near a particular piece of web content.
+     * @return The Y offset in pixels to apply to any added views.
      */
-    void releaseAnchorView(View anchorView);
+    int getChildViewOffsetYPix();
 }

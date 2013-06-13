@@ -7,6 +7,7 @@ package org.chromium.media;
 import android.content.Context;
 import android.media.MediaPlayer;
 import android.net.Uri;
+import android.os.Build;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -55,7 +56,12 @@ class MediaPlayerBridge {
         if (!TextUtils.isEmpty(cookies))
             headersMap.put("Cookie", cookies);
         try {
-            player.setDataSource(context, uri, headersMap);
+            // TODO(alex): missing method in Android3.2
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+                player.setDataSource(context, uri);
+            } else {
+                player.setDataSource(context, uri, headersMap);
+            }
             return true;
         } catch (Exception e) {
             return false;

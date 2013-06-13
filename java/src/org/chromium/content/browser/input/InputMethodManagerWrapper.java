@@ -13,7 +13,7 @@ import android.view.inputmethod.InputMethodManager;
 /**
  * Wrapper around Android's InputMethodManager
  */
-public class InputMethodManagerWrapper {
+class InputMethodManagerWrapper {
     private final Context mContext;
 
     public InputMethodManagerWrapper(Context context) {

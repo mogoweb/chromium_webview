@@ -18,9 +18,6 @@ import org.chromium.base.JNINamespace;
 @JNINamespace("media")
 class AudioManagerAndroid {
     private static final String TAG = AudioManagerAndroid.class.getSimpleName();
-    // Most of Google lead devices use 44.1K as the default sampling rate, 44.1K
-    // is also widely used on other android devices.
-    private static final int DEFAULT_SAMPLING_RATE = 44100;
 
     private final AudioManager mAudioManager;
     private final Context mContext;
@@ -79,18 +76,6 @@ class AudioManagerAndroid {
         mContext.unregisterReceiver(mReceiver);
         mReceiver = null;
         mAudioManager.setSpeakerphoneOn(mOriginalSpeakerStatus);
-    }
-
-    @CalledByNative
-    public int getNativeOutputSampleRate() {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            String sampleRateString = mAudioManager.getProperty(
-                    AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE);
-            return (sampleRateString == null ?
-                    DEFAULT_SAMPLING_RATE : Integer.parseInt(sampleRateString));
-        } else {
-            return DEFAULT_SAMPLING_RATE;
-        }
     }
 
     private void logDeviceInfo() {
