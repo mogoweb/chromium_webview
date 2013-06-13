@@ -41,10 +41,6 @@ public class AwContentVideoViewDelegate implements ContentVideoViewContextDelega
     }
 
     @Override
-    public void keepScreenOn(boolean screenOn) {
-    }
-
-    @Override
     public Context getContext() {
         return mContext;
     }

@@ -43,15 +43,6 @@ public class ActivityContentVideoViewDelegate implements ContentVideoViewContext
     }
 
     @Override
-    public void keepScreenOn(boolean screenOn) {
-        if (screenOn) {
-            mActivity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        } else {
-            mActivity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        }
-    }
-
-    @Override
     public Context getContext() {
         return mActivity;
     }

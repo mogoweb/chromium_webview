@@ -37,23 +37,12 @@ public class TraceEvent {
         }
     }
 
-    private static long sTraceTagView;
-    private static Method sSystemPropertiesGetLongMethod;
-    private static final String PROPERTY_TRACE_TAG_ENABLEFLAGS = "debug.atrace.tags.enableflags";
-
     static {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
             try {
-                Class<?> traceClass = Class.forName("android.os.Trace");
-                sTraceTagView = traceClass.getField("TRACE_TAG_VIEW").getLong(null);
-
                 Class<?> systemPropertiesClass = Class.forName("android.os.SystemProperties");
-                sSystemPropertiesGetLongMethod = systemPropertiesClass.getDeclaredMethod(
-                        "getLong", String.class, Long.TYPE);
                 Method addChangeCallbackMethod = systemPropertiesClass.getDeclaredMethod(
                         "addChangeCallback", Runnable.class);
-
-                // Won't reach here if any of the above reflect lookups fail.
                 addChangeCallbackMethod.invoke(null, new Runnable() {
                     @Override
                     public void run() {
@@ -70,8 +59,6 @@ public class TraceEvent {
                 Log.e("TraceEvent", "init", e);
             } catch (InvocationTargetException e) {
                 Log.e("TraceEvent", "init", e);
-            } catch (NoSuchFieldException e) {
-                Log.e("TraceEvent", "init", e);
             }
         }
     }
@@ -83,16 +70,31 @@ public class TraceEvent {
     public static void setEnabledToMatchNative() {
         boolean enabled = nativeTraceEnabled();
 
-        if (sSystemPropertiesGetLongMethod != null) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
             try {
-                long enabledFlags = (Long) sSystemPropertiesGetLongMethod.invoke(
-                        null, PROPERTY_TRACE_TAG_ENABLEFLAGS, 0);
-                if ((enabledFlags & sTraceTagView) != 0) {
+                Class<?> traceClass = Class.forName("android.os.Trace");
+                long traceTagView = traceClass.getField("TRACE_TAG_VIEW").getLong(null);
+                String propertyTraceTagEnableFlags = (String) traceClass.getField(
+                        "PROPERTY_TRACE_TAG_ENABLEFLAGS").get(null);
+
+                Class<?> systemPropertiesClass = Class.forName("android.os.SystemProperties");
+                Method systemPropertiesGetLongMethod = systemPropertiesClass.getDeclaredMethod(
+                        "getLong", String.class, Long.TYPE);
+                long enabledFlags = (Long) systemPropertiesGetLongMethod.invoke(
+                        null, propertyTraceTagEnableFlags, 0);
+                Log.d("TraceEvent", "New enabled flags: " + enabledFlags);
+                if ((enabledFlags & traceTagView) != 0) {
                     nativeStartATrace();
                     enabled = true;
                 } else {
                     nativeStopATrace();
                 }
+            } catch (ClassNotFoundException e) {
+                Log.e("TraceEvent", "setEnabledToMatchNative", e);
+            } catch (NoSuchMethodException e) {
+                Log.e("TraceEvent", "setEnabledToMatchNative", e);
+            } catch (NoSuchFieldException e) {
+                Log.e("TraceEvent", "setEnabledToMatchNative", e);
             } catch (IllegalArgumentException e) {
                 Log.e("TraceEvent", "setEnabledToMatchNative", e);
             } catch (IllegalAccessException e) {
