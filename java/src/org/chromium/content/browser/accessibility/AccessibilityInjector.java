@@ -6,6 +6,7 @@ package org.chromium.content.browser.accessibility;
 
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Vibrator;
@@ -32,6 +33,7 @@ import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -46,6 +48,7 @@ public class AccessibilityInjector extends WebContentsObserverAndroid {
     // The Java objects that are exposed to JavaScript
     private TextToSpeechWrapper mTextToSpeech;
     private VibratorWrapper mVibrator;
+    private final boolean mHasVibratePermission;
 
     // Lazily loaded helper objects.
     private AccessibilityManager mAccessibilityManager;
@@ -110,6 +113,9 @@ public class AccessibilityInjector extends WebContentsObserverAndroid {
 
         mAccessibilityScreenReaderUrl = CommandLine.getInstance().getSwitchValue(
                 CommandLine.ACCESSIBILITY_JAVASCRIPT_URL, DEFAULT_ACCESSIBILITY_SCREEN_READER_URL);
+
+        mHasVibratePermission = mContentViewCore.getContext().checkCallingOrSelfPermission(
+                android.Manifest.permission.VIBRATE) == PackageManager.PERMISSION_GRANTED;
     }
 
     /**
@@ -284,7 +290,7 @@ public class AccessibilityInjector extends WebContentsObserverAndroid {
                         ALIAS_ACCESSIBILITY_JS_INTERFACE);
             }
 
-            if (mVibrator == null) {
+            if (mVibrator == null && mHasVibratePermission) {
                 mVibrator = new VibratorWrapper(context);
                 mContentViewCore.addJavascriptInterface(mVibrator,
                         ALIAS_ACCESSIBILITY_JS_INTERFACE_2);
@@ -411,7 +417,30 @@ public class AccessibilityInjector extends WebContentsObserverAndroid {
 
         @JavascriptInterface
         @SuppressWarnings("unused")
-        public int speak(String text, int queueMode, HashMap<String, String> params) {
+        public int speak(String text, int queueMode, String jsonParams) {
+            // Try to pull the params from the JSON string.
+            HashMap<String, String> params = null;
+            try {
+                if (jsonParams != null) {
+                    params = new HashMap<String, String>();
+                    JSONObject json = new JSONObject(jsonParams);
+
+                    // Using legacy API here.
+                    @SuppressWarnings("unchecked")
+                    Iterator<String> keyIt = json.keys();
+
+                    while (keyIt.hasNext()) {
+                        String key = keyIt.next();
+                        // Only add parameters that are raw data types.
+                        if (json.optJSONObject(key) == null && json.optJSONArray(key) == null) {
+                            params.put(key, json.getString(key));
+                        }
+                    }
+                }
+            } catch (JSONException e) {
+                params = null;
+            }
+
             return mTextToSpeech.speak(text, queueMode, params);
         }
 

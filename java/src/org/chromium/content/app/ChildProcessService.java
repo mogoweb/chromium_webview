@@ -8,7 +8,6 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.SurfaceTexture;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
@@ -219,12 +218,7 @@ public class ChildProcessService extends Service {
         if (surfaceObject instanceof Surface) {
             surface = (Surface)surfaceObject;
         } else if (surfaceObject instanceof SurfaceTexture) {
-            // TODO(alex):
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
-                Log.e(TAG, "Surface cannot create from SurfaceTexture in your device");
-            } else {
-                surface = new Surface((SurfaceTexture)surfaceObject);
-            }
+            surface = new Surface((SurfaceTexture)surfaceObject);
             needRelease = true;
         } else {
             Log.e(TAG, "Not a valid surfaceObject: " + surfaceObject);
@@ -237,11 +231,7 @@ public class ChildProcessService extends Service {
             return;
         } finally {
             if (needRelease) {
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
-                    Log.e(TAG, "no release method for Surface");
-                } else {
-                    surface.release();
-                }
+                surface.release();
             }
         }
     }

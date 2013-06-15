@@ -167,6 +167,10 @@ public class ContentViewClient {
     public void onExternalVideoSurfaceRequested(int playerId) {
     }
 
-    public void onGeometryChanged(int playerId, float x, float y, float height, float width) {
+    public void onGeometryChanged(int playerId, float x, float y, float width, float height) {
+    }
+
+    public ContentVideoViewClient getContentVideoViewClient() {
+        return null;
     }
 }

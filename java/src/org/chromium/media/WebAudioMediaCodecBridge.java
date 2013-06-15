@@ -10,10 +10,11 @@ import android.media.MediaCodec;
 import android.media.MediaCodec.BufferInfo;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
+import android.os.ParcelFileDescriptor;
 import android.util.Log;
 
+import java.io.File;
 import java.nio.ByteBuffer;
-import android.os.ParcelFileDescriptor;
 
 import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
@@ -26,13 +27,27 @@ class WebAudioMediaCodecBridge {
     // from a file in memory?
     static final long TIMEOUT_MICROSECONDS = 500;
     @CalledByNative
-    private static boolean decodeAudioFile(Context ctx, int nativeMediaCodecBridge, int inputFD) {
+    private static String CreateTempFile(Context ctx) throws java.io.IOException {
+        File outputDirectory = ctx.getCacheDir();
+        File outputFile = File.createTempFile("webaudio", ".dat", outputDirectory);
+        return outputFile.getAbsolutePath();
+    }
+
+    @CalledByNative
+    private static boolean decodeAudioFile(Context ctx,
+                                           int nativeMediaCodecBridge,
+                                           int inputFD,
+                                           long dataSize) {
+
+        if (dataSize < 0 || dataSize > 0x7fffffff)
+            return false;
+
         MediaExtractor extractor = new MediaExtractor();
 
         ParcelFileDescriptor encodedFD;
         encodedFD = ParcelFileDescriptor.adoptFd(inputFD);
         try {
-            extractor.setDataSource(encodedFD.getFileDescriptor());
+            extractor.setDataSource(encodedFD.getFileDescriptor(), 0, dataSize);
         } catch (Exception e) {
             e.printStackTrace();
             encodedFD.detachFd();
@@ -50,10 +65,10 @@ class WebAudioMediaCodecBridge {
         int sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE);
         String mime = format.getString(MediaFormat.KEY_MIME);
 
-        long duration_microseconds = 0;
+        long durationMicroseconds = 0;
         if (format.containsKey(MediaFormat.KEY_DURATION)) {
             try {
-                duration_microseconds = format.getLong(MediaFormat.KEY_DURATION);
+                durationMicroseconds = format.getLong(MediaFormat.KEY_DURATION);
             } catch (Exception e) {
                 Log.d(LOG_TAG, "Cannot get duration");
             }
@@ -64,20 +79,13 @@ class WebAudioMediaCodecBridge {
                   + " Rate: " + sampleRate
                   + " Channels: " + channelCount
                   + " Mime: " + mime
-                  + " Duration: " + duration_microseconds + " microsec");
+                  + " Duration: " + durationMicroseconds + " microsec");
         }
 
-        // For audio/vorbis files, MediaFormat returns a really huge
-        // (multi-year) duration value even for short files.  Tell
-        // nativeInitializeDestination that this is a vorbis file so
-        // it can handle it properly.
-        //
-        // See b/8528051
         nativeInitializeDestination(nativeMediaCodecBridge,
                                     channelCount,
                                     sampleRate,
-                                    duration_microseconds,
-                                    mime.equals("audio/vorbis"));
+                                    durationMicroseconds);
 
         // Create decoder
         MediaCodec codec = MediaCodec.createDecoderByType(mime);
@@ -161,6 +169,5 @@ class WebAudioMediaCodecBridge {
         int nativeWebAudioMediaCodecBridge,
         int channelCount,
         int sampleRate,
-        long duration_microseconds,
-        boolean is_vorbis);
+        long durationMicroseconds);
 }

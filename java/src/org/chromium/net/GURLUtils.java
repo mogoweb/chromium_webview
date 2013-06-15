@@ -23,5 +23,16 @@ public final class GURLUtils {
         return nativeGetOrigin(url);
     }
 
+    /**
+     * Get the scheme of the url (e.g. http, https, file). The returned string
+     * contains everything before the "://".
+     *
+     * @return The scheme of the url.
+     */
+    public static String getScheme(String url) {
+        return nativeGetScheme(url);
+    }
+
     private static native String nativeGetOrigin(String url);
+    private static native String nativeGetScheme(String url);
 }

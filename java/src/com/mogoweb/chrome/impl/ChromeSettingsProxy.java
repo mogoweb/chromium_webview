@@ -34,12 +34,12 @@ public class ChromeSettingsProxy extends WebSettings {
 
     @Override
     public void setSupportZoom(boolean support) {
-        mContentSettings.setSupportZoom(support);
+        mAwSettings.setSupportZoom(support);
     }
 
     @Override
     public boolean supportZoom() {
-        return mContentSettings.supportZoom();
+        return mAwSettings.supportZoom();
     }
 
     @Override
@@ -54,22 +54,22 @@ public class ChromeSettingsProxy extends WebSettings {
 
     @Override
     public void setBuiltInZoomControls(boolean enabled) {
-        mContentSettings.setBuiltInZoomControls(enabled);
+        mAwSettings.setBuiltInZoomControls(enabled);
     }
 
     @Override
     public boolean getBuiltInZoomControls() {
-        return mContentSettings.getBuiltInZoomControls();
+        return mAwSettings.getBuiltInZoomControls();
     }
 
     @Override
     public void setDisplayZoomControls(boolean enabled) {
-        mContentSettings.setDisplayZoomControls(enabled);
+        mAwSettings.setDisplayZoomControls(enabled);
     }
 
     @Override
     public boolean getDisplayZoomControls() {
-        return mContentSettings.getDisplayZoomControls();
+        return mAwSettings.getDisplayZoomControls();
     }
 
     @Override

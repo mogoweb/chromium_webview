@@ -44,26 +44,9 @@ public class MonthPickerDialog extends AlertDialog implements OnClickListener,
      * @param year The initial year of the dialog.
      * @param monthOfYear The initial month of the dialog.
      */
-    public MonthPickerDialog(Context context,
-            OnMonthSetListener callBack,
-            int year,
-            int monthOfYear) {
-        this(context, 0, callBack, year, monthOfYear);
-    }
-
-    /**
-     * @param context The context the dialog is to run in.
-     * @param theme the theme to apply to this dialog
-     * @param callBack How the parent is notified that the date is set.
-     * @param year The initial year of the dialog.
-     * @param monthOfYear The initial month of the dialog.
-     */
-    public MonthPickerDialog(Context context,
-            int theme,
-            OnMonthSetListener callBack,
-            int year,
-            int monthOfYear) {
-        super(context, theme);
+    public MonthPickerDialog(Context context, OnMonthSetListener callBack,
+            int year, int monthOfYear, long minMonth, long maxMonth) {
+        super(context);
 
         mCallBack = callBack;
 
@@ -74,7 +57,7 @@ public class MonthPickerDialog extends AlertDialog implements OnClickListener,
         setIcon(0);
         setTitle(R.string.month_picker_dialog_title);
 
-        mMonthPicker = new MonthPicker(context);
+        mMonthPicker = new MonthPicker(context, minMonth, maxMonth);
         setView(mMonthPicker);
         mMonthPicker.init(year, monthOfYear, this);
     }
@@ -116,31 +99,5 @@ public class MonthPickerDialog extends AlertDialog implements OnClickListener,
      */
     public MonthPicker getMonthPicker() {
         return mMonthPicker;
-    }
-
-    /**
-     * Sets the current date.
-     *
-     * @param year The date year.
-     * @param monthOfYear The date month.
-     */
-    public void updateDate(int year, int monthOfYear) {
-        mMonthPicker.updateMonth(year, monthOfYear);
-    }
-
-    @Override
-    public Bundle onSaveInstanceState() {
-        Bundle state = super.onSaveInstanceState();
-        state.putInt(YEAR, mMonthPicker.getYear());
-        state.putInt(MONTH, mMonthPicker.getMonth());
-        return state;
-    }
-
-    @Override
-    public void onRestoreInstanceState(Bundle savedInstanceState) {
-        super.onRestoreInstanceState(savedInstanceState);
-        int year = savedInstanceState.getInt(YEAR);
-        int month = savedInstanceState.getInt(MONTH);
-        mMonthPicker.init(year, month, this);
     }
 }

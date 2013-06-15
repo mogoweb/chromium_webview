@@ -19,7 +19,7 @@ import java.util.Map;
  */
 public class ContextTypes {
 
-    // Available context types
+    // Available context types.
     public static final int CONTEXT_TYPE_NORMAL = 1;
     public static final int CONTEXT_TYPE_WEBAPP = 2;
 
@@ -70,6 +70,18 @@ public class ContextTypes {
     public int getType(Context context) {
         Integer contextType = mContextMap.get(context);
         return contextType == null ? CONTEXT_TYPE_NORMAL : contextType;
+    }
+
+    /**
+     * Returns whether activity is running in web app mode.
+     *
+     * @param appContext {@link Context} in interest
+     * @return {@code true} when activity is running in web app mode.
+     */
+    @CalledByNative
+    public static boolean isRunningInWebapp(Context appContext) {
+        return ContextTypes.getInstance().getType(appContext)
+                == CONTEXT_TYPE_WEBAPP;
     }
 
     /**

@@ -102,26 +102,40 @@ public class InputDialogContainer {
     }
 
     void showDialog(final int dialogType, int year, int month, int monthDay,
-            int hour, int minute, int second) {
+            int hour, int minute, int second, double min, double max) {
         if (isDialogShowing()) mDialog.dismiss();
+
+        // Java Date dialogs like longs but Blink prefers doubles..
+        // Both parameters mean different things depending on the type
+        // For input type=month min and max come as number on months since 1970
+        // For other types (including type=time) they are just milliseconds since 1970
+        // In any case the cast here is safe given the above restrictions.
+        long minTime = (long) min;
+        long maxTime = (long) max;
 
         Time time = normalizeTime(year, month, monthDay, hour, minute, second);
         if (dialogType == sTextInputTypeDate) {
-            mDialog = new DatePickerDialog(mContext, new DateListener(dialogType),
+            DatePickerDialog dialog = new DatePickerDialog(mContext, new DateListener(dialogType),
                     time.year, time.month, time.monthDay);
-            mDialog.setTitle(mContext.getText(R.string.date_picker_dialog_title));
+            DateDialogNormalizer.normalize(dialog.getDatePicker(), dialog,
+                    time.year, time.month, time.monthDay, 0, 0, minTime, maxTime);
+
+            dialog.setTitle(mContext.getText(R.string.date_picker_dialog_title));
+            mDialog = dialog;
         } else if (dialogType == sTextInputTypeTime) {
-            mDialog = new TimePickerDialog(mContext, new TimeListener(dialogType),
-                    time.hour, time.minute, DateFormat.is24HourFormat(mContext));
+            mDialog = TimeDialog.create(mContext, new TimeListener(dialogType),
+                    1970, 0, 1, time.hour, time.minute, DateFormat.is24HourFormat(mContext),
+                    minTime, maxTime);
         } else if (dialogType == sTextInputTypeDateTime ||
                 dialogType == sTextInputTypeDateTimeLocal) {
             mDialog = new DateTimePickerDialog(mContext,
                     new DateTimeListener(dialogType),
                     time.year, time.month, time.monthDay,
-                    time.hour, time.minute, DateFormat.is24HourFormat(mContext));
+                    time.hour, time.minute, DateFormat.is24HourFormat(mContext),
+                    minTime, maxTime);
         } else if (dialogType == sTextInputTypeMonth) {
             mDialog = new MonthPickerDialog(mContext, new MonthListener(dialogType),
-                    time.year, time.month);
+                    time.year, time.month, minTime, maxTime);
         }
 
         mDialog.setButton(DialogInterface.BUTTON_POSITIVE,

@@ -42,21 +42,21 @@ class DateTimeChooserAndroid {
     }
 
     private void showDialog(int dialogType, int year, int month, int monthDay,
-            int hour, int minute, int second) {
+            int hour, int minute, int second, double min, double max) {
         mInputDialogContainer.showDialog(dialogType, year, month, monthDay,
-                hour, minute, second);
+                hour, minute, second, min, max);
     }
 
     @CalledByNative
     private static DateTimeChooserAndroid createDateTimeChooser(
             ContentViewCore contentViewCore,
             int nativeDateTimeChooserAndroid, int dialogType,
-            int year, int month, int day,
-            int hour, int minute, int second) {
+            int year, int month, int day, int hour, int minute,
+            int second, double min, double max) {
         DateTimeChooserAndroid chooser =
                 new DateTimeChooserAndroid(
                         contentViewCore.getContext(), nativeDateTimeChooserAndroid);
-        chooser.showDialog(dialogType, year, month, day, hour, minute, second);
+        chooser.showDialog(dialogType, year, month, day, hour, minute, second, min, max);
         return chooser;
     }
 

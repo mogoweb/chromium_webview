@@ -144,7 +144,7 @@ class MediaPlayerListener implements MediaPlayer.OnPreparedListener,
                 AudioManager.STREAM_MUSIC,
 
                 // Request permanent focus.
-                AudioManager.AUDIOFOCUS_GAIN);
+                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK);
         return listener;
     }
 

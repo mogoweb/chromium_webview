@@ -72,7 +72,8 @@ public class SmoothScroller {
                 break;
             }
             case STATE_MOVING: {
-                double delta = nativeGetScrollDelta(mNativePtr, mContentViewCore.getScale());
+                double delta = nativeGetScrollDelta(
+                    mNativePtr, mContentViewCore.getRenderCoordinates().getDeviceScaleFactor());
                 if (delta != 0) {
                     mCurrentY += mScrollDown ? -delta : delta;
 

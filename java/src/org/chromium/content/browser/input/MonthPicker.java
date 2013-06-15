@@ -6,14 +6,9 @@ package org.chromium.content.browser.input;
 
 import android.content.Context;
 import android.content.res.Configuration;
-import android.os.Parcel;
-import android.os.Parcelable;
 import android.text.format.DateUtils;
-import android.util.AttributeSet;
-import android.util.SparseArray;
 import android.view.LayoutInflater;
 import android.view.accessibility.AccessibilityEvent;
-import android.widget.DatePicker;
 import android.widget.FrameLayout;
 import android.widget.NumberPicker;
 import android.widget.NumberPicker.OnValueChangeListener;
@@ -26,34 +21,26 @@ import java.util.TimeZone;
 
 import org.chromium.content.R;
 
-// This class is heavily based on android.widget.DatePicker.
 public class MonthPicker extends FrameLayout {
-
-    private static final int DEFAULT_START_YEAR = 1900;
-
-    private static final int DEFAULT_END_YEAR = 2100;
-
-    private static final boolean DEFAULT_ENABLED_STATE = true;
+    private static final int MONTHS_NUMBER = 12;
 
     private final NumberPicker mMonthSpinner;
 
     private final NumberPicker mYearSpinner;
 
-    private Locale mCurrentLocale;
 
     private OnMonthChangedListener mMonthChangedListener;
 
     private String[] mShortMonths;
 
-    private int mNumberOfMonths;
-
+    // It'd be nice to use android.text.Time like in other Dialogs but
+    // it suffers from the 2038 effect so it would prevent us from
+    // having dates over 2038.
     private Calendar mMinDate;
 
     private Calendar mMaxDate;
 
     private Calendar mCurrentDate;
-
-    private boolean mIsEnabled = DEFAULT_ENABLED_STATE;
 
     /**
      * The callback used to indicate the user changes\d the date.
@@ -65,28 +52,18 @@ public class MonthPicker extends FrameLayout {
          *
          * @param view The view associated with this listener.
          * @param year The year that was set.
-         * @param monthOfYear The month that was set (0-11) for compatibility
+         * @param month The month that was set (0-11) for compatibility
          *            with {@link java.util.Calendar}.
          */
-        void onMonthChanged(MonthPicker view, int year, int monthOfYear);
+        void onMonthChanged(MonthPicker view, int year, int month);
     }
 
-    public MonthPicker(Context context) {
-        this(context, null);
-    }
-
-    public MonthPicker(Context context, AttributeSet attrs) {
-        this(context, attrs, android.R.attr.datePickerStyle);
-    }
-
-    public MonthPicker(Context context, AttributeSet attrs, int defStyle) {
-        super(context, attrs, defStyle);
+    public MonthPicker(Context context, long minMonth, long maxMonth) {
+        super(context, null, android.R.attr.datePickerStyle);
 
         // initialization based on locale
-        setCurrentLocale(Locale.getDefault());
-
-        int startYear = DEFAULT_START_YEAR;
-        int endYear = DEFAULT_END_YEAR;
+        mShortMonths =
+                DateFormatSymbols.getInstance(Locale.getDefault()).getShortMonths();
 
         LayoutInflater inflater = (LayoutInflater) context
                 .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
@@ -95,26 +72,25 @@ public class MonthPicker extends FrameLayout {
         OnValueChangeListener onChangeListener = new OnValueChangeListener() {
             @Override
             public void onValueChange(NumberPicker picker, int oldVal, int newVal) {
-                Calendar tempDate = getCalendarForLocale(null, mCurrentLocale);
-                tempDate.setTimeInMillis(mCurrentDate.getTimeInMillis());
+                int month = mCurrentDate.get(Calendar.MONTH);
+                int year = mCurrentDate.get(Calendar.YEAR);
 
                 // take care of wrapping of days and months to update greater fields
                 if (picker == mMonthSpinner) {
-                    if (oldVal == 11 && newVal == 0) {
-                        tempDate.add(Calendar.MONTH, 1);
+                    month = newVal;
+                    if (oldVal == (MONTHS_NUMBER - 1) && newVal == 0) {
+                        year += 1;
                     } else if (oldVal == 0 && newVal == 11) {
-                        tempDate.add(Calendar.MONTH, -1);
-                    } else {
-                        tempDate.add(Calendar.MONTH, newVal - oldVal);
+                        year -=1;
                     }
                 } else if (picker == mYearSpinner) {
-                    tempDate.set(Calendar.YEAR, newVal);
-                } else {
+                    year = newVal;
+                 } else {
                     throw new IllegalArgumentException();
                 }
 
                 // now set the date to the adjusted one
-                setDate(tempDate.get(Calendar.YEAR), tempDate.get(Calendar.MONTH));
+                setCurrentDate(year, month);
                 updateSpinners();
                 notifyDateChanged();
             }
@@ -123,7 +99,7 @@ public class MonthPicker extends FrameLayout {
         // month
         mMonthSpinner = (NumberPicker) findViewById(R.id.month);
         mMonthSpinner.setMinValue(0);
-        mMonthSpinner.setMaxValue(mNumberOfMonths - 1);
+        mMonthSpinner.setMaxValue(MONTHS_NUMBER - 1);
         mMonthSpinner.setDisplayedValues(mShortMonths);
         mMonthSpinner.setOnLongPressUpdateInterval(200);
         mMonthSpinner.setOnValueChangedListener(onChangeListener);
@@ -133,102 +109,35 @@ public class MonthPicker extends FrameLayout {
         mYearSpinner.setOnLongPressUpdateInterval(100);
         mYearSpinner.setOnValueChangedListener(onChangeListener);
 
-        Calendar tempDate = getCalendarForLocale(null, mCurrentLocale);
-        tempDate.set(startYear, 0, 1);
-
-        setMinDate(tempDate.getTimeInMillis());
-        tempDate.set(endYear, 11, 31);
-        setMaxDate(tempDate.getTimeInMillis());
+        mMinDate = monthsToCalendar(minMonth);
+        mMaxDate = monthsToCalendar(maxMonth);
 
         // initialize to current date
-        mCurrentDate.setTimeInMillis(System.currentTimeMillis());
-        init(mCurrentDate.get(Calendar.YEAR), mCurrentDate.get(Calendar.MONTH), null);
+        Calendar cal = Calendar.getInstance();
+        init(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), null);
     }
 
-    /**
-     * Gets the minimal date supported by this {@link DatePicker} in
-     * milliseconds since January 1, 1970 00:00:00 in
-     * {@link TimeZone#getDefault()} time zone.
-     * <p>
-     * Note: The default minimal date is 01/01/1900.
-     * <p>
-     *
-     * @return The minimal supported date.
-     */
-    public long getMinDate() {
-        return mMinDate.getTimeInMillis();
-    }
-
-    /**
-     * Sets the minimal date supported by this {@link NumberPicker} in
-     * milliseconds since January 1, 1970 00:00:00 in
-     * {@link TimeZone#getDefault()} time zone.
-     *
-     * @param minDate The minimal supported date.
-     */
-    public void setMinDate(long minDate) {
-        Calendar tempDate = getCalendarForLocale(null, mCurrentLocale);
-        tempDate.setTimeInMillis(minDate);
-        if (tempDate.get(Calendar.YEAR) == mMinDate.get(Calendar.YEAR)
-                && tempDate.get(Calendar.DAY_OF_YEAR) != mMinDate.get(Calendar.DAY_OF_YEAR)) {
-            return;
+    private void setCurrentDate(int year, int month) {
+        if (mCurrentDate == null) {
+            mCurrentDate = Calendar.getInstance();
         }
-        mMinDate.setTimeInMillis(minDate);
-        if (mCurrentDate.before(mMinDate)) {
-            mCurrentDate.setTimeInMillis(mMinDate.getTimeInMillis());
+        mCurrentDate.clear();
+        mCurrentDate.set(year, month, 1);
+        if (mCurrentDate.getTimeInMillis() < mMinDate.getTimeInMillis()) {
+            mCurrentDate = (Calendar) mMinDate.clone();
+        } else if (mCurrentDate.getTimeInMillis() > mMaxDate.getTimeInMillis()) {
+            mCurrentDate = (Calendar) mMaxDate.clone();
         }
         updateSpinners();
     }
 
-    /**
-     * Gets the maximal date supported by this {@link DatePicker} in
-     * milliseconds since January 1, 1970 00:00:00 in
-     * {@link TimeZone#getDefault()} time zone.
-     * <p>
-     * Note: The default maximal date is 12/31/2100.
-     * <p>
-     *
-     * @return The maximal supported date.
-     */
-    public long getMaxDate() {
-        return mMaxDate.getTimeInMillis();
-    }
-
-    /**
-     * Sets the maximal date supported by this {@link DatePicker} in
-     * milliseconds since January 1, 1970 00:00:00 in
-     * {@link TimeZone#getDefault()} time zone.
-     *
-     * @param maxDate The maximal supported date.
-     */
-    public void setMaxDate(long maxDate) {
-        Calendar tempDate = getCalendarForLocale(null, mCurrentLocale);
-        tempDate.setTimeInMillis(maxDate);
-        if (tempDate.get(Calendar.YEAR) == mMaxDate.get(Calendar.YEAR)
-                && tempDate.get(Calendar.DAY_OF_YEAR) != mMaxDate.get(Calendar.DAY_OF_YEAR)) {
-            return;
-        }
-        mMaxDate.setTimeInMillis(maxDate);
-        if (mCurrentDate.after(mMaxDate)) {
-            mCurrentDate.setTimeInMillis(mMaxDate.getTimeInMillis());
-        }
-        updateSpinners();
-    }
-
-    @Override
-    public void setEnabled(boolean enabled) {
-        if (mIsEnabled == enabled) {
-            return;
-        }
-        super.setEnabled(enabled);
-        mMonthSpinner.setEnabled(enabled);
-        mYearSpinner.setEnabled(enabled);
-        mIsEnabled = enabled;
-    }
-
-    @Override
-    public boolean isEnabled() {
-        return mIsEnabled;
+    private static Calendar monthsToCalendar(long months) {
+        int year = (int)Math.min(months / 12 + 1970, Integer.MAX_VALUE);
+        int month = (int) (months % 12);
+        Calendar cal = Calendar.getInstance();
+        cal.clear();
+        cal.set(year, month, 1);
+        return cal;
     }
 
     @Override
@@ -250,79 +159,6 @@ public class MonthPicker extends FrameLayout {
     @Override
     protected void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        setCurrentLocale(newConfig.locale);
-    }
-
-    /**
-     * Sets the current locale.
-     *
-     * @param locale The current locale.
-     */
-    private void setCurrentLocale(Locale locale) {
-        if (locale.equals(mCurrentLocale)) {
-            return;
-        }
-
-        mCurrentLocale = locale;
-        mMinDate = getCalendarForLocale(mMinDate, locale);
-        mMaxDate = getCalendarForLocale(mMaxDate, locale);
-        mCurrentDate = getCalendarForLocale(mCurrentDate, locale);
-
-        mShortMonths =
-                DateFormatSymbols.getInstance(mCurrentLocale).getShortMonths();
-        mNumberOfMonths = mShortMonths.length;
-    }
-
-    /**
-     * Gets a calendar for locale bootstrapped with the value of a given calendar.
-     *
-     * @param oldCalendar The old calendar.
-     * @param locale The locale.
-     */
-    private Calendar getCalendarForLocale(Calendar oldCalendar, Locale locale) {
-        if (oldCalendar == null) {
-            return Calendar.getInstance(locale);
-        } else {
-            final long currentTimeMillis = oldCalendar.getTimeInMillis();
-            Calendar newCalendar = Calendar.getInstance(locale);
-            newCalendar.setTimeInMillis(currentTimeMillis);
-            return newCalendar;
-        }
-    }
-
-    /**
-     * Updates the current date.
-     *
-     * @param year The year.
-     * @param month The month which is <strong>starting from zero</strong>.
-     */
-    public void updateMonth(int year, int month) {
-        if (!isNewDate(year, month)) {
-            return;
-        }
-        setDate(year, month);
-        updateSpinners();
-        notifyDateChanged();
-    }
-
-    // Override so we are in complete control of save / restore for this widget.
-    @Override
-    protected void dispatchRestoreInstanceState(SparseArray<Parcelable> container) {
-        dispatchThawSelfOnly(container);
-    }
-
-    @Override
-    protected Parcelable onSaveInstanceState() {
-        Parcelable superState = super.onSaveInstanceState();
-        return new SavedState(superState, getYear(), getMonth());
-    }
-
-    @Override
-    protected void onRestoreInstanceState(Parcelable state) {
-        SavedState ss = (SavedState) state;
-        super.onRestoreInstanceState(ss.getSuperState());
-        setDate(ss.mYear, ss.mMonth);
-        updateSpinners();
     }
 
     /**
@@ -330,12 +166,12 @@ public class MonthPicker extends FrameLayout {
      * date the values are normalized before updating the spinners.
      *
      * @param year The initial year.
-     * @param monthOfYear The initial month <strong>starting from zero</strong>.
+     * @param month The initial month <strong>starting from zero</strong>.
      * @param onMonthChangedListener How user is notified date is changed by
      *            user, can be null.
      */
-    public void init(int year, int monthOfYear, OnMonthChangedListener onMonthChangedListener) {
-        setDate(year, monthOfYear);
+    public void init(int year, int month, OnMonthChangedListener onMonthChangedListener) {
+        setCurrentDate(year, month);
         updateSpinners();
         mMonthChangedListener = onMonthChangedListener;
     }
@@ -345,31 +181,18 @@ public class MonthPicker extends FrameLayout {
                 || mCurrentDate.get(Calendar.MONTH) != month);
     }
 
-    private void setDate(int year, int month) {
-        mCurrentDate.set(year, month, 1);
-        if (mCurrentDate.before(mMinDate)) {
-            mCurrentDate.setTimeInMillis(mMinDate.getTimeInMillis());
-        } else if (mCurrentDate.after(mMaxDate)) {
-            mCurrentDate.setTimeInMillis(mMaxDate.getTimeInMillis());
-        }
-    }
-
     private void updateSpinners() {
         // set the spinner ranges respecting the min and max dates
-        if (mCurrentDate.equals(mMinDate)) {
-            mMonthSpinner.setDisplayedValues(null);
-            mMonthSpinner.setMinValue(mCurrentDate.get(Calendar.MONTH));
-            mMonthSpinner.setMaxValue(mCurrentDate.getActualMaximum(Calendar.MONTH));
+        mMonthSpinner.setDisplayedValues(null);
+        mMonthSpinner.setMinValue(0);
+        mMonthSpinner.setMaxValue(MONTHS_NUMBER - 1);
+        if (mCurrentDate.get(Calendar.YEAR) == mMinDate.get(Calendar.YEAR)) {
+            mMonthSpinner.setMinValue(mMinDate.get(Calendar.MONTH));
             mMonthSpinner.setWrapSelectorWheel(false);
-        } else if (mCurrentDate.equals(mMaxDate)) {
-            mMonthSpinner.setDisplayedValues(null);
-            mMonthSpinner.setMinValue(mCurrentDate.getActualMinimum(Calendar.MONTH));
-            mMonthSpinner.setMaxValue(mCurrentDate.get(Calendar.MONTH));
+        } else if (mCurrentDate.get(Calendar.YEAR) == mMaxDate.get(Calendar.YEAR)) {
+            mMonthSpinner.setMaxValue(mMaxDate.get(Calendar.MONTH));
             mMonthSpinner.setWrapSelectorWheel(false);
         } else {
-            mMonthSpinner.setDisplayedValues(null);
-            mMonthSpinner.setMinValue(0);
-            mMonthSpinner.setMaxValue(11);
             mMonthSpinner.setWrapSelectorWheel(true);
         }
 
@@ -404,13 +227,6 @@ public class MonthPicker extends FrameLayout {
     }
 
     /**
-     * @return The selected day of month.
-     */
-    public int getDayOfMonth() {
-        return mCurrentDate.get(Calendar.DAY_OF_MONTH);
-    }
-
-    /**
      * Notifies the listener, if such, for a change in the selected date.
      */
     private void notifyDateChanged() {
@@ -418,53 +234,5 @@ public class MonthPicker extends FrameLayout {
         if (mMonthChangedListener != null) {
             mMonthChangedListener.onMonthChanged(this, getYear(), getMonth());
         }
-    }
-
-    /**
-     * Class for managing state storing/restoring.
-     */
-    private static class SavedState extends BaseSavedState {
-
-        private final int mYear;
-
-        private final int mMonth;
-
-        /**
-         * Constructor called from {@link DatePicker#onSaveInstanceState()}
-         */
-        private SavedState(Parcelable superState, int year, int month) {
-            super(superState);
-            mYear = year;
-            mMonth = month;
-        }
-
-        /**
-         * Constructor called from {@link #CREATOR}
-         */
-        private SavedState(Parcel in) {
-            super(in);
-            mYear = in.readInt();
-            mMonth = in.readInt();
-        }
-
-        @Override
-        public void writeToParcel(Parcel dest, int flags) {
-            super.writeToParcel(dest, flags);
-            dest.writeInt(mYear);
-            dest.writeInt(mMonth);
-        }
-
-        @SuppressWarnings("all")
-        // suppress unused and hiding
-        public static final Parcelable.Creator<SavedState> CREATOR = new Creator<SavedState>() {
-
-            public SavedState createFromParcel(Parcel in) {
-                return new SavedState(in);
-            }
-
-            public SavedState[] newArray(int size) {
-                return new SavedState[size];
-            }
-        };
     }
 }
