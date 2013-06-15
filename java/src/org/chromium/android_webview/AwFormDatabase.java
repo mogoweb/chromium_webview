@@ -13,6 +13,10 @@ import org.chromium.base.JNINamespace;
 @JNINamespace("android_webview")
 public class AwFormDatabase {
 
+    public static boolean hasFormData() {
+        return nativeHasFormData();
+    }
+
     public static void clearFormData() {
         nativeClearFormData();
     }
@@ -20,5 +24,7 @@ public class AwFormDatabase {
     //--------------------------------------------------------------------------------------------
     //  Native methods
     //--------------------------------------------------------------------------------------------
+    private static native boolean nativeHasFormData();
+
     private static native void nativeClearFormData();
 }

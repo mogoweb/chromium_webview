@@ -27,6 +27,10 @@ class MediaCodecBridge {
 
     private static final String TAG = "MediaCodecBridge";
 
+    // Error code for MediaCodecBridge. Keep this value in sync with
+    // INFO_MEDIA_CODEC_ERROR in media_codec_bridge.h.
+    private static final int MEDIA_CODEC_ERROR = -1000;
+
     private ByteBuffer[] mInputBuffers;
     private ByteBuffer[] mOutputBuffers;
 
@@ -41,8 +45,8 @@ class MediaCodecBridge {
         private final long mPresentationTimeMicroseconds;
         private final int mNumBytes;
 
-        private DequeueOutputResult(
-            int index, int flags, int offset, long presentationTimeMicroseconds, int numBytes) {
+        private DequeueOutputResult(int index, int flags, int offset,
+                long presentationTimeMicroseconds, int numBytes) {
             mIndex = index;
             mFlags = flags;
             mOffset = offset;
@@ -91,7 +95,12 @@ class MediaCodecBridge {
 
     @CalledByNative
     private int dequeueInputBuffer(long timeoutUs) {
-        return mMediaCodec.dequeueInputBuffer(timeoutUs);
+        try {
+            return mMediaCodec.dequeueInputBuffer(timeoutUs);
+        } catch(Exception e) {
+            Log.e(TAG, "Cannot dequeue Input buffer " + e.toString());
+        }
+        return MEDIA_CODEC_ERROR;
     }
 
     @CalledByNative
@@ -111,8 +120,13 @@ class MediaCodecBridge {
     }
 
     @CalledByNative
-    private MediaFormat getOutputFormat() {
-        return mMediaCodec.getOutputFormat();
+    private int getOutputHeight() {
+        return mMediaCodec.getOutputFormat().getInteger(MediaFormat.KEY_HEIGHT);
+    }
+
+    @CalledByNative
+    private int getOutputWidth() {
+        return mMediaCodec.getOutputFormat().getInteger(MediaFormat.KEY_WIDTH);
     }
 
     @CalledByNative
@@ -144,7 +158,12 @@ class MediaCodecBridge {
     @CalledByNative
     private DequeueOutputResult dequeueOutputBuffer(long timeoutUs) {
         MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
-        int index = mMediaCodec.dequeueOutputBuffer(info, timeoutUs);
+        int index = MEDIA_CODEC_ERROR;
+        try {
+            index = mMediaCodec.dequeueOutputBuffer(info, timeoutUs);
+        } catch(IllegalStateException e) {
+            Log.e(TAG, "Cannot dequeue output buffer " + e.toString());
+        }
         return new DequeueOutputResult(
                 index, info.flags, info.offset, info.presentationTimeUs, info.size);
     }
@@ -153,6 +172,34 @@ class MediaCodecBridge {
     private void configureVideo(MediaFormat format, Surface surface, MediaCrypto crypto,
             int flags) {
         mMediaCodec.configure(format, surface, crypto, flags);
+    }
+
+    @CalledByNative
+    private static MediaFormat createAudioFormat(String mime, int SampleRate, int ChannelCount) {
+        return MediaFormat.createAudioFormat(mime, SampleRate, ChannelCount);
+    }
+
+    @CalledByNative
+    private static MediaFormat createVideoFormat(String mime, int width, int height) {
+        return MediaFormat.createVideoFormat(mime, width, height);
+    }
+
+    @CalledByNative
+    private static void setCodecSpecificData(MediaFormat format, int index, ByteBuffer bytes) {
+        String name = null;
+        if (index == 0) {
+            name = "csd-0";
+        } else if (index == 1) {
+            name = "csd-1";
+        }
+        if (name != null) {
+            format.setByteBuffer(name, bytes);
+        }
+    }
+
+    @CalledByNative
+    private static void setFrameHasADTSHeader(MediaFormat format) {
+        format.setInteger(MediaFormat.KEY_IS_ADTS, 1);
     }
 
     @CalledByNative

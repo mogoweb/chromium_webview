@@ -5,20 +5,25 @@
 package org.chromium.base;
 
 import android.app.Activity;
+import android.os.Handler;
 import android.os.Looper;
 
 /**
- * Provides information about the parent activity's status.
+ * Provides information about the current activity's status, and a way
+ * to register / unregister listeners for state changes.
  */
+@JNINamespace("base::android")
 public class ActivityStatus {
 
     // Constants matching activity states reported to StateListener.onStateChange
-    public static final int CREATED = 1;
-    public static final int STARTED = 2;
-    public static final int RESUMED = 3;
-    public static final int PAUSED = 4;
-    public static final int STOPPED = 5;
-    public static final int DESTROYED = 6;
+    // As an implementation detail, these are now defined in the auto-generated
+    // ActivityState interface, to be shared with C++.
+    public static final int CREATED = ActivityState.CREATED;
+    public static final int STARTED = ActivityState.STARTED;
+    public static final int RESUMED = ActivityState.RESUMED;
+    public static final int PAUSED = ActivityState.PAUSED;
+    public static final int STOPPED = ActivityState.STOPPED;
+    public static final int DESTROYED = ActivityState.DESTROYED;
 
     // Current main activity, or null if none.
     private static Activity sActivity;
@@ -102,4 +107,30 @@ public class ActivityStatus {
     public static void unregisterStateListener(StateListener listener) {
         sStateListeners.removeObserver(listener);
     }
+
+    /**
+     * Registers the single thread-safe native activity status listener.
+     * This handles the case where the caller is not on the main thread.
+     * Note that this is used by a leaky singleton object from the native
+     * side, hence lifecycle management is greatly simplified.
+     */
+    @CalledByNative
+    private static void registerThreadSafeNativeStateListener() {
+        ThreadUtils.runOnUiThread(new Runnable () {
+            @Override
+            public void run() {
+                // Register a new listener that calls nativeOnActivityStateChange.
+                sStateListeners.addObserver(new StateListener() {
+                    @Override
+                    public void onActivityStateChange(int newState) {
+                        nativeOnActivityStateChange(newState);
+                    }
+                });
+            }
+        });
+    }
+
+    // Called to notify the native side of state changes.
+    // IMPORTANT: This is always called on the main thread!
+    private static native void nativeOnActivityStateChange(int newState);
 }

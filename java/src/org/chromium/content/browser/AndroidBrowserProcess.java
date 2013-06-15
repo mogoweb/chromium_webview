@@ -6,14 +6,11 @@ package org.chromium.content.browser;
 
 import android.app.ActivityManager;
 import android.content.Context;
-import android.content.res.Resources;
 import android.util.Log;
 
 import org.chromium.base.JNINamespace;
 import org.chromium.content.app.ContentMain;
 import org.chromium.content.app.LibraryLoader;
-import org.chromium.content.browser.PepperPluginManager;
-import org.chromium.content.common.CommandLine;
 import org.chromium.content.common.ProcessInitException;
 
 // NOTE: This file hasn't been fully upstreamed, please don't merge to downstream.
@@ -88,6 +85,8 @@ public class AndroidBrowserProcess {
         // Normally Main.java will have already loaded the library asynchronously, we only
         // need to load it here if we arrived via another flow, e.g. bookmark access & sync setup.
         LibraryLoader.ensureInitialized();
+        // TODO(yfriedman): Remove dependency on a command line flag for this.
+        DeviceUtils.addDeviceSpecificUserAgentSwitch(context);
 
         Context appContext = context.getApplicationContext();
 

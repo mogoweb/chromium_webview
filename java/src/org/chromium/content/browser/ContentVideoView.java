@@ -32,6 +32,7 @@ import java.lang.ref.WeakReference;
 
 import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
+import org.chromium.base.ThreadUtils;
 import org.chromium.content.common.IChildProcessService;
 import org.chromium.content.R;
 
@@ -66,28 +67,28 @@ public class ContentVideoView extends FrameLayout implements MediaPlayerControl,
     private static final int STATE_PAUSED             = 2;
     private static final int STATE_PLAYBACK_COMPLETED = 3;
 
-    private SurfaceHolder mSurfaceHolder = null;
-    private int mVideoWidth = 0;
-    private int mVideoHeight = 0;
+    private SurfaceHolder mSurfaceHolder;
+    private int mVideoWidth;
+    private int mVideoHeight;
     private int mCurrentBufferPercentage;
     private int mDuration;
-    private MediaController mMediaController = null;
+    private MediaController mMediaController;
     private boolean mCanPause;
     private boolean mCanSeekBack;
     private boolean mCanSeekForward;
 
     // Native pointer to C++ ContentVideoView object.
-    private int mNativeContentVideoView = 0;
+    private int mNativeContentVideoView;
 
     // webkit should have prepared the media
     private int mCurrentState = STATE_IDLE;
 
     // Strings for displaying media player errors
-    static String mPlaybackErrorText;
-    static String mUnknownErrorText;
-    static String mErrorButton;
-    static String mErrorTitle;
-    static String mVideoLoadingText;
+    private String mPlaybackErrorText;
+    private String mUnknownErrorText;
+    private String mErrorButton;
+    private String mErrorTitle;
+    private String mVideoLoadingText;
 
     // This view will contain the video.
     private VideoSurfaceView mVideoSurfaceView;
@@ -95,16 +96,9 @@ public class ContentVideoView extends FrameLayout implements MediaPlayerControl,
     // Progress view when the video is loading.
     private View mProgressView;
 
-    private Surface mSurface = null;
+    private Surface mSurface;
 
-    // There are can be at most 1 fullscreen video
-    // TODO(qinmin): will change this once  we move the creation of this class
-    // to the host application
-    private static ContentVideoView sContentVideoView = null;
-
-    // The delegate will follow sContentVideoView. We would need to
-    // move this to an instance variable if we allow multiple ContentVideoViews.
-    private static ContentVideoViewContextDelegate sDelegate = null;
+    private ContentVideoViewClient mClient;
 
     private class VideoSurfaceView extends SurfaceView {
 
@@ -136,7 +130,7 @@ public class ContentVideoView extends FrameLayout implements MediaPlayerControl,
         private ProgressBar mProgressBar;
         private TextView mTextView;
 
-        public ProgressView(Context context) {
+        public ProgressView(Context context, String videoLoadingText) {
             super(context);
             setOrientation(LinearLayout.VERTICAL);
             setLayoutParams(new LinearLayout.LayoutParams(
@@ -144,7 +138,7 @@ public class ContentVideoView extends FrameLayout implements MediaPlayerControl,
                     LinearLayout.LayoutParams.WRAP_CONTENT));
             mProgressBar = new ProgressBar(context, null, android.R.attr.progressBarStyleLarge);
             mTextView = new TextView(context);
-            mTextView.setText(mVideoLoadingText);
+            mTextView.setText(videoLoadingText);
             addView(mProgressBar);
             addView(mTextView);
         }
@@ -179,26 +173,25 @@ public class ContentVideoView extends FrameLayout implements MediaPlayerControl,
     private Runnable mExitFullscreenRunnable = new Runnable() {
         @Override
         public void run() {
-            destroyContentVideoView();
+            exitFullscreen(true);
         }
     };
 
-    public ContentVideoView(Context context) {
-        this(context, 0);
-    }
-
-    private ContentVideoView(Context context, int nativeContentVideoView) {
+    private ContentVideoView(Context context, int nativeContentVideoView,
+            ContentVideoViewClient client) {
         super(context);
-        initResources(context);
-
-        if (nativeContentVideoView == 0) return;
         mNativeContentVideoView = nativeContentVideoView;
-
+        mClient = client;
+        initResources(context);
         mCurrentBufferPercentage = 0;
         mVideoSurfaceView = new VideoSurfaceView(context);
+        setBackgroundColor(Color.BLACK);
+        showContentVideoView();
+        setVisibility(View.VISIBLE);
+        mClient.onShowCustomView(this);
     }
 
-    private static void initResources(Context context) {
+    private void initResources(Context context) {
         if (mPlaybackErrorText != null) return;
         mPlaybackErrorText = context.getString(
                 org.chromium.content.R.string.media_player_error_text_invalid_progressive_playback);
@@ -212,24 +205,23 @@ public class ContentVideoView extends FrameLayout implements MediaPlayerControl,
                 org.chromium.content.R.string.media_player_loading_video);
     }
 
-    void showContentVideoView() {
+    private void showContentVideoView() {
         FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.CENTER);
         this.addView(mVideoSurfaceView, layoutParams);
-        View progressView = sDelegate.getVideoLoadingProgressView();
+        View progressView = mClient.getVideoLoadingProgressView();
         if (progressView != null) {
             mProgressView = progressView;
         } else {
-            mProgressView = new ProgressView(getContext());
+            mProgressView = new ProgressView(getContext(), mVideoLoadingText);
         }
         this.addView(mProgressView, layoutParams);
         mVideoSurfaceView.setZOrderOnTop(true);
         mVideoSurfaceView.setOnKeyListener(this);
         mVideoSurfaceView.setOnTouchListener(this);
         mVideoSurfaceView.getHolder().addCallback(this);
-        mVideoSurfaceView.getHolder().setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
         mVideoSurfaceView.setFocusable(true);
         mVideoSurfaceView.setFocusableInTouchMode(true);
         mVideoSurfaceView.requestFocus();
@@ -281,7 +273,7 @@ public class ContentVideoView extends FrameLayout implements MediaPlayerControl,
     }
 
     @CalledByNative
-    public void onVideoSizeChanged(int width, int height) {
+    private void onVideoSizeChanged(int width, int height) {
         mVideoWidth = width;
         mVideoHeight = height;
         if (mVideoWidth != 0 && mVideoHeight != 0) {
@@ -290,17 +282,17 @@ public class ContentVideoView extends FrameLayout implements MediaPlayerControl,
     }
 
     @CalledByNative
-    public void onBufferingUpdate(int percent) {
+    private void onBufferingUpdate(int percent) {
         mCurrentBufferPercentage = percent;
     }
 
     @CalledByNative
-    public void onPlaybackComplete() {
+    private void onPlaybackComplete() {
         onCompletion();
     }
 
     @CalledByNative
-    public void updateMediaMetadata(
+    private void onUpdateMediaMetadata(
             int videoWidth,
             int videoHeight,
             int duration,
@@ -325,13 +317,6 @@ public class ContentVideoView extends FrameLayout implements MediaPlayerControl,
         onVideoSizeChanged(videoWidth, videoHeight);
     }
 
-    public void destroyNativeView() {
-        if (mNativeContentVideoView != 0) {
-            mNativeContentVideoView = 0;
-            destroyContentVideoView();
-        }
-    }
-
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
         mVideoSurfaceView.setFocusable(true);
@@ -349,16 +334,14 @@ public class ContentVideoView extends FrameLayout implements MediaPlayerControl,
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-        mSurfaceHolder = null;
         if (mNativeContentVideoView != 0) {
-            nativeExitFullscreen(mNativeContentVideoView, true);
-            mNativeContentVideoView = 0;
-            post(mExitFullscreenRunnable);
+            nativeSetSurface(mNativeContentVideoView, null);
         }
-        removeMediaController();
+        mSurfaceHolder = null;
+        post(mExitFullscreenRunnable);
     }
 
-    public void setMediaController(MediaController controller) {
+    private void setMediaController(MediaController controller) {
         if (mMediaController != null) {
             mMediaController.hide();
         }
@@ -375,17 +358,15 @@ public class ContentVideoView extends FrameLayout implements MediaPlayerControl,
     }
 
     @CalledByNative
-    public void openVideo() {
+    private void openVideo() {
         if (mSurfaceHolder != null) {
             mCurrentState = STATE_IDLE;
-            setMediaController(new FullScreenMediaController(sDelegate.getContext(), this));
+            mCurrentBufferPercentage = 0;
+            setMediaController(new FullScreenMediaController(getContext(), this));
             if (mNativeContentVideoView != 0) {
                 nativeUpdateMediaMetadata(mNativeContentVideoView);
-            }
-            mCurrentBufferPercentage = 0;
-            if (mNativeContentVideoView != 0) {
                 nativeSetSurface(mNativeContentVideoView,
-                                 mSurfaceHolder.getSurface());
+                        mSurfaceHolder.getSurface());
             }
         }
     }
@@ -452,10 +433,7 @@ public class ContentVideoView extends FrameLayout implements MediaPlayerControl,
                 toggleMediaControlsVisiblity();
             }
         } else if (keyCode == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_UP) {
-            if (mNativeContentVideoView != 0) {
-                nativeExitFullscreen(mNativeContentVideoView, false);
-                destroyNativeView();
-            }
+            exitFullscreen(false);
             return true;
         } else if (keyCode == KeyEvent.KEYCODE_MENU || keyCode == KeyEvent.KEYCODE_SEARCH) {
             return true;
@@ -475,6 +453,7 @@ public class ContentVideoView extends FrameLayout implements MediaPlayerControl,
         return (mCurrentState != STATE_ERROR && mCurrentState != STATE_IDLE);
     }
 
+    @Override
     public void start() {
         if (isInPlaybackState()) {
             if (mNativeContentVideoView != 0) {
@@ -484,6 +463,7 @@ public class ContentVideoView extends FrameLayout implements MediaPlayerControl,
         }
     }
 
+    @Override
     public void pause() {
         if (isInPlaybackState()) {
             if (isPlaying()) {
@@ -496,6 +476,7 @@ public class ContentVideoView extends FrameLayout implements MediaPlayerControl,
     }
 
     // cache duration as mDuration for faster access
+    @Override
     public int getDuration() {
         if (isInPlaybackState()) {
             if (mDuration > 0) {
@@ -512,6 +493,7 @@ public class ContentVideoView extends FrameLayout implements MediaPlayerControl,
         return mDuration;
     }
 
+    @Override
     public int getCurrentPosition() {
         if (isInPlaybackState() && mNativeContentVideoView != 0) {
             return nativeGetCurrentPosition(mNativeContentVideoView);
@@ -519,50 +501,55 @@ public class ContentVideoView extends FrameLayout implements MediaPlayerControl,
         return 0;
     }
 
+    @Override
     public void seekTo(int msec) {
         if (mNativeContentVideoView != 0) {
             nativeSeekTo(mNativeContentVideoView, msec);
         }
     }
 
+    @Override
     public boolean isPlaying() {
         return mNativeContentVideoView != 0 && nativeIsPlaying(mNativeContentVideoView);
     }
 
+    @Override
     public int getBufferPercentage() {
         return mCurrentBufferPercentage;
     }
+
+    @Override
     public boolean canPause() {
         return mCanPause;
     }
 
+    @Override
     public boolean canSeekBackward() {
         return mCanSeekBack;
     }
 
+    @Override
     public boolean canSeekForward() {
         return mCanSeekForward;
     }
 
-    @CalledByNative
-    public static ContentVideoView createContentVideoView(int nativeContentVideoView) {
-        if (sContentVideoView != null)
-            return sContentVideoView;
-
-        if (sDelegate != null && sDelegate.getContext() != null) {
-            sContentVideoView = new ContentVideoView(sDelegate.getContext(),
-                    nativeContentVideoView);
-
-            sDelegate.onShowCustomView(sContentVideoView);
-            sContentVideoView.setBackgroundColor(Color.BLACK);
-            sContentVideoView.showContentVideoView();
-            sContentVideoView.setVisibility(View.VISIBLE);
-            return sContentVideoView;
-        }
-        return null;
+    public int getAudioSessionId() {
+        return 0;
     }
 
-    public void removeMediaController() {
+    @CalledByNative
+    private static ContentVideoView createContentVideoView(
+            Context context, int nativeContentVideoView, ContentVideoViewClient client) {
+        ThreadUtils.assertOnUiThread();
+        // The context needs be Activity to create the ContentVideoView correctly.
+        if (!(context instanceof Activity)) {
+            Log.w(TAG, "Wrong type of context, can't create fullscreen video");
+            return null;
+        }
+        return new ContentVideoView(context, nativeContentVideoView, client);
+    }
+
+    private void removeMediaController() {
         if (mMediaController != null) {
             mMediaController.setEnabled(false);
             mMediaController.hide();
@@ -577,24 +564,38 @@ public class ContentVideoView extends FrameLayout implements MediaPlayerControl,
         mProgressView = null;
     }
 
-    @CalledByNative
-    public static void destroyContentVideoView() {
-        sDelegate.onDestroyContentVideoView();
-        if (sContentVideoView != null) {
-            sContentVideoView.removeMediaController();
-            sContentVideoView.removeSurfaceView();
-            sContentVideoView.setVisibility(View.GONE);
+    public void exitFullscreen(boolean relaseMediaPlayer) {
+        destroyContentVideoView();
+        if (mNativeContentVideoView != 0) {
+            nativeExitFullscreen(mNativeContentVideoView, relaseMediaPlayer);
+            mNativeContentVideoView = 0;
         }
-        sContentVideoView = null;
+    }
+
+    @CalledByNative
+    public static void keepScreenOnContentVideoView(boolean screenOn) {
+        ContentVideoView content_video_view = getContentVideoView();
+        if ( content_video_view != null) {
+            content_video_view.mClient.keepScreenOn(screenOn);
+        }
+    }
+
+    /**
+     * This method shall only be called by native and exitFullscreen,
+     * To exit fullscreen, use exitFullscreen in Java.
+     */
+    @CalledByNative
+    private void destroyContentVideoView() {
+        if (mVideoSurfaceView != null) {
+            mClient.onDestroyContentVideoView();
+            removeMediaController();
+            removeSurfaceView();
+            setVisibility(View.GONE);
+        }
     }
 
     public static ContentVideoView getContentVideoView() {
-        return sContentVideoView;
-    }
-
-    public static void registerContentVideoViewContextDelegate(
-       ContentVideoViewContextDelegate delegate) {
-        sDelegate = delegate;
+        return nativeGetSingletonJavaContentVideoView();
     }
 
     @Override
@@ -605,12 +606,13 @@ public class ContentVideoView extends FrameLayout implements MediaPlayerControl,
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_UP) {
-            destroyContentVideoView();
+            exitFullscreen(false);
             return true;
         }
         return super.onKeyDown(keyCode, event);
     }
 
+    private static native ContentVideoView nativeGetSingletonJavaContentVideoView();
     private native void nativeExitFullscreen(int nativeContentVideoView, boolean relaseMediaPlayer);
     private native int nativeGetCurrentPosition(int nativeContentVideoView);
     private native int nativeGetDurationInMilliSeconds(int nativeContentVideoView);

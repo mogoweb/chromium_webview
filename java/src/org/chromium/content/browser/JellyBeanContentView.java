@@ -17,8 +17,8 @@ import org.chromium.ui.WindowAndroid;
  */
 class JellyBeanContentView extends ContentView {
     JellyBeanContentView(Context context, int nativeWebContents, WindowAndroid windowAndroid,
-            AttributeSet attrs, int defStyle, int personality) {
-        super(context, nativeWebContents, windowAndroid, attrs, defStyle, personality);
+            AttributeSet attrs, int defStyle) {
+        super(context, nativeWebContents, windowAndroid, attrs, defStyle);
     }
 
     @Override

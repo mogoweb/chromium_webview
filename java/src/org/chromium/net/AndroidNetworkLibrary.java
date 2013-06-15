@@ -7,7 +7,6 @@ package org.chromium.net;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
 import android.security.KeyChain;
 import android.util.Log;
 
@@ -50,18 +49,15 @@ class AndroidNetworkLibrary {
         // keys when they're available. The "KEY" and "PKEY" hard-coded constants were taken
         // from the platform sources, since there are no official KeyChain.EXTRA_XXX definitions
         // for them. b/5859651
-        // TODO(alex): KeyChain is provided since ICS, so we cannot store key pair for android 3.2 system
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.HONEYCOMB_MR2) {
-            try {
-                Intent intent = KeyChain.createInstallIntent();
-                intent.putExtra("PKEY", private_key);
-                intent.putExtra("KEY", public_key);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                context.startActivity(intent);
-                return true;
-            } catch (ActivityNotFoundException e) {
-                Log.w(TAG, "could not store key pair: " + e);
-            }
+        try {
+            Intent intent = KeyChain.createInstallIntent();
+            intent.putExtra("PKEY", private_key);
+            intent.putExtra("KEY", public_key);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(intent);
+            return true;
+        } catch (ActivityNotFoundException e) {
+            Log.w(TAG, "could not store key pair: " + e);
         }
         return false;
     }
@@ -81,31 +77,28 @@ class AndroidNetworkLibrary {
       */
     @CalledByNative
     static public boolean storeCertificate(Context context, int cert_type, byte[] data) {
-        // TODO(alex): KeyChain is provided since ICS, so we cannot store certificate for android 3.2 system
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.HONEYCOMB_MR2) {
-            try {
-                Intent intent = KeyChain.createInstallIntent();
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            Intent intent = KeyChain.createInstallIntent();
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
-                switch (cert_type) {
-                    case CertificateMimeType.X509_USER_CERT:
-                    case CertificateMimeType.X509_CA_CERT:
-                        intent.putExtra(KeyChain.EXTRA_CERTIFICATE, data);
-                        break;
+            switch (cert_type) {
+              case CertificateMimeType.X509_USER_CERT:
+              case CertificateMimeType.X509_CA_CERT:
+                intent.putExtra(KeyChain.EXTRA_CERTIFICATE, data);
+                break;
 
-                    case CertificateMimeType.PKCS12_ARCHIVE:
-                        intent.putExtra(KeyChain.EXTRA_PKCS12, data);
-                        break;
+              case CertificateMimeType.PKCS12_ARCHIVE:
+                intent.putExtra(KeyChain.EXTRA_PKCS12, data);
+                break;
 
-                    default:
-                        Log.w(TAG, "invalid certificate type: " + cert_type);
-                        return false;
-                }
-                context.startActivity(intent);
-                return true;
-            } catch (ActivityNotFoundException e) {
-                Log.w(TAG, "could not store crypto file: " + e);
+              default:
+                Log.w(TAG, "invalid certificate type: " + cert_type);
+                return false;
             }
+            context.startActivity(intent);
+            return true;
+        } catch (ActivityNotFoundException e) {
+            Log.w(TAG, "could not store crypto file: " + e);
         }
         return false;
     }

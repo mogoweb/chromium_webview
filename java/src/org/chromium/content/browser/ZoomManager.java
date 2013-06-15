@@ -6,23 +6,17 @@ package org.chromium.content.browser;
 
 import android.content.Context;
 import android.util.Log;
-import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.FrameLayout;
-import android.widget.ZoomButtonsController;
 
 /**
- * The ZoomManager is responsible for maintaining the ContentView's current zoom
- * level state. It is also responsible for managing the on-screen zoom controls.
+ * ZoomManager is responsible for maintaining the ContentView's current zoom
+ * level state and process scaling-related gestures.
  */
 class ZoomManager {
     private static final String TAG = "ContentViewZoom";
 
     private ContentViewCore mContentViewCore;
-    private ZoomButtonsController mZoomButtonsController;
 
     private class ScaleGestureListener implements ScaleGestureDetector.OnScaleGestureListener {
         // Completely silence scaling events. Used in WebView when zoom support
@@ -102,26 +96,8 @@ class ZoomManager {
         mMultiTouchDetector = new ScaleGestureDetector(context, mMultiTouchListener);
     }
 
-    void invokeZoomPicker() {
-        ZoomButtonsController zoomControls = getZoomControls();
-        if (zoomControls != null && !zoomControls.isVisible()) {
-            zoomControls.setVisible(true);
-        }
-    }
-
-    void dismissZoomPicker() {
-        ZoomButtonsController zoomControls = getZoomControls();
-        if (zoomControls != null && zoomControls.isVisible()) {
-            zoomControls.setVisible(false);
-        }
-    }
-
-    boolean isMultiTouchZoomSupported() {
-        return !mMultiTouchListener.getPermanentlyIgnoreDetectorEvents();
-    }
-
     boolean isScaleGestureDetectionInProgress() {
-        return isMultiTouchZoomSupported()
+        return !mMultiTouchListener.getPermanentlyIgnoreDetectorEvents()
                 && mMultiTouchDetector.isInProgress();
     }
 
@@ -156,67 +132,7 @@ class ZoomManager {
         return false;
     }
 
-    void updateMultiTouchSupport() {
-        mMultiTouchListener.setPermanentlyIgnoreDetectorEvents(
-            !mContentViewCore.getContentSettings().supportsMultiTouchZoom());
-    }
-
-    private ZoomButtonsController getZoomControls() {
-        if (mZoomButtonsController == null &&
-            mContentViewCore.getContentSettings().shouldDisplayZoomControls()) {
-            mZoomButtonsController = new ZoomButtonsController(
-                    mContentViewCore.getContainerView());
-            mZoomButtonsController.setOnZoomListener(new ZoomListener());
-            // ZoomButtonsController positions the buttons at the bottom, but in
-            // the middle. Change their layout parameters so they appear on the
-            // right.
-            View controls = mZoomButtonsController.getZoomControls();
-            ViewGroup.LayoutParams params = controls.getLayoutParams();
-            if (params instanceof FrameLayout.LayoutParams) {
-                ((FrameLayout.LayoutParams) params).gravity = Gravity.RIGHT;
-            }
-        }
-        return mZoomButtonsController;
-    }
-
-    // This method is used in tests. It doesn't modify the state of zoom controls.
-    View getZoomControlsViewForTest() {
-        return mZoomButtonsController != null ? mZoomButtonsController.getZoomControls() : null;
-    }
-
-    void updateZoomControls() {
-        if (mZoomButtonsController == null) return;
-        boolean canZoomIn = mContentViewCore.canZoomIn();
-        boolean canZoomOut = mContentViewCore.canZoomOut();
-        if (!canZoomIn && !canZoomOut) {
-            // Hide the zoom in and out buttons if the page cannot zoom
-            mZoomButtonsController.getZoomControls().setVisibility(View.GONE);
-        } else {
-            // Set each one individually, as a page may be able to zoom in or out
-            mZoomButtonsController.setZoomInEnabled(canZoomIn);
-            mZoomButtonsController.setZoomOutEnabled(canZoomOut);
-        }
-    }
-
-    private class ZoomListener implements ZoomButtonsController.OnZoomListener {
-        @Override
-        public void onVisibilityChanged(boolean visible) {
-            if (visible) {
-                // Bring back the hidden zoom controls.
-                mZoomButtonsController.getZoomControls().setVisibility(View.VISIBLE);
-                updateZoomControls();
-            }
-        }
-
-        @Override
-        public void onZoom(boolean zoomIn) {
-            if (zoomIn) {
-                mContentViewCore.zoomIn();
-            } else {
-                mContentViewCore.zoomOut();
-            }
-            // ContentView will call updateZoomControls after its current page scale
-            // is got updated from the native code.
-        }
+    void updateMultiTouchSupport(boolean supportsMultiTouchZoom) {
+        mMultiTouchListener.setPermanentlyIgnoreDetectorEvents(!supportsMultiTouchZoom);
     }
 }

@@ -5,8 +5,8 @@
 package org.chromium.content.browser;
 
 import android.content.Context;
-import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.SystemClock;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -92,6 +92,8 @@ class ContentViewGestureHandler implements LongPressDelegate {
     // tellNativeScrollingHasEnded() to set it to false.
     private boolean mNativeScrolling;
 
+    private boolean mFlingMayBeActive;
+
     private boolean mSeenFirstScrollEvent;
 
     private boolean mPinchInProgress = false;
@@ -126,23 +128,24 @@ class ContentViewGestureHandler implements LongPressDelegate {
     private float mAccumulatedScrollErrorY = 0;
 
     // Whether input events are delivered right before vsync.
-    private boolean mInputEventsDeliveredAtVSync = false;
+    private final boolean mInputEventsDeliveredAtVSync;
 
     static final int GESTURE_SHOW_PRESSED_STATE = 0;
     static final int GESTURE_DOUBLE_TAP = 1;
     static final int GESTURE_SINGLE_TAP_UP = 2;
     static final int GESTURE_SINGLE_TAP_CONFIRMED = 3;
-    static final int GESTURE_LONG_PRESS = 4;
-    static final int GESTURE_SCROLL_START = 5;
-    static final int GESTURE_SCROLL_BY = 6;
-    static final int GESTURE_SCROLL_END = 7;
-    static final int GESTURE_FLING_START = 8;
-    static final int GESTURE_FLING_CANCEL = 9;
-    static final int GESTURE_PINCH_BEGIN = 10;
-    static final int GESTURE_PINCH_BY = 11;
-    static final int GESTURE_PINCH_END = 12;
-    static final int GESTURE_SHOW_PRESS_CANCEL = 13;
-    static final int GESTURE_LONG_TAP = 14;
+    static final int GESTURE_SINGLE_TAP_UNCONFIRMED = 4;
+    static final int GESTURE_LONG_PRESS = 5;
+    static final int GESTURE_SCROLL_START = 6;
+    static final int GESTURE_SCROLL_BY = 7;
+    static final int GESTURE_SCROLL_END = 8;
+    static final int GESTURE_FLING_START = 9;
+    static final int GESTURE_FLING_CANCEL = 10;
+    static final int GESTURE_PINCH_BEGIN = 11;
+    static final int GESTURE_PINCH_BY = 12;
+    static final int GESTURE_PINCH_END = 13;
+    static final int GESTURE_SHOW_PRESS_CANCEL = 14;
+    static final int GESTURE_LONG_TAP = 15;
 
     // These have to be kept in sync with content/port/common/input_event_ack_state.h
     static final int INPUT_EVENT_ACK_STATE_UNKNOWN = 0;
@@ -154,6 +157,81 @@ class ContentViewGestureHandler implements LongPressDelegate {
     static final int EVENT_FORWARDED_TO_NATIVE = 0;
     static final int EVENT_CONVERTED_TO_CANCEL = 1;
     static final int EVENT_NOT_FORWARDED = 2;
+
+    private class TouchEventTimeoutHandler implements Runnable {
+        private static final int TOUCH_EVENT_TIMEOUT = 200;
+        private static final int PENDING_ACK_NONE = 0;
+        private static final int PENDING_ACK_ORIGINAL_EVENT = 1;
+        private static final int PENDING_ACK_CANCEL_EVENT = 2;
+
+        private long mEventTime;
+        private TouchPoint[] mTouchPoints;
+        private Handler mHandler = new Handler();
+        private int mPendingAckState;
+
+        public void start(long eventTime, TouchPoint[] pts) {
+            assert mTouchPoints == null;
+            assert mPendingAckState == PENDING_ACK_NONE;
+            mEventTime = eventTime;
+            mTouchPoints = pts;
+            mHandler.postDelayed(this, TOUCH_EVENT_TIMEOUT);
+        }
+
+        @Override
+        public void run() {
+            TraceEvent.begin("TouchEventTimeout");
+            while (!mPendingMotionEvents.isEmpty()) {
+                MotionEvent nextEvent = mPendingMotionEvents.removeFirst();
+                processTouchEvent(nextEvent);
+                nextEvent.recycle();
+            }
+            // We are waiting for 2 ACKs: one for the timed-out event, the other for
+            // the touchcancel event injected when the timed-out event is ACK'ed.
+            mPendingAckState = PENDING_ACK_ORIGINAL_EVENT;
+            TraceEvent.end();
+        }
+
+        public boolean hasTimeoutEvent() {
+            return mPendingAckState != PENDING_ACK_NONE;
+        }
+
+        /**
+         * @return Whether the ACK is consumed in this method.
+         */
+        public boolean confirmTouchEvent() {
+            switch (mPendingAckState) {
+                case PENDING_ACK_NONE:
+                    // The ACK to the original event is received before timeout.
+                    mHandler.removeCallbacks(this);
+                    mTouchPoints = null;
+                    return false;
+                case PENDING_ACK_ORIGINAL_EVENT:
+                    // The ACK to the original event is received after timeout.
+                    // Inject a touchcancel event.
+                    mPendingAckState = PENDING_ACK_CANCEL_EVENT;
+                    mMotionEventDelegate.sendTouchEvent(mEventTime + TOUCH_EVENT_TIMEOUT,
+                            TouchPoint.TOUCH_EVENT_TYPE_CANCEL, mTouchPoints);
+                    mTouchPoints = null;
+                    return true;
+                case PENDING_ACK_CANCEL_EVENT:
+                    // The ACK to the injected touchcancel event is received.
+                    mPendingAckState = PENDING_ACK_NONE;
+                    drainAllPendingEventsUntilNextDown();
+                    return true;
+                default:
+                    assert false : "Never reached";
+                    return false;
+            }
+        }
+
+        public void mockTimeout() {
+            assert !hasTimeoutEvent();
+            mHandler.removeCallbacks(this);
+            run();
+        }
+    }
+
+    private TouchEventTimeoutHandler mTouchEventTimeoutHandler = new TouchEventTimeoutHandler();
 
     /**
      * This is an interface to handle MotionEvent related communication with the native side also
@@ -205,15 +283,15 @@ class ContentViewGestureHandler implements LongPressDelegate {
     }
 
     ContentViewGestureHandler(
-            Context context, MotionEventDelegate delegate, ZoomManager zoomManager) {
+            Context context, MotionEventDelegate delegate, ZoomManager zoomManager,
+            int inputEventDeliveryMode) {
         mExtraParamBundle = new Bundle();
         mLongPressDetector = new LongPressDetector(context, this);
         mMotionEventDelegate = delegate;
         mZoomManager = zoomManager;
         mSnapScrollController = new SnapScrollController(context, mZoomManager);
-
-        // Input events are delivered at vsync time on JB+.
-        mInputEventsDeliveredAtVSync = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN);
+        mInputEventsDeliveredAtVSync =
+                inputEventDeliveryMode == ContentViewCore.INPUT_EVENTS_DELIVERED_AT_VSYNC;
 
         initGestureDetectors(context);
     }
@@ -288,6 +366,7 @@ class ContentViewGestureHandler implements LongPressDelegate {
                         if (didUIStealScroll) return true;
                         if (!mNativeScrolling) {
                             sendShowPressCancelIfNecessary(e1);
+                            endFling(e2.getEventTime());
                             if (sendMotionEventAsGesture(GESTURE_SCROLL_START, e1, null)) {
                                 mNativeScrolling = true;
                             }
@@ -371,6 +450,10 @@ class ContentViewGestureHandler implements LongPressDelegate {
                                     mIgnoreSingleTap = true;
                                 }
                                 setClickXAndY((int) x, (int) y);
+                            } else {
+                                // Notify Blink about this tapUp event anyway,
+                                // when none of the above conditions applied.
+                                sendMotionEventAsGesture(GESTURE_SINGLE_TAP_UNCONFIRMED, e, null);
                             }
                         }
 
@@ -467,13 +550,16 @@ class ContentViewGestureHandler implements LongPressDelegate {
      * @param velocityY Initial velocity of the fling (Y) measured in pixels per second.
      */
     void fling(long timeMs, int x, int y, int velocityX, int velocityY) {
-        if (!mNativeScrolling) {
+        boolean nativeScrolling = mNativeScrolling;
+        endFling(timeMs);
+        if (!nativeScrolling) {
             // The native side needs a GESTURE_SCROLL_BEGIN before GESTURE_FLING_START
             // to send the fling to the correct target. Send if it has not sent.
             sendGesture(GESTURE_SCROLL_START, timeMs, x, y, null);
         }
 
-        endFling(timeMs);
+        mFlingMayBeActive = true;
+
         mExtraParamBundle.clear();
         mExtraParamBundle.putInt(VELOCITY_X, velocityX);
         mExtraParamBundle.putInt(VELOCITY_Y, velocityY);
@@ -485,8 +571,11 @@ class ContentViewGestureHandler implements LongPressDelegate {
      * @param timeMs The time in ms for the event initiating this gesture.
      */
     void endFling(long timeMs) {
-        sendGesture(GESTURE_FLING_CANCEL, timeMs, 0, 0, null);
-        tellNativeScrollingHasEnded(timeMs, false);
+        if (mFlingMayBeActive) {
+            sendGesture(GESTURE_FLING_CANCEL, timeMs, 0, 0, null);
+            tellNativeScrollingHasEnded(timeMs, false);
+            mFlingMayBeActive = false;
+        }
     }
 
     // If native thinks scrolling (or fling-scrolling) is going on, tell native
@@ -554,12 +643,6 @@ class ContentViewGestureHandler implements LongPressDelegate {
      */
     void setIgnoreSingleTap(boolean value) {
         mIgnoreSingleTap = value;
-    }
-
-    private float calculateDragAngle(float dx, float dy) {
-        dx = Math.abs(dx);
-        dy = Math.abs(dy);
-        return (float) Math.atan2(dy, dx);
     }
 
     private void setClickXAndY(int x, int y) {
@@ -679,39 +762,51 @@ class ContentViewGestureHandler implements LongPressDelegate {
                 return true;
             }
         }
-        int forward = EVENT_NOT_FORWARDED;
         if (mPendingMotionEvents.isEmpty()) {
-            forward = sendTouchEventToNative(event);
-        }
-        if (!mPendingMotionEvents.isEmpty() || forward != EVENT_NOT_FORWARDED) {
+            // Add the event to the pending queue prior to calling sendTouchEventToNative.
+            // When sending an event to native, the callback to confirmTouchEvent can be
+            // synchronous or asynchronous and confirmTouchEvent expects the event to be
+            // in the queue when it is called.
+            MotionEvent clone = MotionEvent.obtain(event);
+            mPendingMotionEvents.add(clone);
+
+            int forward = sendTouchEventToNative(clone);
+            if (forward == EVENT_NOT_FORWARDED) mPendingMotionEvents.remove(clone);
+            return forward != EVENT_NOT_FORWARDED;
+        } else {
             // Copy the event, as the original may get mutated after this method returns.
             MotionEvent clone = MotionEvent.obtain(event);
             mPendingMotionEvents.add(clone);
-            // If touch cancel was sent, remember the event.
-            if (forward == EVENT_CONVERTED_TO_CANCEL) {
-                mLastCancelledEvent = clone;
-            }
             return true;
         }
-        return false;
     }
 
     private int sendTouchEventToNative(MotionEvent event) {
+        if (mTouchEventTimeoutHandler.hasTimeoutEvent()) return EVENT_NOT_FORWARDED;
+
         TouchPoint[] pts = new TouchPoint[event.getPointerCount()];
         int type = TouchPoint.createTouchPoints(event, pts);
 
-        if (type != TouchPoint.CONVERSION_ERROR) {
-            if (!mNativeScrolling && !mPinchInProgress) {
-                mTouchCancelEventSent = false;
-                if (mMotionEventDelegate.sendTouchEvent(event.getEventTime(), type, pts)) {
-                    return EVENT_FORWARDED_TO_NATIVE;
-                }
-            } else if (!mTouchCancelEventSent) {
-                mTouchCancelEventSent = true;
-                if (mMotionEventDelegate.sendTouchEvent(event.getEventTime(),
-                        TouchPoint.TOUCH_EVENT_TYPE_CANCEL, pts)) {
-                    return EVENT_CONVERTED_TO_CANCEL;
-                }
+        if (type == TouchPoint.CONVERSION_ERROR) return EVENT_NOT_FORWARDED;
+
+        if (!mNativeScrolling && !mPinchInProgress) {
+            mTouchCancelEventSent = false;
+
+            if (mMotionEventDelegate.sendTouchEvent(event.getEventTime(), type, pts)) {
+                mTouchEventTimeoutHandler.start(event.getEventTime(), pts);
+                return EVENT_FORWARDED_TO_NATIVE;
+            }
+        } else if (!mTouchCancelEventSent) {
+            mTouchCancelEventSent = true;
+
+            MotionEvent previousCancelEvent = mLastCancelledEvent;
+            mLastCancelledEvent = event;
+
+            if (mMotionEventDelegate.sendTouchEvent(event.getEventTime(),
+                    TouchPoint.TOUCH_EVENT_TYPE_CANCEL, pts)) {
+                return EVENT_CONVERTED_TO_CANCEL;
+            } else {
+                mLastCancelledEvent = previousCancelEvent;
             }
         }
         return EVENT_NOT_FORWARDED;
@@ -755,10 +850,18 @@ class ContentViewGestureHandler implements LongPressDelegate {
     }
 
     /**
+     * For testing to simulate a timeout of a touch event handler.
+     */
+    void mockTouchEventTimeout() {
+        mTouchEventTimeoutHandler.mockTimeout();
+    }
+
+    /**
      * Respond to a MotionEvent being returned from the native side.
-     * @param handled Whether the MotionEvent was handled on the native side.
+     * @param ackResult The status acknowledgment code.
      */
     void confirmTouchEvent(int ackResult) {
+        if (mTouchEventTimeoutHandler.confirmTouchEvent()) return;
         if (mPendingMotionEvents.isEmpty()) {
             Log.w(TAG, "confirmTouchEvent with Empty pending list!");
             return;
@@ -816,8 +919,6 @@ class ContentViewGestureHandler implements LongPressDelegate {
             if (!mPendingMotionEvents.isEmpty()) {
                 trySendNextEventToNative(mPendingMotionEvents.peekFirst());
             }
-        } else if (forward == EVENT_CONVERTED_TO_CANCEL) {
-            mLastCancelledEvent = mPendingMotionEvents.peekFirst();
         }
     }
 
