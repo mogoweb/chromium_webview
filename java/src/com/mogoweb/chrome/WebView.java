@@ -261,6 +261,19 @@ import com.mogoweb.chrome.impl.WebBackForwardListImpl;
 public class WebView extends FrameLayout {
 
     /**
+     * URI scheme for telephone number.
+     */
+    public static final String SCHEME_TEL = "tel:";
+    /**
+     * URI scheme for email address.
+     */
+    public static final String SCHEME_MAILTO = "mailto:";
+    /**
+     * URI scheme for map address.
+     */
+    public static final String SCHEME_GEO = "geo:0,0?q=";
+
+    /**
      * Interface to listen for find results.
      */
     public interface FindListener {
@@ -400,7 +413,18 @@ public class WebView extends FrameLayout {
      * @param attrs an AttributeSet passed to our parent
      */
     public WebView(Context context, AttributeSet attrs) {
-        super(context, attrs, android.R.attr.webViewStyle);
+        this(context, attrs, android.R.attr.webViewStyle);
+    }
+
+    /**
+     * Constructs a new WebView with layout parameters and a default style.
+     *
+     * @param context a Context object used to access application assets
+     * @param attrs an AttributeSet passed to our parent
+     * @param defStyle the default style resource ID
+     */
+    public WebView(Context context, AttributeSet attrs, int defStyle) {
+        super(context, attrs, defStyle);
 
         if (isInEditMode()) {
             return;  // Chromium isn't loaded in edit mode.
@@ -1373,7 +1397,7 @@ public class WebView extends FrameLayout {
     }
 
     @Override
-    public void onDraw(Canvas canvas) {
+    protected void onDraw(Canvas canvas) {
         mAwContents.onDraw(canvas);
     }
 
