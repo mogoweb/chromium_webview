@@ -6,13 +6,15 @@ package org.chromium.content.browser.input;
 
 import android.view.View;
 
+import com.google.common.annotations.VisibleForTesting;
+
 /**
  * CursorController for selecting a range of text.
  */
 public abstract class SelectionHandleController implements CursorController {
 
     // The following constants match the ones in
-    // third_party/WebKit/Source/WebKit/chromium/public/WebTextDirection.h
+    // third_party/WebKit/public/web/WebTextDirection.h
     private static final int TEXT_DIRECTION_DEFAULT = 0;
     private static final int TEXT_DIRECTION_LTR = 1;
     private static final int TEXT_DIRECTION_RTL = 2;
@@ -173,6 +175,16 @@ public abstract class SelectionHandleController implements CursorController {
     public void showHandles(int startDir, int endDir) {
         createHandlesIfNeeded(startDir, endDir);
         showHandlesIfNeeded();
+    }
+
+    @VisibleForTesting
+    public HandleView getStartHandleViewForTest() {
+        return mStartHandle;
+    }
+
+    @VisibleForTesting
+    public HandleView getEndHandleViewForTest() {
+        return mEndHandle;
     }
 
     private void createHandlesIfNeeded(int startDir, int endDir) {

@@ -47,16 +47,12 @@ public class ActivityContentVideoViewClient implements ContentVideoViewClient {
     }
 
     @Override
-    public void keepScreenOn(boolean screenOn) {
-        if (screenOn) {
-            mActivity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        } else {
-            mActivity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        }
+    public View getVideoLoadingProgressView() {
+        return null;
     }
 
     @Override
-    public View getVideoLoadingProgressView() {
+    public ContentVideoViewControls createControls() {
         return null;
     }
 }

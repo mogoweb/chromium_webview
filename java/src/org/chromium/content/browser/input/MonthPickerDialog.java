@@ -4,39 +4,11 @@
 
 package org.chromium.content.browser.input;
 
-import android.app.AlertDialog;
 import android.content.Context;
-import android.content.DialogInterface;
-import android.content.DialogInterface.OnClickListener;
-import android.os.Build;
-import android.os.Bundle;
-import android.view.View;
 
-import org.chromium.content.browser.input.MonthPicker.OnMonthChangedListener;
 import org.chromium.content.R;
 
-public class MonthPickerDialog extends AlertDialog implements OnClickListener,
-        OnMonthChangedListener {
-
-    private static final String YEAR = "year";
-    private static final String MONTH = "month";
-
-    private final MonthPicker mMonthPicker;
-    private final OnMonthSetListener mCallBack;
-
-    /**
-     * The callback used to indicate the user is done filling in the date.
-     */
-    public interface OnMonthSetListener {
-
-        /**
-         * @param view The view associated with this listener.
-         * @param year The year that was set.
-         * @param monthOfYear The month that was set (0-11) for compatibility
-         *  with {@link java.util.Calendar}.
-         */
-        void onMonthSet(MonthPicker view, int year, int monthOfYear);
-    }
+public class MonthPickerDialog extends TwoFieldDatePickerDialog {
 
     /**
      * @param context The context the dialog is to run in.
@@ -44,52 +16,24 @@ public class MonthPickerDialog extends AlertDialog implements OnClickListener,
      * @param year The initial year of the dialog.
      * @param monthOfYear The initial month of the dialog.
      */
-    public MonthPickerDialog(Context context, OnMonthSetListener callBack,
+    public MonthPickerDialog(Context context,  OnValueSetListener callBack,
             int year, int monthOfYear, long minMonth, long maxMonth) {
-        super(context);
-
-        mCallBack = callBack;
-
-        setButton(BUTTON_POSITIVE, context.getText(
-                R.string.date_picker_dialog_set), this);
-        setButton(BUTTON_NEGATIVE, context.getText(android.R.string.cancel),
-                (OnClickListener) null);
-        setIcon(0);
+        super(context, callBack, year, monthOfYear, minMonth, maxMonth);
         setTitle(R.string.month_picker_dialog_title);
-
-        mMonthPicker = new MonthPicker(context, minMonth, maxMonth);
-        setView(mMonthPicker);
-        mMonthPicker.init(year, monthOfYear, this);
     }
 
     @Override
-    public void onClick(DialogInterface dialog, int which) {
-        tryNotifyMonthSet();
+    protected TwoFieldDatePicker createPicker(Context context, long minValue, long maxValue) {
+        return new MonthPicker(context, minValue, maxValue);
     }
 
-    private void tryNotifyMonthSet() {
+    @Override
+    protected void tryNotifyDateSet() {
         if (mCallBack != null) {
-            mMonthPicker.clearFocus();
-            mCallBack.onMonthSet(mMonthPicker, mMonthPicker.getYear(),
-                    mMonthPicker.getMonth());
+            MonthPicker picker = getMonthPicker();
+            picker.clearFocus();
+            mCallBack.onValueSet(picker.getYear(), picker.getMonth());
         }
-    }
-
-    @Override
-    protected void onStop() {
-        if (Build.VERSION.SDK_INT >= 16) {
-            // The default behavior of dialogs changed in JellyBean and onwards.
-            // Dismissing a dialog (by pressing back for example)
-            // applies the chosen date. This code is added here so that the custom
-            // pickers behave the same as the internal DatePickerDialog.
-            tryNotifyMonthSet();
-        }
-        super.onStop();
-    }
-
-    @Override
-    public void onMonthChanged(MonthPicker view, int year, int month) {
-        mMonthPicker.init(year, month, null);
     }
 
     /**
@@ -98,6 +42,6 @@ public class MonthPickerDialog extends AlertDialog implements OnClickListener,
      * @return The calendar view.
      */
     public MonthPicker getMonthPicker() {
-        return mMonthPicker;
+        return (MonthPicker) mPicker;
     }
 }

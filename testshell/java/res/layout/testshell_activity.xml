@@ -38,6 +38,11 @@
             android:layout_height="38dp"
             android:src="@android:drawable/ic_media_next"
             android:scaleType="center" />
+        <ImageButton android:id="@+id/capture"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:src="@android:drawable/ic_media_next"
+            android:scaleType="center" />
     </LinearLayout>
     <LinearLayout android:id="@+id/content_container"
         android:layout_width="match_parent"

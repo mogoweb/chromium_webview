@@ -52,11 +52,6 @@ public class ResourceExtractor {
 
         @Override
         protected Void doInBackground(Void... unused) {
-            if (sMandatoryPaks == null) {
-                assert false : "No pak files specified.  Call setMandatoryPaksToExtract before "
-                        + "beginning the resource extractions";
-                return null;
-            }
             if (!mOutputDir.exists() && !mOutputDir.mkdirs()) {
                 Log.e(LOGTAG, "Unable to create pak resources directory!");
                 return null;
@@ -242,7 +237,8 @@ public class ResourceExtractor {
     /**
      * Specifies the .pak files that should be extracted from the APK's asset resources directory
      * and moved to {@link #getOutputDirFromContext(Context)}.
-     * @param mandatoryPaks The list of pak files to be loaded.
+     * @param mandatoryPaks The list of pak files to be loaded. If no pak files are
+     *     required, pass a single empty string.
      */
     public static void setMandatoryPaksToExtract(String... mandatoryPaks) {
         assert (sInstance == null || sInstance.mExtractTask == null)
@@ -271,6 +267,10 @@ public class ResourceExtractor {
     }
 
     public void waitForCompletion() {
+        if (shouldSkipPakExtraction()) {
+            return;
+        }
+
         assert mExtractTask != null;
 
         try {
@@ -296,6 +296,10 @@ public class ResourceExtractor {
             return;
         }
 
+        if (shouldSkipPakExtraction()) {
+            return;
+        }
+
         mExtractTask = new ExtractTask();
         mExtractTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
@@ -314,5 +318,15 @@ public class ResourceExtractor {
                 }
             }
         }
+    }
+
+    /**
+     * Pak extraction not necessarily required by the embedder; we allow them to skip
+     * this process if they call setMandatoryPaksToExtract with a single empty String.
+     */
+    private static boolean shouldSkipPakExtraction() {
+        // Must call setMandatoryPaksToExtract before beginning resource extraction.
+        assert sMandatoryPaks != null;
+        return sMandatoryPaks.length == 1 && "".equals(sMandatoryPaks[0]);
     }
 }

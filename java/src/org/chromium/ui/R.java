@@ -27,6 +27,9 @@ public final class R {
         public static int color_picker_dialog_title;
     }
     public static final class id {
+        public static int autofill_label;
+        public static int autofill_popup_window;
+        public static int autofill_sublabel;
         public static int selected_color_view;
         public static int title;
         public static int more_colors_button;
@@ -39,11 +42,18 @@ public final class R {
         public static int seek_bar;
     }
     public static final class layout {
+        public static int autofill_text;
         public static int color_picker_dialog_title;
         public static int color_picker_dialog_content;
         public static int color_picker_advanced_component;
     }
     public static final class drawable {
         public static int color_picker_advanced_select_handle;
+    }
+    public static final class style {
+        public static int AutofillPopupWindow;
+    }
+    public static final class color {
+        public static int color_picker_border_color;
     }
 }

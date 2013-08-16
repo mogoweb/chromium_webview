@@ -25,6 +25,7 @@ import android.webkit.WebChromeClient;
 
 import org.chromium.content.browser.ContentVideoView;
 import org.chromium.content.browser.ContentVideoViewClient;
+import org.chromium.content.browser.ContentVideoViewControls;
 import org.chromium.content.browser.ContentViewClient;
 import org.chromium.content.browser.ContentViewCore;
 import org.chromium.content.browser.WebContentsObserverAndroid;
@@ -50,6 +51,12 @@ public abstract class AwContentsClient {
     private AwContentViewClient mContentViewClient = new AwContentViewClient();
 
     private double mDIPScale;
+
+    // Last background color reported from the renderer. Holds the sentinal value INVALID_COLOR
+    // if not valid.
+    private int mCachedRendererBackgroundColor = INVALID_COLOR;
+
+    private static final int INVALID_COLOR = 0;
 
     class AwWebContentsObserver extends WebContentsObserverAndroid {
         public AwWebContentsObserver(ContentViewCore contentViewCore) {
@@ -89,6 +96,12 @@ public abstract class AwContentsClient {
     }
 
     private class AwContentViewClient extends ContentViewClient {
+        @Override
+        public void onBackgroundColorChanged(int color) {
+            // Avoid storing the sentinal INVALID_COLOR (note that both 0 and 1 are both
+            // fully transparent so this transpose makes no visible difference).
+            mCachedRendererBackgroundColor = color == INVALID_COLOR ? 1 : color;
+        }
 
         @Override
         public void onScaleChanged(float oldScale, float newScale) {
@@ -103,7 +116,7 @@ public abstract class AwContentsClient {
         }
 
         @Override
-        public void onTabCrash() {
+        public void onRendererCrash(boolean crashedWhileOomProtected) {
             // This is not possible so long as the webview is run single process!
             throw new RuntimeException("Renderer crash reported.");
         }
@@ -156,7 +169,8 @@ public abstract class AwContentsClient {
         }
 
         @Override
-        public void keepScreenOn(boolean screenOn) {
+        public ContentVideoViewControls createControls() {
+            return null;
         }
     }
 
@@ -172,9 +186,26 @@ public abstract class AwContentsClient {
         return mContentViewClient;
     }
 
+    final int getCachedRendererBackgroundColor() {
+        assert isCachedRendererBackgroundColorValid();
+        return mCachedRendererBackgroundColor;
+    }
+
+    final boolean isCachedRendererBackgroundColorValid() {
+        return mCachedRendererBackgroundColor != INVALID_COLOR;
+    }
+
     //--------------------------------------------------------------------------------------------
     //             WebView specific methods that map directly to WebViewClient / WebChromeClient
     //--------------------------------------------------------------------------------------------
+
+    public static class FileChooserParams {
+        public int mode;
+        public String acceptTypes;
+        public String title;
+        public String defaultFilename;
+        public boolean capture;
+    }
 
     public abstract void getVisitedHistory(ValueCallback<String[]> callback);
 
@@ -205,6 +236,10 @@ public abstract class AwContentsClient {
 
     public abstract void onDownloadStart(String url, String userAgent, String contentDisposition,
             String mimeType, long contentLength);
+
+    // TODO(joth): Make abstract once this has rolled in downstream.
+    public /*abstract*/ void showFileChooser(ValueCallback<String[]> uploadFilePathsCallback,
+            FileChooserParams fileChooserParams) { }
 
     public abstract void onGeolocationPermissionsShowPrompt(String origin,
             GeolocationPermissions.Callback callback);

@@ -5,6 +5,7 @@
 package org.chromium.ui;
 
 import android.content.Context;
+import android.graphics.Rect;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
@@ -19,6 +20,9 @@ public class UiUtils {
      */
     private UiUtils() {
     }
+
+    /** The minimum size of the bottom margin below the app to detect a keyboard. */
+    private static float KEYBOARD_DETECT_BOTTOM_THRESHOLD_DP = 100;
 
     /**
      * Shows the software keyboard if necessary.
@@ -42,6 +46,17 @@ public class UiUtils {
                 (InputMethodManager) view.getContext().getSystemService(
                         Context.INPUT_METHOD_SERVICE);
         return imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+    }
+
+    public static boolean isKeyboardShowing(Context context, View view) {
+        View rootView = view.getRootView();
+        if (rootView == null) return false;
+        Rect appRect = new Rect();
+        rootView.getWindowVisibleDisplayFrame(appRect);
+        final float screenHeight = context.getResources().getDisplayMetrics().heightPixels;
+        final float bottomMargin = Math.abs(appRect.bottom - screenHeight);
+        final float density = context.getResources().getDisplayMetrics().density;
+        return bottomMargin > KEYBOARD_DETECT_BOTTOM_THRESHOLD_DP * density;
     }
 
     /**
