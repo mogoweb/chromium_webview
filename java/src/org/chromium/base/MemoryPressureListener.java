@@ -8,22 +8,20 @@ import android.content.ComponentCallbacks2;
 import android.content.Context;
 import android.content.res.Configuration;
 
-import org.chromium.base.MemoryPressureLevelList;
-
 
 /**
  * This is an internal implementation of the C++ counterpart.
  * It registers a ComponentCallbacks2 with the system, and dispatches into
  * native.
  */
-class MemoryPressureListener {
+public class MemoryPressureListener {
   @CalledByNative
   private static void registerSystemCallback(Context context) {
       context.registerComponentCallbacks(
           new ComponentCallbacks2() {
                 @Override
                 public void onTrimMemory(int level) {
-                    nativeOnMemoryPressure(translate(level));
+                    maybeNotifyMemoryPresure(level);
                 }
 
                 @Override
@@ -37,11 +35,20 @@ class MemoryPressureListener {
           });
   }
 
-  private static int translate(int level) {
+  /**
+   * Used by applications to simulate a memory pressure signal.
+   */
+  public static void simulateMemoryPressureSignal(int level) {
+      maybeNotifyMemoryPresure(level);
+  }
+
+  private static void maybeNotifyMemoryPresure(int level) {
       if (level == ComponentCallbacks2.TRIM_MEMORY_COMPLETE) {
-          return MemoryPressureLevelList.MEMORY_PRESSURE_CRITICAL;
+          nativeOnMemoryPressure(MemoryPressureLevelList.MEMORY_PRESSURE_CRITICAL);
+      } else if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND ||
+              level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL) {
+          nativeOnMemoryPressure(MemoryPressureLevelList.MEMORY_PRESSURE_MODERATE);
       }
-      return MemoryPressureLevelList.MEMORY_PRESSURE_MODERATE;
   }
 
   private static native void nativeOnMemoryPressure(int memoryPressureType);

@@ -31,12 +31,21 @@ class MediaCodecBridge {
     // INFO_MEDIA_CODEC_ERROR in media_codec_bridge.h.
     private static final int MEDIA_CODEC_ERROR = -1000;
 
+    // After a flush(), dequeueOutputBuffer() can often produce empty presentation timestamps
+    // for several frames. As a result, the player may find that the time does not increase
+    // after decoding a frame. To detect this, we check whether the presentation timestamp from
+    // dequeueOutputBuffer() is larger than input_timestamp - MAX_PRESENTATION_TIMESTAMP_SHIFT_US
+    // after a flush. And we set the presentation timestamp from dequeueOutputBuffer() to be
+    // non-decreasing for the remaining frames.
+    private static final long MAX_PRESENTATION_TIMESTAMP_SHIFT_US = 100000;
+
     private ByteBuffer[] mInputBuffers;
     private ByteBuffer[] mOutputBuffers;
 
     private MediaCodec mMediaCodec;
-
     private AudioTrack mAudioTrack;
+    private boolean mFlushed;
+    private long mLastPresentationTimeUs;
 
     private static class DequeueOutputResult {
         private final int mIndex;
@@ -72,6 +81,8 @@ class MediaCodecBridge {
 
     private MediaCodecBridge(String mime) {
         mMediaCodec = MediaCodec.createDecoderByType(mime);
+        mLastPresentationTimeUs = 0;
+        mFlushed = true;
     }
 
     @CalledByNative
@@ -106,6 +117,7 @@ class MediaCodecBridge {
     @CalledByNative
     private void flush() {
         mMediaCodec.flush();
+        mFlushed = true;
         if (mAudioTrack != null) {
             mAudioTrack.flush();
         }
@@ -142,7 +154,27 @@ class MediaCodecBridge {
     @CalledByNative
     private void queueInputBuffer(
             int index, int offset, int size, long presentationTimeUs, int flags) {
-        mMediaCodec.queueInputBuffer(index, offset, size, presentationTimeUs, flags);
+        resetLastPresentationTimeIfNeeded(presentationTimeUs);
+        try {
+            mMediaCodec.queueInputBuffer(index, offset, size, presentationTimeUs, flags);
+        } catch(IllegalStateException e) {
+            Log.e(TAG, "Failed to queue input buffer " + e.toString());
+        }
+    }
+
+    @CalledByNative
+    private void queueSecureInputBuffer(
+            int index, int offset, byte[] iv, byte[] keyId, int[] numBytesOfClearData,
+            int[] numBytesOfEncryptedData, int numSubSamples, long presentationTimeUs) {
+        resetLastPresentationTimeIfNeeded(presentationTimeUs);
+        try {
+            MediaCodec.CryptoInfo cryptoInfo = new MediaCodec.CryptoInfo();
+            cryptoInfo.set(numSubSamples, numBytesOfClearData, numBytesOfEncryptedData,
+                    keyId, iv, MediaCodec.CRYPTO_MODE_AES_CTR);
+            mMediaCodec.queueSecureInputBuffer(index, offset, cryptoInfo, presentationTimeUs, 0);
+        } catch(IllegalStateException e) {
+            Log.e(TAG, "Failed to queue secure input buffer " + e.toString());
+        }
     }
 
     @CalledByNative
@@ -161,7 +193,14 @@ class MediaCodecBridge {
         int index = MEDIA_CODEC_ERROR;
         try {
             index = mMediaCodec.dequeueOutputBuffer(info, timeoutUs);
-        } catch(IllegalStateException e) {
+            if (info.presentationTimeUs < mLastPresentationTimeUs) {
+                // TODO(qinmin): return a special code through DequeueOutputResult
+                // to notify the native code the the frame has a wrong presentation
+                // timestamp and should be skipped.
+                info.presentationTimeUs = mLastPresentationTimeUs;
+            }
+            mLastPresentationTimeUs = info.presentationTimeUs;
+        } catch (IllegalStateException e) {
             Log.e(TAG, "Cannot dequeue output buffer " + e.toString());
         }
         return new DequeueOutputResult(
@@ -169,9 +208,15 @@ class MediaCodecBridge {
     }
 
     @CalledByNative
-    private void configureVideo(MediaFormat format, Surface surface, MediaCrypto crypto,
+    private boolean configureVideo(MediaFormat format, Surface surface, MediaCrypto crypto,
             int flags) {
-        mMediaCodec.configure(format, surface, crypto, flags);
+        try {
+            mMediaCodec.configure(format, surface, crypto, flags);
+            return true;
+        } catch (IllegalStateException e) {
+          Log.e(TAG, "Cannot configure the video codec " + e.toString());
+        }
+        return false;
     }
 
     @CalledByNative
@@ -203,19 +248,27 @@ class MediaCodecBridge {
     }
 
     @CalledByNative
-    private void configureAudio(MediaFormat format, MediaCrypto crypto, int flags,
+    private boolean configureAudio(MediaFormat format, MediaCrypto crypto, int flags,
             boolean playAudio) {
-        mMediaCodec.configure(format, null, crypto, flags);
-        if (playAudio) {
-            int sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE);
-            int channelCount = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
-            int channelConfig = (channelCount == 1) ? AudioFormat.CHANNEL_OUT_MONO :
-                    AudioFormat.CHANNEL_OUT_STEREO;
-            int minBufferSize = AudioTrack.getMinBufferSize(sampleRate, channelConfig,
-                    AudioFormat.ENCODING_PCM_16BIT);
-            mAudioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, sampleRate, channelConfig,
-                    AudioFormat.ENCODING_PCM_16BIT, minBufferSize, AudioTrack.MODE_STREAM);
+        try {
+            mMediaCodec.configure(format, null, crypto, flags);
+            if (playAudio) {
+                int sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE);
+                int channelCount = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
+                int channelConfig = (channelCount == 1) ? AudioFormat.CHANNEL_OUT_MONO :
+                        AudioFormat.CHANNEL_OUT_STEREO;
+                // Using 16bit PCM for output. Keep this value in sync with
+                // kBytesPerAudioOutputSample in media_codec_bridge.cc.
+                int minBufferSize = AudioTrack.getMinBufferSize(sampleRate, channelConfig,
+                        AudioFormat.ENCODING_PCM_16BIT);
+                mAudioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, sampleRate, channelConfig,
+                        AudioFormat.ENCODING_PCM_16BIT, minBufferSize, AudioTrack.MODE_STREAM);
+            }
+            return true;
+        } catch (IllegalStateException e) {
+            Log.e(TAG, "Cannot configure the audio codec " + e.toString());
         }
+        return false;
     }
 
     @CalledByNative
@@ -229,6 +282,21 @@ class MediaCodecBridge {
                 Log.i(TAG, "Failed to send all data to audio output, expected size: " +
                         buf.length + ", actual size: " + size);
             }
+        }
+    }
+
+    @CalledByNative
+    private void setVolume(double volume) {
+        if (mAudioTrack != null) {
+            mAudioTrack.setStereoVolume((float) volume, (float) volume);
+        }
+    }
+
+    private void resetLastPresentationTimeIfNeeded(long presentationTimeUs) {
+        if (mFlushed) {
+            mLastPresentationTimeUs =
+                    Math.max(presentationTimeUs - MAX_PRESENTATION_TIMESTAMP_SHIFT_US, 0);
+            mFlushed = false;
         }
     }
 }

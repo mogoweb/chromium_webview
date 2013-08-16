@@ -1259,7 +1259,7 @@ class Tab /*implements PictureListener*/ {
         // attach the WebViewClient, WebChromeClient and DownloadListener
         if (mMainView != null) {
 //            mMainView.setWebViewClient(mWebViewClient);
-//            mMainView.setWebChromeClient(mWebChromeClient);
+            mMainView.setWebChromeClient(mWebChromeClient);
 //            // Attach DownloadManager so that downloads can start in an active
 //            // or a non-active window. This can happen when going to a site that
 //            // does a redirect after a period of time. The user could have

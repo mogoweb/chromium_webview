@@ -37,8 +37,8 @@ import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
 
 //import com.android.internal.R;
-//import com.mogoweb.browser.SuggestionsAdapter.CompletionListener;
-//import com.mogoweb.browser.SuggestionsAdapter.SuggestItem;
+import com.mogoweb.browser.SuggestionsAdapter.CompletionListener;
+import com.mogoweb.browser.SuggestionsAdapter.SuggestItem;
 import com.mogoweb.browser.search.SearchEngine;
 import com.mogoweb.browser.search.SearchEngineInfo;
 //import com.mogoweb.browser.search.SearchEngines;
@@ -51,7 +51,7 @@ import java.util.List;
  */
 public class UrlInputView extends AutoCompleteTextView
         implements OnEditorActionListener,
-        /*CompletionListener,*/ OnItemClickListener, TextWatcher {
+        CompletionListener, OnItemClickListener, TextWatcher {
 
     static final String TYPED = "browser-type";
     static final String SUGGESTED = "browser-suggest";
@@ -68,7 +68,7 @@ public class UrlInputView extends AutoCompleteTextView
 
     private UrlInputListener   mListener;
     private InputMethodManager mInputManager;
-//    private SuggestionsAdapter mAdapter;
+    private SuggestionsAdapter mAdapter;
     private View mContainer;
     private boolean mLandscape;
     private boolean mIncognitoMode;
@@ -86,7 +86,7 @@ public class UrlInputView extends AutoCompleteTextView
 //
 //        Drawable popupbg = a.getDrawable(R.styleable.PopupWindow_popupBackground);
 //        a.recycle();
-//        mPopupPadding = new Rect();
+        mPopupPadding = new Rect();
 //        popupbg.getPadding(mPopupPadding);
         init(context);
     }
@@ -102,8 +102,8 @@ public class UrlInputView extends AutoCompleteTextView
     private void init(Context ctx) {
         mInputManager = (InputMethodManager) ctx.getSystemService(Context.INPUT_METHOD_SERVICE);
         setOnEditorActionListener(this);
-//        mAdapter = new SuggestionsAdapter(ctx, this);
-//        setAdapter(mAdapter);
+        mAdapter = new SuggestionsAdapter(ctx, this);
+        setAdapter(mAdapter);
         setSelectAllOnFocus(true);
         onConfigurationChanged(ctx.getResources().getConfiguration());
         setThreshold(1);
@@ -164,9 +164,9 @@ public class UrlInputView extends AutoCompleteTextView
     }
 
     void setController(UiController controller) {
-//        UrlSelectionActionMode urlSelectionMode
-//                = new UrlSelectionActionMode(controller);
-//        setCustomSelectionActionModeCallback(urlSelectionMode);
+        UrlSelectionActionMode urlSelectionMode
+                = new UrlSelectionActionMode(controller);
+        setCustomSelectionActionModeCallback(urlSelectionMode);
     }
 
     void setContainer(View container) {
@@ -199,7 +199,7 @@ public class UrlInputView extends AutoCompleteTextView
         super.onConfigurationChanged(config);
         mLandscape = (config.orientation &
                 Configuration.ORIENTATION_LANDSCAPE) != 0;
-//        mAdapter.setLandscapeMode(mLandscape);
+        mAdapter.setLandscapeMode(mLandscape);
         if (isPopupShowing() && (getVisibility() == View.VISIBLE)) {
             setupDropDown();
             performFiltering(getText(), 0);
@@ -215,7 +215,7 @@ public class UrlInputView extends AutoCompleteTextView
     @Override
     public void dismissDropDown() {
         super.dismissDropDown();
-//        mAdapter.clearCache();
+        mAdapter.clearCache();
     }
 
     private void setupDropDown() {
@@ -286,21 +286,21 @@ public class UrlInputView extends AutoCompleteTextView
 
     // Completion Listener
 
-//    @Override
-//    public void onSearch(String search) {
-//        mListener.onCopySuggestion(search);
-//    }
-//
-//    @Override
-//    public void onSelect(String url, int type, String extra) {
-//        finishInput(url, extra, SUGGESTED);
-//    }
+    @Override
+    public void onSearch(String search) {
+        mListener.onCopySuggestion(search);
+    }
+
+    @Override
+    public void onSelect(String url, int type, String extra) {
+        finishInput(url, extra, SUGGESTED);
+    }
 
     @Override
     public void onItemClick(
             AdapterView<?> parent, View view, int position, long id) {
-//        SuggestItem item = mAdapter.getItem(position);
-//        onSelect(SuggestionsAdapter.getSuggestionUrl(item), item.type, item.extra);
+        SuggestItem item = mAdapter.getItem(position);
+        onSelect(SuggestionsAdapter.getSuggestionUrl(item), item.type, item.extra);
     }
 
     interface UrlInputListener {
@@ -315,7 +315,7 @@ public class UrlInputView extends AutoCompleteTextView
 
     public void setIncognitoMode(boolean incognito) {
         mIncognitoMode = incognito;
-//        mAdapter.setIncognitoMode(mIncognitoMode);
+        mAdapter.setIncognitoMode(mIncognitoMode);
     }
 
     @Override
@@ -327,9 +327,9 @@ public class UrlInputView extends AutoCompleteTextView
         return super.onKeyDown(keyCode, evt);
     }
 
-//    public SuggestionsAdapter getAdapter() {
-//        return mAdapter;
-//    }
+    public SuggestionsAdapter getAdapter() {
+        return mAdapter;
+    }
 
     /*
      * no-op to prevent scrolling of webview when embedded titlebar

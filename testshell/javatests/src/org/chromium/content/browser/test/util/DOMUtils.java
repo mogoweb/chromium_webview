@@ -120,11 +120,27 @@ public class DOMUtils {
     public static String getNodeContents(final ContentView view,
             TestCallbackHelperContainer viewClient, String nodeId)
             throws InterruptedException, TimeoutException {
+        return getNodeField("textContent", view, viewClient, nodeId);
+    }
+
+    /**
+     * Returns the value of the node by its id.
+     */
+    public static String getNodeValue(final ContentView view,
+            TestCallbackHelperContainer viewClient, String nodeId)
+            throws InterruptedException, TimeoutException {
+        return getNodeField("value", view, viewClient, nodeId);
+    }
+
+    private static String getNodeField(String fieldName, final ContentView view,
+            TestCallbackHelperContainer viewClient, String nodeId)
+            throws InterruptedException, TimeoutException {
         StringBuilder sb = new StringBuilder();
         sb.append("(function() {");
         sb.append("  var node = document.getElementById('" + nodeId + "');");
         sb.append("  if (!node) return null;");
-        sb.append("  return [ node.textContent ];");
+        sb.append("  if (!node." + fieldName +") return null;");
+        sb.append("  return [ node." + fieldName + " ];");
         sb.append("})();");
 
         String jsonText = JavaScriptUtils.executeJavaScriptAndWaitForResult(
@@ -133,18 +149,18 @@ public class DOMUtils {
                 jsonText.trim().equalsIgnoreCase("null"));
 
         JsonReader jsonReader = new JsonReader(new StringReader(jsonText));
-        String contents = null;
+        String value = null;
         try {
             jsonReader.beginArray();
-            if (jsonReader.hasNext()) contents = jsonReader.nextString();
+            if (jsonReader.hasNext()) value = jsonReader.nextString();
             jsonReader.endArray();
-            Assert.assertNotNull("Invalid contents returned.", contents);
+            Assert.assertNotNull("Invalid contents returned.", value);
 
             jsonReader.close();
         } catch (IOException exception) {
             Assert.fail("Failed to evaluate JavaScript: " + jsonText + "\n" + exception);
         }
-        return contents;
+        return value;
     }
 
     /**

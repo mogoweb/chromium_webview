@@ -96,6 +96,11 @@ public class ContentView extends FrameLayout
             AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
 
+        if (getScrollBarStyle() == View.SCROLLBARS_INSIDE_OVERLAY) {
+            setHorizontalScrollBarEnabled(false);
+            setVerticalScrollBarEnabled(false);
+        }
+
         mContentViewCore = new ContentViewCore(context);
         mContentViewCore.initialize(this, this, nativeWebContents, windowAndroid,
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN ?
@@ -280,10 +285,6 @@ public class ContentView extends FrameLayout
         mContentViewCore.clearHistory();
     }
 
-    String getSelectedText() {
-        return mContentViewCore.getSelectedText();
-    }
-
     /**
      * Start profiling the update speed. You must call {@link #stopFpsProfiling}
      * to stop profiling.
@@ -312,10 +313,6 @@ public class ContentView extends FrameLayout
     @VisibleForTesting
     public void fling(long timeMs, int x, int y, int velocityX, int velocityY) {
         mContentViewCore.getContentViewGestureHandler().fling(timeMs, x, y, velocityX, velocityY);
-    }
-
-    void endFling(long timeMs) {
-        mContentViewCore.getContentViewGestureHandler().endFling(timeMs);
     }
 
     /**
@@ -417,12 +414,6 @@ public class ContentView extends FrameLayout
         return super.drawChild(canvas, child, drawingTime);
     }
 
-    // Needed by ContentViewCore.InternalAccessDelegate
-    @Override
-    public void onScrollChanged(int l, int t, int oldl, int oldt) {
-        super.onScrollChanged(l, t, oldl, oldt);
-    }
-
     @Override
     protected void onSizeChanged(int w, int h, int ow, int oh) {
         TraceEvent.begin();
@@ -492,6 +483,11 @@ public class ContentView extends FrameLayout
     @Override
     public boolean onGenericMotionEvent(MotionEvent event) {
         return mContentViewCore.onGenericMotionEvent(event);
+    }
+
+    @Override
+    public boolean performLongClick() {
+        return false;
     }
 
     /**

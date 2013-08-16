@@ -4,6 +4,7 @@
 
 package org.chromium.android_webview;
 
+import android.content.Context;
 import android.content.SharedPreferences;
 
 import org.chromium.content.browser.ContentViewStatics;
@@ -19,19 +20,15 @@ import org.chromium.content.browser.ContentViewStatics;
  */
 public class AwBrowserContext {
 
+    private static final String HTTP_AUTH_DATABASE_FILE = "http_auth.db";
+
     private SharedPreferences mSharedPreferences;
 
     private AwGeolocationPermissions mGeolocationPermissions;
     private AwCookieManager mCookieManager;
     private AwFormDatabase mFormDatabase;
-    boolean mIsFileAccessGrantedByDefault;
+    private HttpAuthDatabase mHttpAuthDatabase;
 
-    public AwBrowserContext(SharedPreferences sharedPreferences,
-            boolean isFileAccessGrantedByDefault) {
-        mIsFileAccessGrantedByDefault = isFileAccessGrantedByDefault;
-    }
-
-    @Deprecated
     public AwBrowserContext(SharedPreferences sharedPreferences) {
         mSharedPreferences = sharedPreferences;
     }
@@ -55,6 +52,13 @@ public class AwBrowserContext {
             mFormDatabase = new AwFormDatabase();
         }
         return mFormDatabase;
+    }
+
+    public HttpAuthDatabase getHttpAuthDatabase(Context context) {
+        if (mHttpAuthDatabase == null) {
+            mHttpAuthDatabase = new HttpAuthDatabase(context, HTTP_AUTH_DATABASE_FILE);
+        };
+        return mHttpAuthDatabase;
     }
 
     /**

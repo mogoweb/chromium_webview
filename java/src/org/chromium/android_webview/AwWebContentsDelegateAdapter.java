@@ -11,6 +11,7 @@ import android.os.Message;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.webkit.ConsoleMessage;
+import android.webkit.ValueCallback;
 
 import org.chromium.content.browser.ContentViewCore;
 
@@ -85,15 +86,16 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
     }
 
     @Override
-    public void openNewTab(String url, boolean incognito) {
-        // TODO: implement
+    public void openNewTab(String url, String extraHeaders, byte[] postData, int disposition) {
+        // This is only called in chrome layers.
+        assert false;
     }
 
     @Override
     public boolean addNewContents(int nativeSourceWebContents, int nativeWebContents,
             int disposition, Rect initialPosition, boolean userGesture) {
-        // TODO: implement
-        return false;
+        // This is overridden native side; see the other addNewContents overload.
+        throw new RuntimeException("Impossible");
     }
 
     @Override
@@ -133,6 +135,29 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
         Message resend = handler.obtainMessage(MSG_CONTINUE_PENDING_RELOAD);
         Message dontResend = handler.obtainMessage(MSG_CANCEL_PENDING_RELOAD);
         mContentsClient.onFormResubmission(dontResend, resend);
+    }
+
+    @Override
+    public void runFileChooser(final int processId, final int renderId, final int mode_flags,
+            String acceptTypes, String title, String defaultFilename, boolean capture) {
+        AwContentsClient.FileChooserParams params = new AwContentsClient.FileChooserParams();
+        params.mode = mode_flags;
+        params.acceptTypes = acceptTypes;
+        params.title = title;
+        params.defaultFilename = defaultFilename;
+        params.capture = capture;
+
+        mContentsClient.showFileChooser(new ValueCallback<String[]>() {
+            boolean completed = false;
+            @Override
+            public void onReceiveValue(String[] results) {
+                if (completed) {
+                    throw new IllegalStateException("Duplicate showFileChooser result");
+                }
+                completed = true;
+                nativeFilesSelectedInChooser(processId, renderId, mode_flags, results);
+            }
+        }, params);
     }
 
     @Override

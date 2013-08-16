@@ -166,7 +166,7 @@ public class TraceEvent {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
             try {
                 Class<?> traceClass = Class.forName("android.os.Trace");
-                sTraceTagView = traceClass.getField("TRACE_TAG_VIEW").getLong(null);
+                sTraceTagView = traceClass.getField("TRACE_TAG_WEBVIEW").getLong(null);
 
                 Class<?> systemPropertiesClass = Class.forName("android.os.SystemProperties");
                 sSystemPropertiesGetLongMethod = systemPropertiesClass.getDeclaredMethod(

@@ -56,6 +56,28 @@ public class ApiCompatibilityUtils {
     }
 
     /**
+     * @see android.view.ViewGroup.MarginLayoutParams#getMarginEnd()
+     */
+    public static int getMarginEnd(MarginLayoutParams layoutParams) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            return layoutParams.getMarginEnd();
+        } else {
+            return layoutParams.rightMargin;
+        }
+    }
+
+    /**
+     * @see android.view.ViewGroup.MarginLayoutParams#setMarginStart(int)
+     */
+    public static void setMarginStart(MarginLayoutParams layoutParams, int start) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            layoutParams.setMarginStart(start);
+        } else {
+            layoutParams.leftMargin = start;
+        }
+    }
+
+    /**
      * @see android.view.ViewGroup.MarginLayoutParams#getMarginStart()
      */
     public static int getMarginStart(MarginLayoutParams layoutParams) {
@@ -73,7 +95,7 @@ public class ApiCompatibilityUtils {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
             view.postInvalidateOnAnimation();
         } else {
-            view.invalidate();
+            view.postInvalidate();
         }
     }
 

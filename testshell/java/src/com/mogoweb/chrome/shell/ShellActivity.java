@@ -9,9 +9,11 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.Picture;
 import android.graphics.drawable.ClipDrawable;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -40,6 +42,7 @@ public class ShellActivity extends Activity {
     private EditText mUrlTextView;
     private ImageButton mPrevButton;
     private ImageButton mNextButton;
+    private ImageButton mCaptureButton;
 
     private LinearLayout mToolbar;
     private ClipDrawable mProgressDrawable;
@@ -179,7 +182,18 @@ public class ShellActivity extends Activity {
             @Override
             public void onClick(View v) {
                 if (mWebView.canGoForward()) {
-                        mWebView.goForward();
+                    mWebView.goForward();
+                }
+            }
+        });
+
+        mCaptureButton = (ImageButton) findViewById(R.id.capture);
+        mCaptureButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Picture picture = mWebView.capturePicture();
+                if (picture != null) {
+                    Log.d("ShellActivity", "capture success");
                 }
             }
         });

@@ -4,6 +4,8 @@
 
 package org.chromium.ui;
 
+import android.view.View;
+
 import org.chromium.base.JNINamespace;
 import org.chromium.ui.ViewAndroidDelegate;
 import org.chromium.ui.WindowAndroid;
@@ -23,6 +25,8 @@ public class ViewAndroid {
     private int mNativeViewAndroid = 0;
     private final ViewAndroidDelegate mViewAndroidDelegate;
     private final WindowAndroid mWindowAndroid;
+    private int mKeepScreenOnCount;
+    private View mKeepScreenOnView;
 
     /**
      * Constructs a View object.
@@ -53,6 +57,29 @@ public class ViewAndroid {
      */
     public int getNativePointer() {
         return mNativeViewAndroid;
+    }
+
+    /**
+     * Set KeepScreenOn flag. If the flag already set, increase mKeepScreenOnCount.
+     */
+    public void incrementKeepScreenOnCount() {
+        mKeepScreenOnCount++;
+        if (mKeepScreenOnCount == 1) {
+            mKeepScreenOnView = mViewAndroidDelegate.acquireAnchorView();
+            mKeepScreenOnView.setKeepScreenOn(true);
+        }
+    }
+
+    /**
+     * Decrease mKeepScreenOnCount, if it is decreased to 0, remove the flag.
+     */
+    public void decrementKeepScreenOnCount() {
+        assert mKeepScreenOnCount > 0;
+        mKeepScreenOnCount--;
+        if (mKeepScreenOnCount == 0) {
+            mViewAndroidDelegate.releaseAnchorView(mKeepScreenOnView);
+            mKeepScreenOnView = null;
+        }
     }
 
     private native int nativeInit(int windowPtr);
