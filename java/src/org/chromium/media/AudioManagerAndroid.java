@@ -41,9 +41,6 @@ class AudioManagerAndroid {
     public void setMode(int mode) {
         try {
             mAudioManager.setMode(mode);
-            if (mode == AudioManager.MODE_IN_COMMUNICATION) {
-                mAudioManager.setSpeakerphoneOn(true);
-            }
         } catch (SecurityException e) {
             Log.e(TAG, "setMode exception: " + e.getMessage());
             logDeviceInfo();

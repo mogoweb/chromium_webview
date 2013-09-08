@@ -403,6 +403,12 @@ import java.util.Map;
     // The AccessibilityInjector that handles loading Accessibility scripts into the web page.
     private AccessibilityInjector mAccessibilityInjector;
 
+    // Whether native accessibility, i.e. without any script injection, is allowed.
+    private boolean mNativeAccessibilityAllowed;
+
+    // Whether native accessibility, i.e. without any script injection, has been enabled.
+    private boolean mNativeAccessibilityEnabled;
+
     // Handles native accessibility, i.e. without any script injection.
     private BrowserAccessibilityManager mBrowserAccessibilityManager;
 
@@ -519,9 +525,9 @@ import java.util.Map;
                 // The anchor view should not go outside the bounds of the ContainerView.
                 int leftMargin = Math.round(x * scale);
                 int topMargin = Math.round(mRenderCoordinates.getContentOffsetYPix() + y * scale);
+                int scaledWidth = Math.round(width * scale);
                 // ContentViewCore currently only supports these two container view types.
                 if (mContainerView instanceof FrameLayout) {
-                    int scaledWidth = Math.round(width * scale);
                     if (scaledWidth + leftMargin > mContainerView.getWidth()) {
                         scaledWidth = mContainerView.getWidth() - leftMargin;
                     }
@@ -538,9 +544,10 @@ import java.util.Map;
                     // these models.
                     leftMargin += mRenderCoordinates.getScrollXPixInt();
                     topMargin += mRenderCoordinates.getScrollYPixInt();
+
                     android.widget.AbsoluteLayout.LayoutParams lp =
-                            new android.widget.AbsoluteLayout.LayoutParams((int)width,
-                                    (int)(height * scale), leftMargin, topMargin);
+                            new android.widget.AbsoluteLayout.LayoutParams(
+                                scaledWidth, (int)(height * scale), leftMargin, topMargin);
                     view.setLayoutParams(lp);
                 } else {
                     Log.e(TAG, "Unknown layout " + mContainerView.getClass().getName());
@@ -757,8 +764,6 @@ import java.util.Map;
         mContainerViewInternals = internalDispatcher;
 
         mContainerView.setWillNotDraw(false);
-        mContainerView.setFocusable(true);
-        mContainerView.setFocusableInTouchMode(true);
         mContainerView.setClickable(true);
 
         mZoomManager = new ZoomManager(mContext, this);
@@ -1255,17 +1260,11 @@ import java.util.Map;
     }
 
     @Override
-    public boolean sendGesture(int type, long timeMs, int x, int y, boolean lastInputEventForVSync,
-                               Bundle b) {
+    public boolean sendGesture(int type, long timeMs, int x, int y, Bundle b) {
         if (offerGestureToEmbedder(type)) return false;
         if (mNativeContentViewCore == 0) return false;
         updateTextHandlesForGesture(type);
         updateGestureStateListener(type, b);
-        if (lastInputEventForVSync && isVSyncNotificationEnabled()) {
-            assert type == ContentViewGestureHandler.GESTURE_SCROLL_BY ||
-                    type == ContentViewGestureHandler.GESTURE_PINCH_BY;
-            mDidSignalVSyncUsingInputEvent = true;
-        }
         switch (type) {
             case ContentViewGestureHandler.GESTURE_SHOW_PRESSED_STATE:
                 nativeShowPressState(mNativeContentViewCore, timeMs, x, y);
@@ -1298,8 +1297,7 @@ import java.util.Map;
             case ContentViewGestureHandler.GESTURE_SCROLL_BY: {
                 int dx = b.getInt(ContentViewGestureHandler.DISTANCE_X);
                 int dy = b.getInt(ContentViewGestureHandler.DISTANCE_Y);
-                nativeScrollBy(mNativeContentViewCore, timeMs, x, y, dx, dy,
-                        lastInputEventForVSync);
+                nativeScrollBy(mNativeContentViewCore, timeMs, x, y, dx, dy);
                 return true;
             }
             case ContentViewGestureHandler.GESTURE_SCROLL_END:
@@ -1318,14 +1316,23 @@ import java.util.Map;
                 return true;
             case ContentViewGestureHandler.GESTURE_PINCH_BY:
                 nativePinchBy(mNativeContentViewCore, timeMs, x, y,
-                        b.getFloat(ContentViewGestureHandler.DELTA, 0),
-                        lastInputEventForVSync);
+                        b.getFloat(ContentViewGestureHandler.DELTA, 0));
                 return true;
             case ContentViewGestureHandler.GESTURE_PINCH_END:
                 nativePinchEnd(mNativeContentViewCore, timeMs);
                 return true;
             default:
                 return false;
+        }
+    }
+
+    @Override
+    public void onSentLastGestureForVSync(long eventTimeMs) {
+        if (isVSyncNotificationEnabled()) {
+            mDidSignalVSyncUsingInputEvent = true;
+        }
+        if (mNativeContentViewCore != 0) {
+            nativeOnVSync(mNativeContentViewCore, eventTimeMs * 1000);
         }
     }
 
@@ -1375,7 +1382,20 @@ import java.util.Map;
     public void evaluateJavaScript(
             String script, JavaScriptCallback callback) throws IllegalStateException {
         checkIsAlive();
-        nativeEvaluateJavaScript(mNativeContentViewCore, script, callback);
+        nativeEvaluateJavaScript(mNativeContentViewCore, script, callback, false);
+    }
+
+    /**
+     * Injects the passed Javascript code in the current page and evaluates it.
+     * If there is no page existing, a new one will be created.
+     *
+     * @param script The Javascript to execute.
+     * @throws IllegalStateException If the ContentView has been destroyed.
+     */
+    public void evaluateJavaScriptEvenIfNotYetNavigated(String script)
+            throws IllegalStateException {
+        checkIsAlive();
+        nativeEvaluateJavaScript(mNativeContentViewCore, script, null, true);
     }
 
     /**
@@ -1761,7 +1781,7 @@ import java.util.Map;
     public void scrollBy(int xPix, int yPix) {
         if (mNativeContentViewCore != 0) {
             nativeScrollBy(mNativeContentViewCore,
-                    System.currentTimeMillis(), 0, 0, xPix, yPix, false);
+                    System.currentTimeMillis(), 0, 0, xPix, yPix);
         }
     }
 
@@ -1778,7 +1798,7 @@ import java.util.Map;
             long time = System.currentTimeMillis();
             nativeScrollBegin(mNativeContentViewCore, time, xCurrentPix, yCurrentPix);
             nativeScrollBy(mNativeContentViewCore,
-                    time, xCurrentPix, yCurrentPix, dxPix, dyPix, false);
+                    time, xCurrentPix, yCurrentPix, dxPix, dyPix);
             nativeScrollEnd(mNativeContentViewCore, time);
         }
     }
@@ -1870,7 +1890,10 @@ import java.util.Map;
 
     private void handleTapOrPress(
             long timeMs, float xPix, float yPix, int isLongPressOrTap, boolean showPress) {
-        if (!mContainerView.isFocused()) mContainerView.requestFocus();
+        if (mContainerView.isFocusable() && mContainerView.isFocusableInTouchMode()
+                && !mContainerView.isFocused())  {
+            mContainerView.requestFocus();
+        }
 
         if (!mPopupZoomer.isShowing()) mPopupZoomer.setLastTouch(xPix, yPix);
 
@@ -1903,6 +1926,10 @@ import java.util.Map;
 
     public void updateMultiTouchZoomSupport(boolean supportsMultiTouchZoom) {
         mZoomManager.updateMultiTouchSupport(supportsMultiTouchZoom);
+    }
+
+    public void updateDoubleTapDragSupport(boolean supportsDoubleTapDrag) {
+        mContentViewGestureHandler.updateDoubleTapDragSupport(supportsDoubleTapDrag);
     }
 
     public void selectPopupMenuItems(int[] indices) {
@@ -2369,9 +2396,9 @@ import java.util.Map;
 
     @SuppressWarnings("unused")
     @CalledByNative
-    private SmoothScroller createSmoothScroller(boolean scrollDown, int mouseEventX,
-            int mouseEventY) {
-        return new SmoothScroller(this, scrollDown, mouseEventX, mouseEventY);
+    private GenericTouchGesture createGenericTouchGesture(int startX,
+            int startY, int deltaX, int deltaY) {
+        return new GenericTouchGesture(this, startX, startY, deltaX, deltaY);
     }
 
     @SuppressWarnings("unused")
@@ -2751,14 +2778,23 @@ import java.util.Map;
      * If native accessibility (not script injection) is enabled, and if this is
      * running on JellyBean or later, returns an AccessibilityNodeProvider that
      * implements native accessibility for this view. Returns null otherwise.
+     * Lazily initializes native accessibility here if it's allowed.
      * @return The AccessibilityNodeProvider, if available, or null otherwise.
      */
     public AccessibilityNodeProvider getAccessibilityNodeProvider() {
         if (mBrowserAccessibilityManager != null) {
             return mBrowserAccessibilityManager.getAccessibilityNodeProvider();
-        } else {
-            return null;
         }
+
+        if (mNativeAccessibilityAllowed &&
+                !mNativeAccessibilityEnabled &&
+                mNativeContentViewCore != 0 &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            mNativeAccessibilityEnabled = true;
+            nativeSetAccessibilityEnabled(mNativeContentViewCore, true);
+        }
+
+        return null;
     }
 
     /**
@@ -2845,29 +2881,20 @@ import java.util.Map;
      * Turns browser accessibility on or off.
      * If |state| is |false|, this turns off both native and injected accessibility.
      * Otherwise, if accessibility script injection is enabled, this will enable the injected
-     * accessibility scripts, and if it is disabled this will enable the native accessibility.
+     * accessibility scripts. Native accessibility is enabled on demand.
      */
     public void setAccessibilityState(boolean state) {
-        boolean injectedAccessibility = false;
-        boolean nativeAccessibility = false;
-        if (state) {
-            if (isDeviceAccessibilityScriptInjectionEnabled()) {
-                injectedAccessibility = true;
-            } else {
-                nativeAccessibility = true;
-            }
+        if (!state) {
+            setInjectedAccessibility(false);
+            return;
         }
-        setInjectedAccessibility(injectedAccessibility);
-        setNativeAccessibilityState(nativeAccessibility);
-    }
 
-    /**
-     * Enable or disable native accessibility features.
-     */
-    public void setNativeAccessibilityState(boolean enabled) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-            nativeSetAccessibilityEnabled(mNativeContentViewCore, enabled);
+        if (isDeviceAccessibilityScriptInjectionEnabled()) {
+            setInjectedAccessibility(true);
+            return;
         }
+
+        mNativeAccessibilityAllowed = true;
     }
 
     /**
@@ -3055,7 +3082,7 @@ import java.util.Map;
 
     private native void nativeScrollBy(
             int nativeContentViewCoreImpl, long timeMs, float x, float y,
-            float deltaX, float deltaY, boolean lastInputEventForVSync);
+            float deltaX, float deltaY);
 
     private native void nativeFlingStart(
             int nativeContentViewCoreImpl, long timeMs, float x, float y, float vx, float vy);
@@ -3089,7 +3116,7 @@ import java.util.Map;
     private native void nativePinchEnd(int nativeContentViewCoreImpl, long timeMs);
 
     private native void nativePinchBy(int nativeContentViewCoreImpl, long timeMs,
-            float anchorX, float anchorY, float deltaScale, boolean lastInputEventForVSync);
+            float anchorX, float anchorY, float deltaScale);
 
     private native void nativeSelectBetweenCoordinates(
             int nativeContentViewCoreImpl, float x1, float y1, float x2, float y2);
@@ -3121,7 +3148,7 @@ import java.util.Map;
     private native void nativeClearHistory(int nativeContentViewCoreImpl);
 
     private native void nativeEvaluateJavaScript(int nativeContentViewCoreImpl,
-            String script, JavaScriptCallback callback);
+            String script, JavaScriptCallback callback, boolean startRenderer);
 
     private native int nativeGetNativeImeAdapter(int nativeContentViewCoreImpl);
 

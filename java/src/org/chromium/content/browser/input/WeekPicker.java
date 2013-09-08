@@ -76,9 +76,9 @@ public class WeekPicker extends TwoFieldDatePicker {
         }
     }
 
-    private int getNumberOfWeeks() {
+    private int getNumberOfWeeks(int year) {
         // Create a date in the middle of the year, where the week year matches the year.
-        Calendar date = createDateFromWeek(getYear(), 20);
+        Calendar date = createDateFromWeek(year, 20);
         return date.getActualMaximum(Calendar.WEEK_OF_YEAR);
     }
 
@@ -113,16 +113,16 @@ public class WeekPicker extends TwoFieldDatePicker {
     }
 
     @Override
-    protected int getMaxPositionInYear() {
-        if (getYear() == getISOWeekYearForDate(getMaxDate())) {
+    protected int getMaxPositionInYear(int year) {
+        if (year == getISOWeekYearForDate(getMaxDate())) {
             return getWeekForDate(getMaxDate());
         }
-        return getNumberOfWeeks();
+        return getNumberOfWeeks(year);
     }
 
     @Override
-    protected int getMinPositionInYear() {
-        if (getYear() == getISOWeekYearForDate(getMinDate())) {
+    protected int getMinPositionInYear(int year) {
+        if (year == getISOWeekYearForDate(getMinDate())) {
             return getWeekForDate(getMinDate());
         }
         return 1;

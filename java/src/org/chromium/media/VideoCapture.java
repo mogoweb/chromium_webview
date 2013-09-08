@@ -100,6 +100,12 @@ public class VideoCapture implements PreviewCallback, OnFrameAvailableListener {
               ", height=" + height + ", frameRate=" + frameRate);
         try {
             mCamera = Camera.open(mId);
+        } catch (RuntimeException ex) {
+            Log.e(TAG, "allocate:Camera.open: " + ex);
+            return false;
+        }
+
+        try {
             Camera.CameraInfo camera_info = new Camera.CameraInfo();
             Camera.getCameraInfo(mId, camera_info);
             mCameraOrientation = camera_info.orientation;
@@ -113,7 +119,7 @@ public class VideoCapture implements PreviewCallback, OnFrameAvailableListener {
 
             // Calculate fps.
             List<int[]> listFpsRange = parameters.getSupportedPreviewFpsRange();
-            if (listFpsRange.size() == 0) {
+            if (listFpsRange == null || listFpsRange.size() == 0) {
                 Log.e(TAG, "allocate: no fps range found");
                 return false;
             }

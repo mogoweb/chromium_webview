@@ -4,6 +4,7 @@
 
 package org.chromium.android_webview;
 
+import android.graphics.Rect;
 import android.widget.OverScroller;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -362,5 +363,67 @@ public class AwScrollOffsetManager {
         // animateScrollTo clamps the argument to the scrollable range so using (scrollY + dy) is
         // fine.
         return animateScrollTo(scrollX, scrollY + dy);
+    }
+
+    /**
+     * See {@link WebView#requestChildRectangleOnScreen(View, Rect, boolean)}
+     */
+    public boolean requestChildRectangleOnScreen(int childOffsetX, int childOffsetY, Rect rect,
+            boolean immediate) {
+        // TODO(mkosiba): WebViewClassic immediately returns false if a zoom animation is
+        // in progress. We currently can't tell if one is happening.. should we instead cancel any
+        // scroll animation when the size/pageScaleFactor changes?
+
+        // TODO(mkosiba): Take scrollbar width into account in the screenRight/screenBotton
+        // calculations. http://crbug.com/269032
+
+        final int scrollX = mDelegate.getContainerViewScrollX();
+        final int scrollY = mDelegate.getContainerViewScrollY();
+
+        rect.offset(childOffsetX, childOffsetY);
+
+        int screenTop = scrollY;
+        int screenBottom = scrollY + mContainerViewHeight;
+        int scrollYDelta = 0;
+
+        if (rect.bottom > screenBottom) {
+            int oneThirdOfScreenHeight = mContainerViewHeight / 3;
+            if (rect.width() > 2 * oneThirdOfScreenHeight) {
+                // If the rectangle is too tall to fit in the bottom two thirds
+                // of the screen, place it at the top.
+                scrollYDelta = rect.top - screenTop;
+            } else {
+                // If the rectangle will still fit on screen, we want its
+                // top to be in the top third of the screen.
+                scrollYDelta = rect.top - (screenTop + oneThirdOfScreenHeight);
+            }
+        } else if (rect.top < screenTop) {
+            scrollYDelta = rect.top - screenTop;
+        }
+
+        int screenLeft = scrollX;
+        int screenRight = scrollX + mContainerViewWidth;
+        int scrollXDelta = 0;
+
+        if (rect.right > screenRight && rect.left > screenLeft) {
+            if (rect.width() > mContainerViewWidth) {
+                scrollXDelta += (rect.left - screenLeft);
+            } else {
+                scrollXDelta += (rect.right - screenRight);
+            }
+        } else if (rect.left < screenLeft) {
+            scrollXDelta -= (screenLeft - rect.left);
+        }
+
+        if (scrollYDelta == 0 && scrollXDelta == 0) {
+            return false;
+        }
+
+        if (immediate) {
+            scrollBy(scrollXDelta, scrollYDelta);
+            return true;
+        } else {
+            return animateScrollTo(scrollX + scrollXDelta, scrollY + scrollYDelta);
+        }
     }
 }

@@ -16,24 +16,36 @@ package org.chromium.content;
  * com.android.internal.R.
  */
 public final class R {
+    public static final class attr {
+        public static int action_mode_share_drawable;
+        public static int action_mode_web_search_drawable;
+        public static int select_dialog_multichoice;
+        public static int select_dialog_singlechoice;
+    }
     public static final class dimen {
         public static int link_preview_overlay_radius;
     }
     public static final class drawable {
-        public static int ic_menu_search_holo_light;
-        public static int ic_menu_share_holo_light;
         public static int ondemand_overlay;
     }
     public static final class id {
+        public static int ampm;
         public static int date_picker;
-        public static int position_in_year;
+        public static int hour;
+        public static int milli;
+        public static int minute;
         public static int pickers;
+        public static int position_in_year;
+        public static int second;
+        public static int second_colon;
+        public static int second_dot;
         public static int time_picker;
         public static int year;
     }
     public static final class layout {
         public static int date_time_picker_dialog;
         public static int two_field_date_picker;
+        public static int multi_field_time_picker_dialog;
     }
     public static final class string {
         public static int accessibility_content_view;
@@ -54,6 +66,15 @@ public final class R {
         public static int media_player_error_title;
         public static int media_player_loading_video;
         public static int month_picker_dialog_title;
+        public static int time_picker_dialog_am;
+        public static int time_picker_dialog_hour_minute_separator;
+        public static int time_picker_dialog_minute_second_separator;
+        public static int time_picker_dialog_second_subsecond_separator;
+        public static int time_picker_dialog_pm;
         public static int week_picker_dialog_title;
+    }
+    public static final class style {
+        public static int ContentActionBar;
+        public static int SelectPopupDialog;
     }
 }

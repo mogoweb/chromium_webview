@@ -152,16 +152,20 @@ public class HandleView extends View {
                 mDrawable.getIntrinsicHeight());
     }
 
+    private void updateContainerPosition() {
+        final int[] coords = mTempCoords;
+        mParent.getLocationInWindow(coords);
+        mContainerPositionX = coords[0] + mPositionX;
+        mContainerPositionY = coords[1] + mPositionY;
+    }
+
     void show() {
         if (!isPositionVisible()) {
             hide();
             return;
         }
         mContainer.setContentView(this);
-        final int[] coords = mTempCoords;
-        mParent.getLocationInWindow(coords);
-        mContainerPositionX = coords[0] + mPositionX;
-        mContainerPositionY = coords[1] + mPositionY;
+        updateContainerPosition();
         mContainer.showAtLocation(mParent, 0, mContainerPositionX, mContainerPositionY);
 
         // Hide paste view when handle is moved on screen.
@@ -261,6 +265,9 @@ public class HandleView extends View {
     @Override
     protected void onDraw(Canvas c) {
         updateAlpha();
+        updateContainerPosition();
+        mContainer.update(mContainerPositionX, mContainerPositionY,
+                getRight() - getLeft(), getBottom() - getTop());
         mDrawable.setBounds(0, 0, getRight() - getLeft(), getBottom() - getTop());
         mDrawable.draw(c);
     }

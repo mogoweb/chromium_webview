@@ -92,13 +92,6 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
     }
 
     @Override
-    public boolean addNewContents(int nativeSourceWebContents, int nativeWebContents,
-            int disposition, Rect initialPosition, boolean userGesture) {
-        // This is overridden native side; see the other addNewContents overload.
-        throw new RuntimeException("Impossible");
-    }
-
-    @Override
     public void closeContents() {
         mContentsClient.onCloseWindow();
     }

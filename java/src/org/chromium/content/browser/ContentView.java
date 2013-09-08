@@ -101,6 +101,9 @@ public class ContentView extends FrameLayout
             setVerticalScrollBarEnabled(false);
         }
 
+        setFocusable(true);
+        setFocusableInTouchMode(true);
+
         mContentViewCore = new ContentViewCore(context);
         mContentViewCore.initialize(this, this, nativeWebContents, windowAndroid,
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN ?
@@ -333,6 +336,11 @@ public class ContentView extends FrameLayout
 
     void setIgnoreSingleTap(boolean value) {
         mContentViewCore.getContentViewGestureHandler().setIgnoreSingleTap(value);
+    }
+
+    /** @see ContentViewGestureHandler#setIgnoreRemainingTouchEvents */
+    public void setIgnoreRemainingTouchEvents() {
+        mContentViewCore.getContentViewGestureHandler().setIgnoreRemainingTouchEvents();
     }
 
     /**

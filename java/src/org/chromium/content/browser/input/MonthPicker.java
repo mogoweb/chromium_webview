@@ -92,16 +92,16 @@ public class MonthPicker extends TwoFieldDatePicker {
 
 
     @Override
-    protected int getMaxPositionInYear() {
-        if (getYear() == getMaxDate().get(Calendar.YEAR)) {
+    protected int getMaxPositionInYear(int year) {
+        if (year == getMaxDate().get(Calendar.YEAR)) {
             return getMaxDate().get(Calendar.MONTH);
         }
         return MONTHS_NUMBER - 1;
     }
 
     @Override
-    protected int getMinPositionInYear() {
-        if (getYear() == getMinDate().get(Calendar.YEAR)) {
+    protected int getMinPositionInYear(int year) {
+        if (year == getMinDate().get(Calendar.YEAR)) {
             return getMinDate().get(Calendar.MONTH);
         }
         return 0;

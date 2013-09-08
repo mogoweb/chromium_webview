@@ -6,7 +6,6 @@ package org.chromium.ui.gfx;
 
 import android.graphics.SurfaceTexture;
 
-import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
 
 /**
@@ -15,9 +14,9 @@ import org.chromium.base.JNINamespace;
 @JNINamespace("gfx")
 class SurfaceTextureListener implements SurfaceTexture.OnFrameAvailableListener {
     // Used to determine the class instance to dispatch the native call to.
-    private int mNativeSurfaceTextureListener = 0;
+    private final int mNativeSurfaceTextureListener;
 
-    private SurfaceTextureListener(int nativeSurfaceTextureListener) {
+    SurfaceTextureListener(int nativeSurfaceTextureListener) {
         assert nativeSurfaceTextureListener != 0;
         mNativeSurfaceTextureListener = nativeSurfaceTextureListener;
     }
@@ -34,11 +33,6 @@ class SurfaceTextureListener implements SurfaceTexture.OnFrameAvailableListener 
         } finally {
             super.finalize();
         }
-    }
-
-    @CalledByNative
-    private static SurfaceTextureListener create(int nativeSurfaceTextureListener) {
-        return new SurfaceTextureListener(nativeSurfaceTextureListener);
     }
 
     private native void nativeFrameAvailable(int nativeSurfaceTextureListener);

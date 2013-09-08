@@ -67,8 +67,10 @@ public abstract class TwoFieldDatePicker extends FrameLayout {
                     positionInYear = newVal;
                     if (oldVal == picker.getMaxValue() && newVal == picker.getMinValue()) {
                         year += 1;
+                        positionInYear = getMinPositionInYear(year);
                     } else if (oldVal == picker.getMinValue() && newVal == picker.getMaxValue()) {
                         year -=1;
+                        positionInYear = getMaxPositionInYear(year);
                     }
                 } else if (picker == mYearSpinner) {
                     year = newVal;
@@ -188,9 +190,9 @@ public abstract class TwoFieldDatePicker extends FrameLayout {
 
     protected abstract int getMinYear();
 
-    protected abstract int getMaxPositionInYear();
+    protected abstract int getMaxPositionInYear(int year);
 
-    protected abstract int getMinPositionInYear();
+    protected abstract int getMinPositionInYear(int year);
 
     protected Calendar getMaxDate() {
         return mMaxDate;
@@ -219,8 +221,8 @@ public abstract class TwoFieldDatePicker extends FrameLayout {
         mPositionInYearSpinner.setDisplayedValues(null);
 
         // set the spinner ranges respecting the min and max dates
-        mPositionInYearSpinner.setMinValue(getMinPositionInYear());
-        mPositionInYearSpinner.setMaxValue(getMaxPositionInYear());
+        mPositionInYearSpinner.setMinValue(getMinPositionInYear(getYear()));
+        mPositionInYearSpinner.setMaxValue(getMaxPositionInYear(getYear()));
         mPositionInYearSpinner.setWrapSelectorWheel(
                 !mCurrentDate.equals(mMinDate) && !mCurrentDate.equals(mMaxDate));
 
