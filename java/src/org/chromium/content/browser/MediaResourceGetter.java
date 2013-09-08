@@ -5,6 +5,7 @@
 package org.chromium.content.browser;
 
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.media.MediaMetadataRetriever;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -63,6 +64,12 @@ class MediaResourceGetter {
         ConnectivityManager mConnectivityManager =
                 (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
         if (mConnectivityManager != null) {
+            if (context.checkCallingOrSelfPermission(
+                    android.Manifest.permission.ACCESS_NETWORK_STATE) !=
+                    PackageManager.PERMISSION_GRANTED) {
+                return new MediaMetadata(0, 0, 0, false);
+            }
+
             NetworkInfo info = mConnectivityManager.getActiveNetworkInfo();
             if (info == null) {
                 return new MediaMetadata(durationInMilliseconds, width, height, success);
@@ -100,12 +107,18 @@ class MediaResourceGetter {
                 }
                 retriever.setDataSource(url, headersMap);
             }
-            durationInMilliseconds = Integer.parseInt(
-                    retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
-            width = Integer.parseInt(
-                    retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
-            height = Integer.parseInt(
-                    retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
+            String duration = retriever.extractMetadata(
+                    MediaMetadataRetriever.METADATA_KEY_DURATION);
+            String videoWidth = retriever.extractMetadata(
+                    MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH);
+            String videoHeight = retriever.extractMetadata(
+                    MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT);
+            if (duration == null || videoWidth == null || videoHeight == null) {
+                return new MediaMetadata(durationInMilliseconds, width, height, success);
+            }
+            durationInMilliseconds = Integer.parseInt(duration);
+            width = Integer.parseInt(videoWidth);
+            height = Integer.parseInt(videoHeight);
             success = true;
         } catch (IllegalArgumentException e) {
             Log.e(TAG, "Invalid url: " + e);

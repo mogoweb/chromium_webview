@@ -57,12 +57,6 @@ public class WebContentsDelegateAndroid {
     }
 
     @CalledByNative
-    public boolean addNewContents(int nativeSourceWebContents, int nativeWebContents,
-            int disposition, Rect initialPosition, boolean userGesture) {
-        return false;
-    }
-
-    @CalledByNative
     public void activateContents() {
     }
 

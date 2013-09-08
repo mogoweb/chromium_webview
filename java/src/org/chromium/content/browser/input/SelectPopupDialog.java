@@ -8,6 +8,7 @@ import org.chromium.content.browser.ContentViewCore;
 
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.content.res.TypedArray;
 import android.util.SparseBooleanArray;
 import android.view.View;
 import android.view.ViewGroup;
@@ -17,12 +18,19 @@ import android.widget.ArrayAdapter;
 import android.widget.CheckedTextView;
 import android.widget.ListView;
 
+import org.chromium.content.R;
+
 /**
  * Handles the popup dialog for the <select> HTML tag support.
  */
 public class SelectPopupDialog {
     // The currently showing popup dialog, null if none is showing.
     private static SelectPopupDialog sShownDialog;
+
+    private static final int[] SELECT_DIALOG_ATTRS = {
+        R.attr.select_dialog_multichoice,
+        R.attr.select_dialog_singlechoice
+    };
 
     // The dialog hosting the popup list view.
     private AlertDialog mListBoxPopup = null;
@@ -48,9 +56,7 @@ public class SelectPopupDialog {
         private boolean mAreAllItemsEnabled;
 
         public SelectPopupArrayAdapter(String[] labels, int[] enabled, boolean multiple) {
-            super(mContentViewCore.getContext(), multiple ?
-                  android.R.layout.select_dialog_multichoice :
-                  android.R.layout.select_dialog_singlechoice, labels);
+            super(mContentViewCore.getContext(), getSelectDialogLayout(multiple), labels);
             mItemEnabled = enabled;
             mAreAllItemsEnabled = true;
             for (int item : mItemEnabled) {
@@ -97,6 +103,15 @@ public class SelectPopupDialog {
             }
             return mItemEnabled[position] == POPUP_ITEM_TYPE_ENABLED;
         }
+    }
+
+    private int getSelectDialogLayout(boolean isMultiChoice) {
+        int resource_id;
+        TypedArray styledAttributes = mContentViewCore.getContext().obtainStyledAttributes(
+                R.style.SelectPopupDialog, SELECT_DIALOG_ATTRS);
+        resource_id = styledAttributes.getResourceId(isMultiChoice ? 0 : 1, 0);
+        styledAttributes.recycle();
+        return resource_id;
     }
 
     private SelectPopupDialog(ContentViewCore contentViewCore, String[] labels, int[] enabled,

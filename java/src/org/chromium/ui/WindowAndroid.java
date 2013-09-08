@@ -34,6 +34,7 @@ public class WindowAndroid {
 
     private int mNextRequestCode = 0;
     protected Activity mActivity;
+    protected Context mApplicationContext;
     protected SparseArray<IntentCallback> mOutstandingIntents;
     protected HashMap<Integer, String> mIntentErrors;
 
@@ -42,6 +43,7 @@ public class WindowAndroid {
      */
     public WindowAndroid(Activity activity) {
         mActivity = activity;
+        mApplicationContext = mActivity.getApplicationContext();
         mOutstandingIntents = new SparseArray<IntentCallback>();
         mIntentErrors = new HashMap<Integer, String>();
 
@@ -107,10 +109,18 @@ public class WindowAndroid {
     /**
      * TODO(nileshagrawal): Stop returning Activity Context crbug.com/233440.
      * @return Activity context.
+     * @see #getApplicationContext()
      */
     @Deprecated
     public Context getContext() {
         return mActivity;
+    }
+
+    /**
+     * @return The application context for this activity.
+     */
+    public Context getApplicationContext() {
+        return mApplicationContext;
     }
 
     /**

@@ -268,13 +268,11 @@ public class BrowserAccessibilityManager {
 
     @CalledByNative
     private void handleTextSelectionChanged(int id) {
-        sendAccessibilityEvent(id, AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);
         sendAccessibilityEvent(id, AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED);
     }
 
     @CalledByNative
     private void handleEditableTextChanged(int id) {
-        sendAccessibilityEvent(id, AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);
         sendAccessibilityEvent(id, AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED);
     }
 

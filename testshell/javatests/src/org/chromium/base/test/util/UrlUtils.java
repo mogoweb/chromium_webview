@@ -15,11 +15,19 @@ public class UrlUtils {
     private final static String DATA_DIR = "/chrome/test/data/";
 
     /**
+     * Construct the full path of a test data file.
+     * @param path Pathname relative to external/chrome/testing/data
+     */
+    public static String getTestFilePath(String path) {
+        return PathUtils.getExternalStorageDirectory() + DATA_DIR + path;
+    }
+
+    /**
      * Construct a suitable URL for loading a test data file.
      * @param path Pathname relative to external/chrome/testing/data
      */
     public static String getTestFileUrl(String path) {
-        return "file://" + PathUtils.getExternalStorageDirectory() + DATA_DIR + path;
+        return "file://" + getTestFilePath(path);
     }
 
     /**

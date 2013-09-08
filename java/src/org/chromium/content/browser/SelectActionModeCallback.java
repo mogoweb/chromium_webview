@@ -4,6 +4,7 @@
 
 package org.chromium.content.browser;
 
+import android.app.Activity;
 import android.app.SearchManager;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -27,11 +28,15 @@ public class SelectActionModeCallback implements ActionMode.Callback {
     private static final int CUT_ATTR_INDEX = 1;
     private static final int COPY_ATTR_INDEX = 2;
     private static final int PASTE_ATTR_INDEX = 3;
+    private static final int SHARE_ATTR_INDEX = 4;
+    private static final int WEB_SEARCH_ATTR_INDEX = 5;
     private static final int[] ACTION_MODE_ATTRS = {
         android.R.attr.actionModeSelectAllDrawable,
         android.R.attr.actionModeCutDrawable,
         android.R.attr.actionModeCopyDrawable,
         android.R.attr.actionModePasteDrawable,
+        R.attr.action_mode_share_drawable,
+        R.attr.action_mode_web_search_drawable
     };
 
     private static final int ID_SELECTALL = 0;
@@ -124,7 +129,8 @@ public class SelectActionModeCallback implements ActionMode.Callback {
     }
 
     private void createActionMenu(ActionMode mode, Menu menu) {
-        TypedArray styledAttributes = getContext().obtainStyledAttributes(ACTION_MODE_ATTRS);
+        TypedArray styledAttributes = getContext().obtainStyledAttributes(
+                R.style.ContentActionBar, ACTION_MODE_ATTRS);
 
         menu.add(Menu.NONE, ID_SELECTALL, Menu.NONE, android.R.string.selectAll).
             setAlphabeticShortcut('a').
@@ -157,14 +163,14 @@ public class SelectActionModeCallback implements ActionMode.Callback {
         if (!mEditable) {
             if (isShareHandlerAvailable()) {
                 menu.add(Menu.NONE, ID_SHARE, Menu.NONE, R.string.actionbar_share).
-                    setIcon(R.drawable.ic_menu_share_holo_light).
+                    setIcon(styledAttributes.getResourceId(SHARE_ATTR_INDEX, 0)).
                     setShowAsAction(
                             MenuItem.SHOW_AS_ACTION_ALWAYS | MenuItem.SHOW_AS_ACTION_WITH_TEXT);
             }
 
             if (!mIncognito && isWebSearchAvailable()) {
                 menu.add(Menu.NONE, ID_SEARCH, Menu.NONE, R.string.actionbar_web_search).
-                    setIcon(R.drawable.ic_menu_search_holo_light).
+                    setIcon(styledAttributes.getResourceId(WEB_SEARCH_ATTR_INDEX, 0)).
                     setShowAsAction(
                             MenuItem.SHOW_AS_ACTION_ALWAYS | MenuItem.SHOW_AS_ACTION_WITH_TEXT);
             }
@@ -212,6 +218,9 @@ public class SelectActionModeCallback implements ActionMode.Callback {
                     i.putExtra(SearchManager.EXTRA_NEW_SEARCH, true);
                     i.putExtra(SearchManager.QUERY, selection);
                     i.putExtra(Browser.EXTRA_APPLICATION_ID, getContext().getPackageName());
+                    if (!(getContext() instanceof Activity)) {
+                        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    }
                     try {
                         getContext().startActivity(i);
                     } catch (android.content.ActivityNotFoundException ex) {

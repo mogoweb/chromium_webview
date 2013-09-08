@@ -64,6 +64,14 @@ public class LibraryLoader {
         }
     }
 
+    /**
+     * Checks if library is fully loaded and initialized.
+     */
+    public static boolean isInitialized() {
+        synchronized (sLock) {
+            return sInitialized;
+        }
+    }
 
     /**
      * Loads the library and blocks until the load completes. The caller is responsible
