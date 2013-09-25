@@ -119,6 +119,7 @@ public class SelectPopupDialog {
         mContentViewCore = contentViewCore;
 
         final ListView listView = new ListView(mContentViewCore.getContext());
+        listView.setCacheColorHint(0);
         AlertDialog.Builder b = new AlertDialog.Builder(mContentViewCore.getContext())
                 .setView(listView)
                 .setCancelable(true)

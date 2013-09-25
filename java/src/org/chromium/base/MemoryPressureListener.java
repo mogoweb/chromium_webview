@@ -12,7 +12,7 @@ import android.content.res.Configuration;
 /**
  * This is an internal implementation of the C++ counterpart.
  * It registers a ComponentCallbacks2 with the system, and dispatches into
- * native.
+ * native for levels that are considered actionable.
  */
 public class MemoryPressureListener {
   @CalledByNative
@@ -43,10 +43,12 @@ public class MemoryPressureListener {
   }
 
   private static void maybeNotifyMemoryPresure(int level) {
-      if (level == ComponentCallbacks2.TRIM_MEMORY_COMPLETE) {
+      if (level >= ComponentCallbacks2.TRIM_MEMORY_COMPLETE) {
           nativeOnMemoryPressure(MemoryPressureLevelList.MEMORY_PRESSURE_CRITICAL);
       } else if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND ||
               level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL) {
+          // Don't notifiy on TRIM_MEMORY_UI_HIDDEN, since this class only
+          // dispatches actionable memory pressure signals to native.
           nativeOnMemoryPressure(MemoryPressureLevelList.MEMORY_PRESSURE_MODERATE);
       }
   }

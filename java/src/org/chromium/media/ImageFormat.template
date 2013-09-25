@@ -1,0 +1,12 @@
+// Copyright 2013 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package org.chromium.media;
+
+class AndroidImageFormatList {
+#define DEFINE_ANDROID_IMAGEFORMAT(name, value) \
+    static final int name = value;
+#include "media/video/capture/android/imageformat_list.h"
+#undef DEFINE_ANDROID_IMAGEFORMAT
+}

@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,8 +23,7 @@ import android.view.inputmethod.ExtractedTextRequest;
  * native ImeAdapterAndroid via the class ImeAdapter.
  */
 public class AdapterInputConnection extends BaseInputConnection {
-    private static final String TAG =
-            "org.chromium.content.browser.input.AdapterInputConnection";
+    private static final String TAG = "AdapterInputConnection";
     private static final boolean DEBUG = false;
     /**
      * Selection value should be -1 if not known. See EditorInfo.java for details.
@@ -99,7 +98,9 @@ public class AdapterInputConnection extends BaseInputConnection {
             outAttrs.imeOptions |= EditorInfo.IME_ACTION_NEXT;
         }
         outAttrs.initialSelStart = imeAdapter.getInitialSelectionStart();
-        outAttrs.initialSelEnd = imeAdapter.getInitialSelectionStart();
+        outAttrs.initialSelEnd = imeAdapter.getInitialSelectionEnd();
+        mLastUpdateSelectionStart = imeAdapter.getInitialSelectionStart();
+        mLastUpdateSelectionEnd = imeAdapter.getInitialSelectionEnd();
     }
 
     /**
@@ -147,7 +148,8 @@ public class AdapterInputConnection extends BaseInputConnection {
         if (prevSelectionStart == selectionStart && prevSelectionEnd == selectionEnd
                 && prevCompositionStart == compositionStart
                 && prevCompositionEnd == compositionEnd) {
-            // Nothing has changed; don't need to do anything
+            if (mIgnoreTextInputStateUpdates) return;
+            updateSelection(selectionStart, selectionEnd, compositionStart, compositionEnd);
             return;
         }
 
@@ -164,9 +166,8 @@ public class AdapterInputConnection extends BaseInputConnection {
     }
 
     @VisibleForTesting
-    protected void updateSelection(
-            int selectionStart, int selectionEnd,
-            int compositionStart, int compositionEnd) {
+    protected void updateSelection(int selectionStart, int selectionEnd, int compositionStart,
+            int compositionEnd) {
         // Avoid sending update if we sent an exact update already previously.
         if (mLastUpdateSelectionStart == selectionStart &&
                 mLastUpdateSelectionEnd == selectionEnd &&
@@ -296,14 +297,17 @@ public class AdapterInputConnection extends BaseInputConnection {
      * @see BaseInputConnection#deleteSurroundingText(int, int)
      */
     @Override
-    public boolean deleteSurroundingText(int leftLength, int rightLength) {
+    public boolean deleteSurroundingText(int beforeLength, int afterLength) {
         if (DEBUG) {
-            Log.w(TAG, "deleteSurroundingText [" + leftLength + " " + rightLength + "]");
+            Log.w(TAG, "deleteSurroundingText [" + beforeLength + " " + afterLength + "]");
         }
-        if (!super.deleteSurroundingText(leftLength, rightLength)) {
-            return false;
-        }
-        return mImeAdapter.deleteSurroundingText(leftLength, rightLength);
+        Editable editable = getEditable();
+        int availableBefore = Selection.getSelectionStart(editable);
+        int availableAfter = editable.length() - Selection.getSelectionEnd(editable);
+        beforeLength = Math.min(beforeLength, availableBefore);
+        afterLength = Math.min(afterLength, availableAfter);
+        super.deleteSurroundingText(beforeLength, afterLength);
+        return mImeAdapter.deleteSurroundingText(beforeLength, afterLength);
     }
 
     /**
@@ -434,5 +438,34 @@ public class AdapterInputConnection extends BaseInputConnection {
 
     private InputMethodManagerWrapper getInputMethodManagerWrapper() {
         return mImeAdapter.getInputMethodManagerWrapper();
+    }
+
+    @VisibleForTesting
+    static class ImeState {
+        public final String text;
+        public final int selectionStart;
+        public final int selectionEnd;
+        public final int compositionStart;
+        public final int compositionEnd;
+
+        public ImeState(String text, int selectionStart, int selectionEnd,
+                int compositionStart, int compositionEnd) {
+            this.text = text;
+            this.selectionStart = selectionStart;
+            this.selectionEnd = selectionEnd;
+            this.compositionStart = compositionStart;
+            this.compositionEnd = compositionEnd;
+        }
+    }
+
+    @VisibleForTesting
+    ImeState getImeStateForTesting() {
+        Editable editable = getEditable();
+        String text = editable.toString();
+        int selectionStart = Selection.getSelectionStart(editable);
+        int selectionEnd = Selection.getSelectionEnd(editable);
+        int compositionStart = getComposingSpanStart(editable);
+        int compositionEnd = getComposingSpanEnd(editable);
+        return new ImeState(text, selectionStart, selectionEnd, compositionStart, compositionEnd);
     }
 }

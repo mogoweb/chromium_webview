@@ -69,6 +69,12 @@ public class AwScrollOffsetManager {
     private int mDeferredNativeScrollX;
     private int mDeferredNativeScrollY;
 
+    // Whether (and to what value) to update the container view scroll offset after we've received
+    // a valid content size.
+    private boolean mApplyDeferredContainerScrollOnValidContentSize;
+    private int mDeferredContainerScrollX;
+    private int mDeferredContainerScrollY;
+
     // The velocity of the last recorded fling,
     private int mLastFlingVelocityX;
     private int mLastFlingVelocityY;
@@ -117,6 +123,12 @@ public class AwScrollOffsetManager {
     public void setContentSize(int width, int height) {
         mContentWidth = width;
         mContentHeight = height;
+
+        if (mApplyDeferredContainerScrollOnValidContentSize &&
+                mContentWidth != 0 && mContentHeight != 0) {
+            mApplyDeferredContainerScrollOnValidContentSize = false;
+            scrollContainerViewTo(mDeferredContainerScrollX, mDeferredContainerScrollY);
+        }
     }
 
     // Called when the physical size of the view changes.
@@ -144,6 +156,14 @@ public class AwScrollOffsetManager {
 
     // Called by the native side to attempt to scroll the container view.
     public void scrollContainerViewTo(int x, int y) {
+        if (mContentWidth == 0 && mContentHeight == 0) {
+            mApplyDeferredContainerScrollOnValidContentSize = true;
+            mDeferredContainerScrollX = x;
+            mDeferredContainerScrollY = y;
+            return;
+        }
+        mApplyDeferredContainerScrollOnValidContentSize = false;
+
         mNativeScrollX = x;
         mNativeScrollY = y;
 
@@ -234,6 +254,9 @@ public class AwScrollOffsetManager {
 
         if (x == mNativeScrollX && y == mNativeScrollY)
             return;
+
+        // Updating the native scroll will override any pending scroll originally sent from native.
+        mApplyDeferredContainerScrollOnValidContentSize = false;
 
         // The scrollNativeTo call should be a simple store, so it's OK to assume it always
         // succeeds.

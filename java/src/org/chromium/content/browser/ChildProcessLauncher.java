@@ -15,6 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
+import org.chromium.base.SysUtils;
 import org.chromium.base.ThreadUtils;
 import org.chromium.content.app.ChildProcessService;
 import org.chromium.content.app.PrivilegedProcessService;
@@ -138,8 +139,7 @@ public class ChildProcessLauncher {
                 sSandboxedChildConnectionAllocator : sPrivilegedChildConnectionAllocator;
     }
 
-    private static ChildProcessConnection allocateConnection(Context context,
-            boolean inSandbox) {
+    private static ChildProcessConnection allocateConnection(Context context, boolean inSandbox) {
         ChildProcessConnection.DeathCallback deathCallback =
             new ChildProcessConnection.DeathCallback() {
                 @Override
@@ -175,13 +175,151 @@ public class ChildProcessLauncher {
     private static Map<Integer, ChildProcessConnection> sServiceMap =
             new ConcurrentHashMap<Integer, ChildProcessConnection>();
 
-    // Map from pid to the count of oom bindings. "Oom binding" is a binding that raises the process
-    // oom priority so that it shouldn't be killed by the OS out-of-memory killer under normal
-    // conditions (it can still be killed under drastic memory pressure).
-    private static SparseIntArray sOomBindingCount = new SparseIntArray();
-
     // A pre-allocated and pre-bound connection ready for connection setup, or null.
     private static ChildProcessConnection sSpareSandboxedConnection = null;
+
+    /**
+     * Manages oom bindings used to bound child services. "Oom binding" is a binding that raises the
+     * process oom priority so that it shouldn't be killed by the OS out-of-memory killer under
+     * normal conditions (it can still be killed under drastic memory pressure).
+     *
+     * This class serves a proxy between external calls that manipulate the bindings and the
+     * connections, allowing to enforce policies such as delayed removal of the bindings.
+     */
+    static class BindingManager {
+        // Delay of 1 second used when removing the initial oom binding of a process.
+        private static final long REMOVE_INITIAL_BINDING_DELAY_MILLIS = 1 * 1000;
+
+        // Delay of 5 second used when removing temporary strong binding of a process (only on
+        // non-low-memory devices).
+        private static final long DETACH_AS_ACTIVE_HIGH_END_DELAY_MILLIS = 5 * 1000;
+
+        // Map from pid to the count of oom bindings bound for the service. Should be accessed with
+        // mCountLock.
+        private final SparseIntArray mOomBindingCount = new SparseIntArray();
+
+        // Should be acquired before binding or unbinding the connections and modifying
+        // mOomBindingCount.
+        private final Object mCountLock = new Object();
+
+        /**
+         * Registers new oom binging bound for a child process. Should be called with mCountLock.
+         * @param pid handle of the process.
+         */
+        private void incrementOomCount(int pid) {
+            mOomBindingCount.put(pid, mOomBindingCount.get(pid) + 1);
+        }
+
+        /**
+         * Registers an oom binging unbound for a child process. Should be called with mCountLock.
+         * @param pid handle of the process.
+         */
+        private void decrementOomCount(int pid) {
+            int count = mOomBindingCount.get(pid, -1);
+            assert count > 0;
+            count--;
+            if (count > 0) {
+                mOomBindingCount.put(pid, count);
+            } else {
+                mOomBindingCount.delete(pid);
+            }
+        }
+
+        /**
+         * Registers a freshly started child process.
+         * @param pid handle of the process.
+         */
+        void addNewConnection(int pid) {
+            // Every new connection is bound with initial oom binding.
+            synchronized (mCountLock) {
+                mOomBindingCount.put(pid, 1);
+            }
+        }
+
+        /**
+         * Remove the initial binding of the child process. Child processes are bound with initial
+         * binding to protect them from getting killed before they are put to use. This method
+         * allows to remove the binding once it is no longer needed. The binding is removed after a
+         * fixed delay period so that the renderer will not be killed immediately after the call.
+         */
+        void removeInitialBinding(final int pid) {
+            final ChildProcessConnection connection = sServiceMap.get(pid);
+            if (connection == null) {
+                LogPidWarning(pid, "Tried to remove a binding for a non-existent connection");
+                return;
+            }
+            if (!connection.isInitialBindingBound()) return;
+            ThreadUtils.postOnUiThreadDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    synchronized (mCountLock) {
+                        if (connection.isInitialBindingBound()) {
+                            decrementOomCount(pid);
+                            connection.removeInitialBinding();
+                        }
+                    }
+                }
+            }, REMOVE_INITIAL_BINDING_DELAY_MILLIS);
+        }
+
+        /**
+         * Bind a child process as a high priority process so that it has the same priority as the
+         * main process. This can be used for the foreground renderer process to distinguish it from
+         * the the background renderer process.
+         * @param pid The process handle of the service connection.
+         */
+        void bindAsHighPriority(final int pid) {
+            ChildProcessConnection connection = sServiceMap.get(pid);
+            if (connection == null) {
+                LogPidWarning(pid, "Tried to bind a non-existent connection");
+                return;
+            }
+            synchronized (mCountLock) {
+                connection.attachAsActive();
+                incrementOomCount(pid);
+            }
+        }
+
+        /**
+         * Unbind a high priority process which was previous bound with bindAsHighPriority.
+         * @param pid The process handle of the service.
+         */
+        void unbindAsHighPriority(final int pid) {
+            final ChildProcessConnection connection = sServiceMap.get(pid);
+            if (connection == null) {
+                LogPidWarning(pid, "Tried to unbind non-existent connection");
+                return;
+            }
+            ThreadUtils.postOnUiThreadDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    synchronized (mCountLock) {
+                        decrementOomCount(pid);
+                        connection.detachAsActive();
+                    }
+                }
+            }, SysUtils.isLowEndDevice() ? 0 : DETACH_AS_ACTIVE_HIGH_END_DELAY_MILLIS);
+        }
+
+        /**
+         * @return True iff the given service process is protected from the out-of-memory killing,
+         * or it was protected when it died (either crashed or was closed). This can be used to
+         * decide if a disconnection of a renderer was a crash or a probable out-of-memory kill. In
+         * the unlikely event of the OS reusing renderer pid, the call will refer to the most recent
+         * renderer of the given pid. The binding count is being reset in addNewConnection().
+         */
+        boolean isOomProtected(int pid) {
+            synchronized (mCountLock) {
+                return mOomBindingCount.get(pid) > 0;
+            }
+        }
+    }
+
+    private static BindingManager sBindingManager = new BindingManager();
+
+    static BindingManager getBindingManager() {
+        return sBindingManager;
+    }
 
     /**
      * Returns the child process service interface for the given pid. This may be called on
@@ -287,12 +425,12 @@ public class ChildProcessLauncher {
         final ChildProcessConnection connection = allocatedConnection;
         Log.d(TAG, "Setting up connection to process: slot=" + connection.getServiceNumber());
 
-        ChildProcessConnection.ConnectionCallbacks connectionCallbacks =
-                new ChildProcessConnection.ConnectionCallbacks() {
-            public void onConnected(int pid, int oomBindingCount) {
+        ChildProcessConnection.ConnectionCallback connectionCallback =
+                new ChildProcessConnection.ConnectionCallback() {
+            public void onConnected(int pid) {
                 Log.d(TAG, "on connect callback, pid=" + pid + " context=" + clientContext);
                 if (pid != NULL_PROCESS_HANDLE) {
-                    sOomBindingCount.put(pid, oomBindingCount);
+                    sBindingManager.addNewConnection(pid);
                     sServiceMap.put(pid, connection);
                 } else {
                     freeConnection(connection);
@@ -300,31 +438,13 @@ public class ChildProcessLauncher {
                 nativeOnChildProcessStarted(clientContext, pid);
             }
 
-            public void onOomBindingAdded(int pid) {
-                if (pid != NULL_PROCESS_HANDLE) {
-                    sOomBindingCount.put(pid, sOomBindingCount.get(pid) + 1);
-                }
-            }
-
-            public void onOomBindingRemoved(int pid) {
-                if (pid != NULL_PROCESS_HANDLE) {
-                    int count = sOomBindingCount.get(pid, -1);
-                    assert count > 0;
-                    count--;
-                    if (count > 0) {
-                        sOomBindingCount.put(pid, count);
-                    } else {
-                        sOomBindingCount.delete(pid);
-                    }
-                }
-            }
         };
 
         // TODO(sievers): Revisit this as it doesn't correctly handle the utility process
         // assert callbackType != CALLBACK_FOR_UNKNOWN_PROCESS;
 
         connection.setupConnection(commandLine, filesToBeMapped, createCallback(callbackType),
-                connectionCallbacks);
+                connectionCallback);
     }
 
     /**
@@ -342,58 +462,6 @@ public class ChildProcessLauncher {
         }
         connection.stop();
         freeConnection(connection);
-    }
-
-    /**
-     * Remove the initial child process binding. Child processes are bound with initial binding to
-     * protect them from getting killed before they are put to use. This method allows to remove the
-     * binding once it is no longer needed.
-     */
-    static void removeInitialBinding(int pid) {
-        ChildProcessConnection connection = sServiceMap.get(pid);
-        if (connection == null) {
-            LogPidWarning(pid, "Tried to remove a binding for a non-existent connection");
-            return;
-        }
-        connection.removeInitialBinding();
-    }
-
-    /**
-     * Bind a child process as a high priority process so that it has the same priority as the main
-     * process. This can be used for the foreground renderer process to distinguish it from the the
-     * background renderer process.
-     *
-     * @param pid The process handle of the service connection obtained from {@link #start}.
-     */
-    static void bindAsHighPriority(int pid) {
-        ChildProcessConnection connection = sServiceMap.get(pid);
-        if (connection == null) {
-            LogPidWarning(pid, "Tried to bind a non-existent connection");
-            return;
-        }
-        connection.attachAsActive();
-    }
-
-    /**
-     * Unbind a high priority process which is bound by {@link #bindAsHighPriority}.
-     *
-     * @param pid The process handle of the service obtained from {@link #start}.
-     */
-    static void unbindAsHighPriority(int pid) {
-        ChildProcessConnection connection = sServiceMap.get(pid);
-        if (connection == null) {
-            LogPidWarning(pid, "Tried to unbind non-existent connection");
-            return;
-        }
-        connection.detachAsActive();
-    }
-
-    /**
-     * @return True iff the given service process is protected from the out-of-memory killing, or it
-     * was protected from it when it died.
-     */
-    static boolean isOomProtected(int pid) {
-        return sOomBindingCount.get(pid) > 0;
     }
 
     /**

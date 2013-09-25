@@ -73,7 +73,11 @@ class LocationProvider {
                 ActivityStatus.registerStateListener(this);
             }
             mIsGpsEnabled = gpsEnabled;
-            if (ActivityStatus.isPaused()) {
+
+            int activityState = ActivityStatus.getState();
+            if (activityState == ActivityStatus.PAUSED
+                    || activityState == ActivityStatus.STOPPED
+                    || activityState == ActivityStatus.DESTROYED) {
                 mShouldRunAfterActivityResume = true;
             } else {
                 unregisterFromLocationUpdates();

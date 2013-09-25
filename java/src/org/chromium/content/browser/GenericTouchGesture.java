@@ -13,6 +13,7 @@ import android.os.SystemClock;
 import android.view.MotionEvent;
 import android.view.MotionEvent.PointerProperties;
 import android.view.MotionEvent.PointerCoords;
+import android.view.ViewConfiguration;
 
 import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
@@ -52,12 +53,27 @@ public class GenericTouchGesture {
 
         // Class representing a single pointer being moved over the screen.
         TouchPointer(int startX, int startY, int deltaX, int deltaY,
-                int id, float scale) {
+                int id, float scale, int scaledTouchSlop) {
             mStartX = startX * scale;
             mStartY = startY * scale;
 
-            mDeltaX = deltaX * scale;
-            mDeltaY = deltaY * scale;
+            float scaledDeltaX = deltaX * scale;
+            float scaledDeltaY = deltaY * scale;
+
+            if (scaledDeltaX != 0 || scaledDeltaY != 0) {
+                // The touch handler only considers a pointer as moving once
+                // it's been moved by more than scaledTouchSlop pixels. We
+                // thus increase the delta distance so the move is actually
+                // registered as covering the specified distance.
+                float distance = (float)Math.sqrt(scaledDeltaX * scaledDeltaX +
+                        scaledDeltaY * scaledDeltaY);
+                mDeltaX = scaledDeltaX * (1 + scaledTouchSlop / distance);
+                mDeltaY = scaledDeltaY * (1 + scaledTouchSlop / distance);
+            }
+            else {
+                mDeltaX = scaledDeltaX;
+                mDeltaY = scaledDeltaY;
+            }
 
             if (deltaX != 0 || deltaY != 0) {
                 mStepX = mDeltaX / Math.abs(mDeltaX + mDeltaY);
@@ -114,9 +130,11 @@ public class GenericTouchGesture {
         mContentViewCore = contentViewCore;
 
         float scale = mContentViewCore.getRenderCoordinates().getDeviceScaleFactor();
+        int scaledTouchSlop = getScaledTouchSlop();
 
         mPointers = new TouchPointer[1];
-        mPointers[0] = new TouchPointer(startX, startY, deltaX, deltaY, 0, scale);
+        mPointers[0] = new TouchPointer(startX, startY, deltaX, deltaY, 0,
+            scale, scaledTouchSlop);
 
         mPointerProperties = new PointerProperties[1];
         mPointerProperties[0] = mPointers[0].getProperties();
@@ -131,10 +149,13 @@ public class GenericTouchGesture {
         mContentViewCore = contentViewCore;
 
         float scale = mContentViewCore.getRenderCoordinates().getDeviceScaleFactor();
+        int scaledTouchSlop = getScaledTouchSlop();
 
         mPointers = new TouchPointer[2];
-        mPointers[0] = new TouchPointer(startX0, startY0, deltaX0, deltaY0, 0, scale);
-        mPointers[1] = new TouchPointer(startX1, startY1, deltaX1, deltaY1, 1, scale);
+        mPointers[0] = new TouchPointer(startX0, startY0, deltaX0, deltaY0, 0,
+            scale, scaledTouchSlop);
+        mPointers[1] = new TouchPointer(startX1, startY1, deltaX1, deltaY1, 1,
+            scale, scaledTouchSlop);
 
         mPointerProperties = new PointerProperties[2];
         mPointerProperties[0] = mPointers[0].getProperties();
@@ -143,6 +164,10 @@ public class GenericTouchGesture {
         mPointerCoords = new PointerCoords[2];
         mPointerCoords[0] = mPointers[0].getCoords();
         mPointerCoords[1] = mPointers[1].getCoords();
+    }
+
+    private int getScaledTouchSlop() {
+        return ViewConfiguration.get(mContentViewCore.getContext()).getScaledTouchSlop();
     }
 
     @CalledByNative

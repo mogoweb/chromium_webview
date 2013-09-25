@@ -168,13 +168,7 @@ public class InputDialogContainer {
 
         mDialog.setButton(DialogInterface.BUTTON_NEGATIVE,
                 mContext.getText(android.R.string.cancel),
-                new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        mDialogAlreadyDismissed = true;
-                        mInputActionDelegate.cancelDateTimeDialog();
-                    }
-                });
+                (DialogInterface.OnClickListener) null);
 
         mDialog.setButton(DialogInterface.BUTTON_NEUTRAL,
                 mContext.getText(R.string.date_picker_dialog_clear),
@@ -183,6 +177,16 @@ public class InputDialogContainer {
                     public void onClick(DialogInterface dialog, int which) {
                         mDialogAlreadyDismissed = true;
                         mInputActionDelegate.replaceDateTime(dialogType, 0, 0, 0, 0, 0, 0, 0, 0);
+                    }
+                });
+
+        mDialog.setOnDismissListener(
+                new OnDismissListener() {
+                    public void onDismiss(final DialogInterface dialog) {
+                        if (!mDialogAlreadyDismissed) {
+                            mDialogAlreadyDismissed = true;
+                            mInputActionDelegate.cancelDateTimeDialog();
+                        }
                     }
                 });
 
