@@ -5,8 +5,10 @@
 package org.chromium.content.browser;
 
 import android.app.Activity;
+import android.app.SearchManager;
 import android.content.ContentResolver;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
@@ -21,12 +23,15 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.ResultReceiver;
+import android.provider.Browser;
 import android.provider.Settings;
 import android.provider.Settings.Secure;
 import android.text.Editable;
+import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
 import android.view.ActionMode;
+import android.view.HapticFeedbackConstants;
 import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
@@ -58,8 +63,8 @@ import org.chromium.content.browser.accessibility.BrowserAccessibilityManager;
 import org.chromium.content.browser.input.AdapterInputConnection;
 import org.chromium.content.browser.input.HandleView;
 import org.chromium.content.browser.input.ImeAdapter;
-import org.chromium.content.browser.input.InputMethodManagerWrapper;
 import org.chromium.content.browser.input.ImeAdapter.AdapterInputConnectionFactory;
+import org.chromium.content.browser.input.InputMethodManagerWrapper;
 import org.chromium.content.browser.input.InsertionHandleController;
 import org.chromium.content.browser.input.SelectPopupDialog;
 import org.chromium.content.browser.input.SelectionHandleController;
@@ -71,7 +76,6 @@ import org.chromium.ui.gfx.DeviceDisplayInfo;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -615,6 +619,8 @@ import java.util.Map;
                                     // If OSK is newly shown, delay the form focus until
                                     // the onSizeChanged (in order to adjust relative to the
                                     // new size).
+                                    // TODO(jdduke): We should not assume that onSizeChanged will
+                                    // always be called, crbug.com/294908.
                                     getContainerView().getWindowVisibleDisplayFrame(
                                             mFocusPreOSKViewportRect);
                                 } else if (resultCode ==
@@ -1377,11 +1383,9 @@ import java.util.Map;
      *                 result will be json encoded and passed as the parameter, and the call
      *                 will be made on the main thread.
      *                 If no result is required, pass null.
-     * @throws IllegalStateException If the ContentView has been destroyed.
      */
-    public void evaluateJavaScript(
-            String script, JavaScriptCallback callback) throws IllegalStateException {
-        checkIsAlive();
+    public void evaluateJavaScript(String script, JavaScriptCallback callback) {
+        if (mNativeContentViewCore == 0) return;
         nativeEvaluateJavaScript(mNativeContentViewCore, script, callback, false);
     }
 
@@ -1390,11 +1394,9 @@ import java.util.Map;
      * If there is no page existing, a new one will be created.
      *
      * @param script The Javascript to execute.
-     * @throws IllegalStateException If the ContentView has been destroyed.
      */
-    public void evaluateJavaScriptEvenIfNotYetNavigated(String script)
-            throws IllegalStateException {
-        checkIsAlive();
+    public void evaluateJavaScriptEvenIfNotYetNavigated(String script) {
+        if (mNativeContentViewCore == 0) return;
         nativeEvaluateJavaScript(mNativeContentViewCore, script, null, true);
     }
 
@@ -1483,12 +1485,12 @@ import java.util.Map;
         mAttachedToWindow = true;
         if (mNativeContentViewCore != 0) {
             assert mPid == nativeGetCurrentRenderProcessId(mNativeContentViewCore);
-            ChildProcessLauncher.bindAsHighPriority(mPid);
+            ChildProcessLauncher.getBindingManager().bindAsHighPriority(mPid);
             // Normally the initial binding is removed in onRenderProcessSwap(), but it is possible
             // to construct WebContents and spawn the renderer before passing it to ContentViewCore.
             // In this case there will be no onRenderProcessSwap() call and the initial binding will
             // be removed here.
-            ChildProcessLauncher.removeInitialBinding(mPid);
+            ChildProcessLauncher.getBindingManager().removeInitialBinding(mPid);
         }
         setAccessibilityState(mAccessibilityManager.isEnabled());
     }
@@ -1501,7 +1503,7 @@ import java.util.Map;
         mAttachedToWindow = false;
         if (mNativeContentViewCore != 0) {
             assert mPid == nativeGetCurrentRenderProcessId(mNativeContentViewCore);
-            ChildProcessLauncher.unbindAsHighPriority(mPid);
+            ChildProcessLauncher.getBindingManager().unbindAsHighPriority(mPid);
         }
         setInjectedAccessibility(false);
         hidePopupDialog();
@@ -1619,7 +1621,10 @@ import java.util.Map;
             Rect rect = new Rect();
             getContainerView().getWindowVisibleDisplayFrame(rect);
             if (!rect.equals(mFocusPreOSKViewportRect)) {
-                scrollFocusedEditableNodeIntoView();
+                // Only assume the OSK triggered the onSizeChanged if width was preserved.
+                if (rect.width() == mFocusPreOSKViewportRect.width()) {
+                    scrollFocusedEditableNodeIntoView();
+                }
                 mFocusPreOSKViewportRect.setEmpty();
             }
         } else if (mUnfocusOnNextSizeChanged) {
@@ -1675,6 +1680,15 @@ import java.util.Map;
             scrollTask.run();
         }
         mScrolledAndZoomedFocusedEditableNode = false;
+    }
+
+    /**
+     * @see View#onWindowFocusChanged(boolean)
+     */
+    public void onWindowFocusChanged(boolean hasWindowFocus) {
+        if (!hasWindowFocus) {
+            mContentViewGestureHandler.onWindowFocusLost();
+        }
     }
 
     public void onFocusChanged(boolean gainFocus) {
@@ -1880,11 +1894,24 @@ import java.util.Map;
         }
     }
 
+    /**
+     * Called by native side when the corresponding renderer crashes. Note that if a renderer is
+     * shared between tabs, this might be called multiple times while the tab is crashed. This is
+     * because the tabs sharing a renderer also share RenderProcessHost. When one of those tabs
+     * reloads and a new renderer is created for the shared RenderProcessHost, all tabs are notified
+     * in onRenderProcessSwap(), not only the one that reloads. If this renderer dies, all the other
+     * dead tabs are notified again.
+     * @param alreadyCrashed true iff this tab is already in crashed state but the shared renderer
+     *                       resurrected and died again since the last time this was called.
+     */
     @SuppressWarnings("unused")
     @CalledByNative
-    private void onTabCrash() {
+    private void onTabCrash(boolean alreadyCrashed) {
         assert mPid != 0;
-        getContentViewClient().onRendererCrash(ChildProcessLauncher.isOomProtected(mPid));
+        if (!alreadyCrashed) {
+            getContentViewClient().onRendererCrash(
+                    ChildProcessLauncher.getBindingManager().isOomProtected(mPid));
+        }
         mPid = 0;
     }
 
@@ -2094,23 +2121,66 @@ import java.util.Map;
         SelectActionModeCallback.ActionHandler actionHandler =
                 new SelectActionModeCallback.ActionHandler() {
             @Override
-            public boolean selectAll() {
-                return mImeAdapter.selectAll();
+            public void selectAll() {
+                mImeAdapter.selectAll();
             }
 
             @Override
-            public boolean cut() {
-                return mImeAdapter.cut();
+            public void cut() {
+                mImeAdapter.cut();
             }
 
             @Override
-            public boolean copy() {
-                return mImeAdapter.copy();
+            public void copy() {
+                mImeAdapter.copy();
             }
 
             @Override
-            public boolean paste() {
-                return mImeAdapter.paste();
+            public void paste() {
+                mImeAdapter.paste();
+            }
+
+            @Override
+            public void share() {
+                final String query = getSelectedText();
+                if (TextUtils.isEmpty(query)) return;
+
+                Intent send = new Intent(Intent.ACTION_SEND);
+                send.setType("text/plain");
+                send.putExtra(Intent.EXTRA_TEXT, query);
+                try {
+                    Intent i = Intent.createChooser(send, getContext().getString(
+                            R.string.actionbar_share));
+                    i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    getContext().startActivity(i);
+                } catch (android.content.ActivityNotFoundException ex) {
+                    // If no app handles it, do nothing.
+                }
+            }
+
+            @Override
+            public void search() {
+                final String query = getSelectedText();
+                if (TextUtils.isEmpty(query)) return;
+
+                // See if ContentViewClient wants to override
+                if (getContentViewClient().doesPerformWebSearch()) {
+                    getContentViewClient().performWebSearch(query);
+                    return;
+                }
+
+                Intent i = new Intent(Intent.ACTION_WEB_SEARCH);
+                i.putExtra(SearchManager.EXTRA_NEW_SEARCH, true);
+                i.putExtra(SearchManager.QUERY, query);
+                i.putExtra(Browser.EXTRA_APPLICATION_ID, getContext().getPackageName());
+                if (!(getContext() instanceof Activity)) {
+                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                }
+                try {
+                    getContext().startActivity(i);
+                } catch (android.content.ActivityNotFoundException ex) {
+                    // If no app handles it, do nothing.
+                }
             }
 
             @Override
@@ -2119,15 +2189,27 @@ import java.util.Map;
             }
 
             @Override
-            public String getSelectedText() {
-                return ContentViewCore.this.getSelectedText();
-            }
-
-            @Override
             public void onDestroyActionMode() {
                 mActionMode = null;
                 if (mUnselectAllOnActionModeDismiss) mImeAdapter.unselect();
                 getContentViewClient().onContextualActionBarHidden();
+            }
+
+            @Override
+            public boolean isShareAvailable() {
+                Intent intent = new Intent(Intent.ACTION_SEND);
+                intent.setType("text/plain");
+                return getContext().getPackageManager().queryIntentActivities(intent,
+                        PackageManager.MATCH_DEFAULT_ONLY).size() > 0;
+            }
+
+            @Override
+            public boolean isWebSearchAvailable() {
+                if (getContentViewClient().doesPerformWebSearch()) return true;
+                Intent intent = new Intent(Intent.ACTION_WEB_SEARCH);
+                intent.putExtra(SearchManager.EXTRA_NEW_SEARCH, true);
+                return getContext().getPackageManager().queryIntentActivities(intent,
+                        PackageManager.MATCH_DEFAULT_ONLY).size() > 0;
             }
         };
         mActionMode = null;
@@ -2396,9 +2478,18 @@ import java.util.Map;
 
     @SuppressWarnings("unused")
     @CalledByNative
-    private GenericTouchGesture createGenericTouchGesture(int startX,
+    private GenericTouchGesture createOnePointTouchGesture(int startX,
             int startY, int deltaX, int deltaY) {
         return new GenericTouchGesture(this, startX, startY, deltaX, deltaY);
+    }
+
+    @SuppressWarnings("unused")
+    @CalledByNative
+    private GenericTouchGesture createTwoPointTouchGesture(
+            int startX0, int startY0, int deltaX0, int deltaY0,
+            int startX1, int startY1, int deltaX1, int deltaY1) {
+        return new GenericTouchGesture(this, startX0, startY0, deltaX0, deltaY0,
+                startX1, startY1, deltaX1, deltaY1);
     }
 
     @SuppressWarnings("unused")
@@ -2428,6 +2519,12 @@ import java.util.Map;
             } else {
                 mStartHandlePoint.setLocalDip(x2, y2);
                 mEndHandlePoint.setLocalDip(x1, y1);
+            }
+
+            if (!getSelectionHandleController().isShowing()) {
+                // TODO(cjhopman): Remove this when there is a better signal that long press caused
+                // a selection. See http://crbug.com/150151.
+                mContainerView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
             }
 
             getSelectionHandleController().onSelectionChanged(anchorDir, focusDir);
@@ -2486,13 +2583,13 @@ import java.util.Map;
     private void onRenderProcessSwap(int oldPid, int newPid) {
         assert mPid == oldPid || mPid == newPid;
         if (mAttachedToWindow && oldPid != newPid) {
-            ChildProcessLauncher.unbindAsHighPriority(oldPid);
-            ChildProcessLauncher.bindAsHighPriority(newPid);
+            ChildProcessLauncher.getBindingManager().unbindAsHighPriority(oldPid);
+            ChildProcessLauncher.getBindingManager().bindAsHighPriority(newPid);
         }
 
         // We want to remove the initial binding even if the ContentView is not attached, so that
         // renderers for ContentViews loading in background do not retain the high priority.
-        ChildProcessLauncher.removeInitialBinding(newPid);
+        ChildProcessLauncher.getBindingManager().removeInitialBinding(newPid);
         mPid = newPid;
     }
 

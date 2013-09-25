@@ -152,6 +152,24 @@ public class ContentViewClient {
     }
 
     /**
+     * Perform a search on {@code searchQuery}.  This method is only called if
+     * {@link #doesPerformWebSearch()} returns {@code true}.
+     * @param searchQuery The string to search for.
+     */
+    public void performWebSearch(String searchQuery) {
+    }
+
+    /**
+     * If this returns {@code true} contextual web search attempts will be forwarded to
+     * {@link #performWebSearch(String)}.
+     * @return {@code true} iff this {@link ContentViewClient} wants to consume web search queries
+     *         and override the default intent behavior.
+     */
+    public boolean doesPerformWebSearch() {
+        return false;
+    }
+
+    /**
      * Called when a new content intent is requested to be started.
      */
     public void onStartContentIntent(Context context, String intentUrl) {

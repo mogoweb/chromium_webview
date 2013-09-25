@@ -45,30 +45,14 @@ public class ChildProcessConnection {
     }
 
     /**
-     * Used to notify the consumer about the connection being established and about out-of-memory
-     * bindings being bound for the connection. "Out-of-memory" bindings are bindings that raise the
-     * priority of the service process so that it does not get killed by the OS out-of-memory killer
-     * during normal operation (yet it still may get killed under drastic memory pressure).
+     * Used to notify the consumer about the connection being established.
      */
-    interface ConnectionCallbacks {
+    interface ConnectionCallback {
         /**
-         * Called when the connection to the service is established. It will be called before any
-         * calls to onOomBindingsAdded(), onOomBindingRemoved().
+         * Called when the connection to the service is established.
          * @param pid Pid of the child process.
-         * @param oomBindingCount Number of the out-of-memory bindings bound before the connection
-         * was established.
          */
-        void onConnected(int pid, int oomBindingCount);
-
-        /**
-         * Called when a new out-of-memory binding is bound.
-         */
-        void onOomBindingAdded(int pid);
-
-        /**
-         * Called when an out-of-memory binding is unbound.
-         */
-        void onOomBindingRemoved(int pid);
+        void onConnected(int pid);
     }
 
     // Names of items placed in the bind intent or connection bundle.
@@ -141,17 +125,15 @@ public class ChildProcessConnection {
 
     // Callbacks used to notify the consumer about connection events. This is also provided in
     // setupConnection(), but remains valid after setup.
-    private ChildProcessConnection.ConnectionCallbacks mConnectionCallbacks;
+    private ChildProcessConnection.ConnectionCallback mConnectionCallback;
 
     private class ChildServiceConnection implements ServiceConnection {
         private boolean mBound = false;
 
         private final int mBindFlags;
-        private final boolean mProtectsFromOom;
 
-        public ChildServiceConnection(int bindFlags, boolean protectsFromOom) {
+        public ChildServiceConnection(int bindFlags) {
             mBindFlags = bindFlags;
-            mProtectsFromOom = protectsFromOom;
         }
 
         boolean bind(String[] commandLine) {
@@ -161,9 +143,6 @@ public class ChildProcessConnection {
                     intent.putExtra(EXTRA_COMMAND_LINE, commandLine);
                 }
                 mBound = mContext.bindService(intent, this, mBindFlags);
-                if (mBound && mProtectsFromOom && mConnectionCallbacks != null) {
-                    mConnectionCallbacks.onOomBindingAdded(getPid());
-                }
             }
             return mBound;
         }
@@ -172,12 +151,6 @@ public class ChildProcessConnection {
             if (mBound) {
                 mContext.unbindService(this);
                 mBound = false;
-                // When the process crashes, we stop reporting bindings being unbound (so that their
-                // numbers can be inspected to determine if the process crash could be caused by the
-                // out-of-memory killing), hence the mServiceDisconnected check below.
-                if (mProtectsFromOom && mConnectionCallbacks != null && !mServiceDisconnected) {
-                    mConnectionCallbacks.onOomBindingRemoved(getPid());
-                }
             }
         }
 
@@ -223,8 +196,8 @@ public class ChildProcessConnection {
                 mDeathCallback.onChildProcessDied(pid);
             }
             // TODO(ppi): does anyone know why we need to do that?
-            if (disconnectedWhileBeingSetUp && mConnectionCallbacks != null) {
-                mConnectionCallbacks.onConnected(0, 0);
+            if (disconnectedWhileBeingSetUp && mConnectionCallback != null) {
+                mConnectionCallback.onConnected(0);
             }
         }
     }
@@ -237,11 +210,11 @@ public class ChildProcessConnection {
         mInSandbox = inSandbox;
         mDeathCallback = deathCallback;
         mServiceClass = serviceClass;
-        mInitialBinding = new ChildServiceConnection(Context.BIND_AUTO_CREATE, true);
+        mInitialBinding = new ChildServiceConnection(Context.BIND_AUTO_CREATE);
         mStrongBinding = new ChildServiceConnection(
-                Context.BIND_AUTO_CREATE | Context.BIND_IMPORTANT, true);
+                Context.BIND_AUTO_CREATE | Context.BIND_IMPORTANT);
         mWaivedBinding = new ChildServiceConnection(
-                Context.BIND_AUTO_CREATE | Context.BIND_WAIVE_PRIORITY, false);
+                Context.BIND_AUTO_CREATE | Context.BIND_WAIVE_PRIORITY);
     }
 
     int getServiceNumber() {
@@ -300,11 +273,11 @@ public class ChildProcessConnection {
             String[] commandLine,
             FileDescriptorInfo[] filesToBeMapped,
             IChildProcessCallback processCallback,
-            ConnectionCallbacks connectionCallbacks) {
+            ConnectionCallback connectionCallbacks) {
         synchronized(mLock) {
             TraceEvent.begin();
             assert mConnectionParams == null;
-            mConnectionCallbacks = connectionCallbacks;
+            mConnectionCallback = connectionCallbacks;
             mConnectionParams = new ConnectionParams(commandLine, filesToBeMapped, processCallback);
             // Make sure that the service is already connected. If not, doConnectionSetup() will be
             // called from onServiceConnected().
@@ -404,38 +377,27 @@ public class ChildProcessConnection {
         }
         mConnectionParams = null;
 
-        if (mConnectionCallbacks != null) {
-            // Number of out-of-memory bindings bound before the connection was set up.
-            int oomBindingCount =
-                    (mInitialBinding.isBound() ? 1 : 0) + (mStrongBinding.isBound() ? 1 : 0);
-            mConnectionCallbacks.onConnected(getPid(), oomBindingCount);
+        if (mConnectionCallback != null) {
+            mConnectionCallback.onConnected(getPid());
         }
         TraceEvent.end();
     }
 
-    private static final long REMOVE_INITIAL_BINDING_DELAY_MILLIS = 1 * 1000;  // One second.
+    /** @return true iff the initial oom binding is currently bound. */
+    boolean isInitialBindingBound() {
+        synchronized(mLock) {
+            return mInitialBinding.isBound();
+        }
+    }
 
     /**
      * Called to remove the strong binding estabilished when the connection was started. It is safe
-     * to call this multiple times. The binding is removed after a fixed delay period so that the
-     * renderer will not be killed immediately after the call.
+     * to call this multiple times.
      */
     void removeInitialBinding() {
         synchronized(mLock) {
-            if (!mInitialBinding.isBound()) {
-                // While it is safe to post and execute the unbinding multiple times, we prefer to
-                // avoid spamming the message queue.
-                return;
-            }
+            mInitialBinding.unbind();
         }
-        ThreadUtils.postOnUiThreadDelayed(new Runnable() {
-            @Override
-            public void run() {
-                synchronized(mLock) {
-                    mInitialBinding.unbind();
-                }
-            }
-        }, REMOVE_INITIAL_BINDING_DELAY_MILLIS);
     }
 
     /**
@@ -457,31 +419,21 @@ public class ChildProcessConnection {
         }
     }
 
-    private static final long DETACH_AS_ACTIVE_HIGH_END_DELAY_MILLIS = 5 * 1000;  // Five seconds.
-
     /**
-     * Called when the service is no longer considered active. For devices that are not considered
-     * low memory the actual binding is removed after a fixed delay period so that the renderer will
-     * not be killed immediately after the call. We don't delay the unbinding for low memory devices
-     * to avoid putting the OS there on strain of having multiple renderers it can't kill.
+     * Called when the service is no longer considered active.
      */
     void detachAsActive() {
-        ThreadUtils.postOnUiThreadDelayed(new Runnable() {
-            @Override
-            public void run() {
-                synchronized(mLock) {
-                    if (mService == null) {
-                        Log.w(TAG, "The connection is not bound for " + mPID);
-                        return;
-                    }
-                    assert mAttachAsActiveCount > 0;
-                    mAttachAsActiveCount--;
-                    if (mAttachAsActiveCount == 0) {
-                        mStrongBinding.unbind();
-                    }
-                }
+        synchronized(mLock) {
+            if (mService == null) {
+                Log.w(TAG, "The connection is not bound for " + mPID);
+                return;
             }
-        }, SysUtils.isLowEndDevice() ? 0 : DETACH_AS_ACTIVE_HIGH_END_DELAY_MILLIS);
+            assert mAttachAsActiveCount > 0;
+            mAttachAsActiveCount--;
+            if (mAttachAsActiveCount == 0) {
+                mStrongBinding.unbind();
+            }
+        }
     }
 
     /**

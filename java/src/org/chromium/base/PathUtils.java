@@ -56,6 +56,15 @@ public abstract class PathUtils {
     }
 
     /**
+     * @return the private directory that is used to store application database.
+     */
+    @CalledByNative
+    public static String getDatabaseDirectory(Context appContext) {
+        // Context.getDatabasePath() returns path for the provided filename.
+        return appContext.getDatabasePath("foo").getParent();
+    }
+
+    /**
      * @return the cache directory.
      */
     @SuppressWarnings("unused")

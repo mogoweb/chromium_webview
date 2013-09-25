@@ -1435,6 +1435,23 @@ public class WebView extends FrameLayout {
       }
 
       @Override
+      public void super_scrollTo(int scrollX, int scrollY) {
+          // We're intentionally not calling super.scrollTo here to make testing easier.
+          WebView.this.scrollTo(scrollX, scrollY);
+      }
+
+      @Override
+      public void overScrollBy(int deltaX, int deltaY,
+              int scrollX, int scrollY,
+              int scrollRangeX, int scrollRangeY,
+              int maxOverScrollX, int maxOverScrollY,
+              boolean isTouchEvent) {
+          // We're intentionally not calling super.scrollTo here to make testing easier.
+          WebView.this.overScrollBy(deltaX, deltaY, scrollX, scrollY,
+                   scrollRangeX, scrollRangeY, maxOverScrollX, maxOverScrollY, isTouchEvent);
+      }
+
+      @Override
       public void onScrollChanged(int lPix, int tPix, int oldlPix, int oldtPix) {
           WebView.this.onScrollChanged(lPix, tPix, oldlPix, oldtPix);
       }
@@ -1452,6 +1469,11 @@ public class WebView extends FrameLayout {
       @Override
       public void setMeasuredDimension(int measuredWidth, int measuredHeight) {
           WebView.this.setMeasuredDimension(measuredWidth, measuredHeight);
+      }
+
+      @Override
+      public int super_getScrollBarStyle() {
+          return WebView.super.getScrollBarStyle();
       }
 
       @Override

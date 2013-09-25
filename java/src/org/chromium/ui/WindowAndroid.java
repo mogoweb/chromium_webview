@@ -9,12 +9,18 @@ import android.content.ActivityNotFoundException;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.Rect;
 import android.os.Bundle;
+import android.util.Log;
 import android.util.SparseArray;
+import android.view.View;
 import android.widget.Toast;
 
+import java.io.ByteArrayOutputStream;
 import java.util.HashMap;
 
+import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
 
 /**
@@ -22,6 +28,8 @@ import org.chromium.base.JNINamespace;
  */
 @JNINamespace("ui")
 public class WindowAndroid {
+
+    private static final String TAG = "WindowAndroid";
 
     // Native pointer to the c++ WindowAndroid object.
     private int mNativeWindowAndroid = 0;
@@ -208,6 +216,41 @@ public class WindowAndroid {
             mNativeWindowAndroid = nativeInit();
         }
         return mNativeWindowAndroid;
+    }
+
+    /**
+     * Returns a PNG-encoded screenshot of the the window region at (|windowX|,
+     * |windowY|) with the size |width| by |height| pixels.
+     */
+    @CalledByNative
+    public byte[] grabSnapshot(int windowX, int windowY, int width, int height) {
+        try {
+            // Take a screenshot of the content view. This generally includes UI
+            // controls such as the URL bar.
+            View contentView = mActivity.findViewById(android.R.id.content);
+            if (contentView == null) return null;
+            Bitmap bitmap =
+                    UiUtils.generateScaledScreenshot(contentView, 0, Bitmap.Config.ARGB_8888);
+            if (bitmap == null) return null;
+
+            // Clip the result into the requested region.
+            if (windowX > 0 || windowY > 0 || width != bitmap.getWidth() ||
+                    height != bitmap.getHeight()) {
+                Rect clip = new Rect(0, 0, bitmap.getWidth(), bitmap.getHeight());
+                clip.intersect(windowX, windowY, windowX + width, windowY + height);
+                bitmap = Bitmap.createBitmap(
+                        bitmap, clip.left, clip.top, clip.width(), clip.height());
+            }
+
+            // Compress the result into a PNG.
+            ByteArrayOutputStream result = new ByteArrayOutputStream();
+            if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, result)) return null;
+            bitmap.recycle();
+            return result.toByteArray();
+        } catch (OutOfMemoryError e) {
+            Log.e(TAG, "Out of memory while grabbing window snapshot.", e);
+            return null;
+        }
     }
 
     private native int nativeInit();

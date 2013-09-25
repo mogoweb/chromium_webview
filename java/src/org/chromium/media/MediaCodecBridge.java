@@ -17,6 +17,9 @@ import android.util.Log;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
@@ -74,6 +77,25 @@ class MediaCodecBridge {
         private int index() { return mIndex; }
     }
 
+    /**
+     * This class represents supported android codec information.
+     */
+    private static class CodecInfo {
+        private final String mCodecType;
+        private final boolean mIsSecureDecoderSupported;
+
+        private CodecInfo(String codecType, boolean isSecureDecoderSupported) {
+            mCodecType = codecType;
+            mIsSecureDecoderSupported = isSecureDecoderSupported;
+        }
+
+        @CalledByNative("CodecInfo")
+        private String codecType() { return mCodecType; }
+
+        @CalledByNative("CodecInfo")
+        private boolean isSecureDecoderSupported() { return mIsSecureDecoderSupported; }
+    }
+
     private static class DequeueOutputResult {
         private final int mStatus;
         private final int mIndex;
@@ -109,6 +131,41 @@ class MediaCodecBridge {
 
         @CalledByNative("DequeueOutputResult")
         private int numBytes() { return mNumBytes; }
+    }
+
+    /**
+     * Get a list of supported android codec mimes.
+     */
+    @CalledByNative
+    private static CodecInfo[] getCodecsInfo() {
+        Map<String, CodecInfo> CodecInfoMap = new HashMap<String, CodecInfo>();
+        int count = MediaCodecList.getCodecCount();
+        for (int i = 0; i < count; ++i) {
+            MediaCodecInfo info = MediaCodecList.getCodecInfoAt(i);
+            if (info.isEncoder()) {
+                continue;
+            }
+
+            String[] supportedTypes = info.getSupportedTypes();
+            String codecString = info.getName();
+            String secureCodecName = codecString + ".secure";
+            boolean secureDecoderSupported = false;
+            try {
+                MediaCodec secureCodec = MediaCodec.createByCodecName(secureCodecName);
+                secureDecoderSupported = true;
+                secureCodec.release();
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to create " + secureCodecName);
+            }
+            for (int j = 0; j < supportedTypes.length; ++j) {
+                if (!CodecInfoMap.containsKey(supportedTypes[j]) || secureDecoderSupported) {
+                    CodecInfoMap.put(supportedTypes[j],
+                                     new CodecInfo(supportedTypes[j], secureDecoderSupported));
+                }
+            }
+        }
+        return CodecInfoMap.values().toArray(
+            new CodecInfo[CodecInfoMap.size()]);
     }
 
     private static String getSecureDecoderNameForMime(String mime) {
@@ -148,7 +205,8 @@ class MediaCodecBridge {
                 mediaCodec = MediaCodec.createDecoderByType(mime);
             }
         } catch (Exception e) {
-            Log.e(TAG, "Failed to create MediaCodec " + e.toString());
+            Log.e(TAG, "Failed to create MediaCodec: " +  mime + ", isSecure: "
+                    + isSecure + ", " + e.toString());
         }
 
         if (mediaCodec == null) {
@@ -342,7 +400,7 @@ class MediaCodecBridge {
     }
 
     @CalledByNative
-    private static void setCodecSpecificData(MediaFormat format, int index, ByteBuffer bytes) {
+    private static void setCodecSpecificData(MediaFormat format, int index, byte[] bytes) {
         String name = null;
         if (index == 0) {
             name = "csd-0";
@@ -350,7 +408,7 @@ class MediaCodecBridge {
             name = "csd-1";
         }
         if (name != null) {
-            format.setByteBuffer(name, bytes);
+            format.setByteBuffer(name, ByteBuffer.wrap(bytes));
         }
     }
 

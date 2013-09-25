@@ -167,6 +167,13 @@ public class LoadUrlParams {
     }
 
     /**
+     * Return the base url for a data url, otherwise null.
+     */
+    public String getBaseUrl() {
+        return mBaseUrlForDataUrl;
+    }
+
+    /**
      * Set load type of this load. Defaults to LOAD_TYPE_DEFAULT.
      * @param loadType One of LOAD_TYPE static constants above.
      */

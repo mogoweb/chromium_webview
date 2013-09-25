@@ -53,27 +53,33 @@ public class SelectActionModeCallback implements ActionMode.Callback {
     public interface ActionHandler {
         /**
          * Perform a select all action.
-         * @return true iff the action was successful.
          */
-        boolean selectAll();
+        void selectAll();
 
         /**
          * Perform a copy (to clipboard) action.
-         * @return true iff the action was successful.
          */
-        boolean copy();
+        void copy();
 
         /**
          * Perform a cut (to clipboard) action.
-         * @return true iff the action was successful.
          */
-        boolean cut();
+        void cut();
 
         /**
          * Perform a paste action.
-         * @return true iff the action was successful.
          */
-        boolean paste();
+        void paste();
+
+        /**
+         * Perform a share action.
+         */
+        void share();
+
+        /**
+         * Perform a search action.
+         */
+        void search();
 
         /**
          * @return true iff the current selection is editable (e.g. text within an input field).
@@ -81,14 +87,19 @@ public class SelectActionModeCallback implements ActionMode.Callback {
         boolean isSelectionEditable();
 
         /**
-         * @return the currently selected text String.
-         */
-        String getSelectedText();
-
-        /**
          * Called when the onDestroyActionMode of the SelectActionmodeCallback is called.
          */
         void onDestroyActionMode();
+
+        /**
+         * @return Whether or not share is available.
+         */
+        boolean isShareAvailable();
+
+        /**
+         * @return Whether or not web search is available.
+         */
+        boolean isWebSearchAvailable();
     }
 
     private Context mContext;
@@ -161,14 +172,14 @@ public class SelectActionModeCallback implements ActionMode.Callback {
         }
 
         if (!mEditable) {
-            if (isShareHandlerAvailable()) {
+            if (mActionHandler.isShareAvailable()) {
                 menu.add(Menu.NONE, ID_SHARE, Menu.NONE, R.string.actionbar_share).
                     setIcon(styledAttributes.getResourceId(SHARE_ATTR_INDEX, 0)).
                     setShowAsAction(
                             MenuItem.SHOW_AS_ACTION_ALWAYS | MenuItem.SHOW_AS_ACTION_WITH_TEXT);
             }
 
-            if (!mIncognito && isWebSearchAvailable()) {
+            if (!mIncognito && mActionHandler.isWebSearchAvailable()) {
                 menu.add(Menu.NONE, ID_SEARCH, Menu.NONE, R.string.actionbar_web_search).
                     setIcon(styledAttributes.getResourceId(WEB_SEARCH_ATTR_INDEX, 0)).
                     setShowAsAction(
@@ -181,7 +192,6 @@ public class SelectActionModeCallback implements ActionMode.Callback {
 
     @Override
     public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
-        String selection = mActionHandler.getSelectedText();
         switch(item.getItemId()) {
             case ID_SELECTALL:
                 mActionHandler.selectAll();
@@ -197,36 +207,11 @@ public class SelectActionModeCallback implements ActionMode.Callback {
                 mActionHandler.paste();
                 break;
             case ID_SHARE:
-                if (!TextUtils.isEmpty(selection)) {
-                    Intent send = new Intent(Intent.ACTION_SEND);
-                    send.setType("text/plain");
-                    send.putExtra(Intent.EXTRA_TEXT, selection);
-                    try {
-                        Intent i = Intent.createChooser(send, getContext().getString(
-                                R.string.actionbar_share));
-                        i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        getContext().startActivity(i);
-                    } catch (android.content.ActivityNotFoundException ex) {
-                        // If no app handles it, do nothing.
-                    }
-                }
+                mActionHandler.share();
                 mode.finish();
                 break;
             case ID_SEARCH:
-                if (!TextUtils.isEmpty(selection)) {
-                    Intent i = new Intent(Intent.ACTION_WEB_SEARCH);
-                    i.putExtra(SearchManager.EXTRA_NEW_SEARCH, true);
-                    i.putExtra(SearchManager.QUERY, selection);
-                    i.putExtra(Browser.EXTRA_APPLICATION_ID, getContext().getPackageName());
-                    if (!(getContext() instanceof Activity)) {
-                        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    }
-                    try {
-                        getContext().startActivity(i);
-                    } catch (android.content.ActivityNotFoundException ex) {
-                        // If no app handles it, do nothing.
-                    }
-                }
+                mActionHandler.search();
                 mode.finish();
                 break;
             default:
@@ -244,19 +229,5 @@ public class SelectActionModeCallback implements ActionMode.Callback {
         ClipboardManager clipMgr = (ClipboardManager)
                 getContext().getSystemService(Context.CLIPBOARD_SERVICE);
         return clipMgr.hasPrimaryClip();
-    }
-
-    private boolean isShareHandlerAvailable() {
-        Intent intent = new Intent(Intent.ACTION_SEND);
-        intent.setType("text/plain");
-        return getContext().getPackageManager()
-                .queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY).size() > 0;
-    }
-
-    private boolean isWebSearchAvailable() {
-        Intent intent = new Intent(Intent.ACTION_WEB_SEARCH);
-        intent.putExtra(SearchManager.EXTRA_NEW_SEARCH, true);
-        return getContext().getPackageManager()
-                .queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY).size() > 0;
     }
 }

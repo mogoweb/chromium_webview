@@ -14,6 +14,8 @@ import org.chromium.content.browser.ContentViewCore;
  * Helper methods used to manage the layout of the View that contains AwContents.
  */
 public class AwLayoutSizer {
+    public static final int FIXED_LAYOUT_HEIGHT = 0;
+
     // These are used to prevent a re-layout if the content size changes within a dimension that is
     // fixed by the view system.
     private boolean mWidthMeasurementIsFixed;
@@ -26,6 +28,8 @@ public class AwLayoutSizer {
     // Page scale factor. This is set to zero initially so that we don't attempt to do a layout if
     // we get the content size change notification first and a page scale change second.
     private double mPageScaleFactor = 0.0;
+    // The page scale factor that was used in the most recent onMeasure call.
+    private double mLastMeasuredPageScaleFactor = 0.0;
 
     // Whether to postpone layout requests.
     private boolean mFreezeLayoutRequests;
@@ -34,12 +38,18 @@ public class AwLayoutSizer {
 
     private double mDIPScale;
 
+    // Was our height larger than the AT_MOST constraint the last time onMeasure was called?
+    private boolean mHeightMeasurementLimited;
+    // If mHeightMeasurementLimited is true then this contains the height limit.
+    private int mHeightMeasurementLimit;
+
     // Callback object for interacting with the View.
     private Delegate mDelegate;
 
     public interface Delegate {
         void requestLayout();
         void setMeasuredDimension(int measuredWidth, int measuredHeight);
+        void setFixedLayoutSize(int widthDip, int heightDip);
     }
 
     /**
@@ -55,22 +65,6 @@ public class AwLayoutSizer {
 
     public void setDIPScale(double dipScale) {
         mDIPScale = dipScale;
-    }
-
-    /**
-     * This is used to register the AwLayoutSizer to preferred content size change notifications in
-     * the AwWebContentsDelegate.
-     * NOTE: The preferred size notifications come in from the Renderer main thread and might be
-     * out of sync with the content size as seen by the InProcessViewRenderer (and Compositor).
-     */
-    public AwWebContentsDelegateAdapter.PreferredSizeChangedListener
-            getPreferredSizeChangedListener() {
-        return new AwWebContentsDelegateAdapter.PreferredSizeChangedListener() {
-            @Override
-            public void updatePreferredSize(int widthCss, int heightCss) {
-                onContentSizeChanged(widthCss, heightCss);
-            }
-        };
     }
 
     /**
@@ -116,9 +110,12 @@ public class AwLayoutSizer {
         // We want to request layout only if the size or scale change, however if any of the
         // measurements are 'fixed', then changing the underlying size won't have any effect, so we
         // ignore changes to dimensions that are 'fixed'.
+        final int heightPix = (int) (heightCss * mPageScaleFactor * mDIPScale);
         boolean anyMeasurementNotFixed = !mWidthMeasurementIsFixed || !mHeightMeasurementIsFixed;
+        boolean contentHeightChangeMeaningful = !mHeightMeasurementIsFixed &&
+            (!mHeightMeasurementLimited || heightPix < mHeightMeasurementLimit);
         boolean layoutNeeded = (mContentWidthCss != widthCss && !mWidthMeasurementIsFixed) ||
-            (mContentHeightCss != heightCss && !mHeightMeasurementIsFixed) ||
+            (mContentHeightCss != heightCss && contentHeightChangeMeaningful) ||
             (mPageScaleFactor != pageScaleFactor && anyMeasurementNotFixed);
 
         mContentWidthCss = widthCss;
@@ -144,27 +141,27 @@ public class AwLayoutSizer {
         int widthMode = MeasureSpec.getMode(widthMeasureSpec);
         int widthSize = MeasureSpec.getSize(widthMeasureSpec);
 
-        int measuredHeight = heightSize;
-        int measuredWidth = widthSize;
-
         int contentHeightPix = (int) (mContentHeightCss * mPageScaleFactor * mDIPScale);
         int contentWidthPix = (int) (mContentWidthCss * mPageScaleFactor * mDIPScale);
 
+        int measuredHeight = contentHeightPix;
+        int measuredWidth = contentWidthPix;
+
+        mLastMeasuredPageScaleFactor = mPageScaleFactor;
+
         // Always use the given size unless unspecified. This matches WebViewClassic behavior.
         mWidthMeasurementIsFixed = (widthMode != MeasureSpec.UNSPECIFIED);
-        // Freeze the height if an exact size is given by the parent or if the content size has
-        // exceeded the maximum size specified by the parent.
-        // TODO(mkosiba): Actually we'd like the reduction in content size to cause the WebView to
-        // shrink back again but only as a result of a page load.
-        mHeightMeasurementIsFixed = (heightMode == MeasureSpec.EXACTLY) ||
-            (heightMode == MeasureSpec.AT_MOST && contentHeightPix > heightSize);
+        mHeightMeasurementIsFixed = (heightMode == MeasureSpec.EXACTLY);
+        mHeightMeasurementLimited =
+            (heightMode == MeasureSpec.AT_MOST) && (contentHeightPix > heightSize);
+        mHeightMeasurementLimit = heightSize;
 
-        if (!mHeightMeasurementIsFixed) {
-            measuredHeight = contentHeightPix;
+        if (mHeightMeasurementIsFixed || mHeightMeasurementLimited) {
+            measuredHeight = heightSize;
         }
 
-        if (!mWidthMeasurementIsFixed) {
-            measuredWidth = contentWidthPix;
+        if (mWidthMeasurementIsFixed) {
+            measuredWidth = widthSize;
         }
 
         if (measuredHeight < contentHeightPix) {
@@ -176,5 +173,37 @@ public class AwLayoutSizer {
         }
 
         mDelegate.setMeasuredDimension(measuredWidth, measuredHeight);
+    }
+
+    public void onSizeChanged(int w, int h, int ow, int oh) {
+        // If the WebView's measuredDimension depends on the size of its contents (which is the
+        // case if any of the measurement modes are AT_MOST or UNSPECIFIED) the viewport size
+        // cannot be directly calculated from the size as that can result in the layout being
+        // unstable or unpredictable.
+        // If both the width and height are fixed (specified by the parent) then content size
+        // changes will not cause subsequent layout passes and so we don't need to do anything
+        // special.
+        if ((mWidthMeasurementIsFixed && mHeightMeasurementIsFixed) ||
+                mLastMeasuredPageScaleFactor == 0) {
+            mDelegate.setFixedLayoutSize(0, 0);
+            return;
+        }
+
+        final double dipAndPageScale = mLastMeasuredPageScaleFactor * mDIPScale;
+        final int contentWidthPix = (int) (mContentWidthCss * dipAndPageScale);
+
+        int widthDip = (int) Math.ceil(w / dipAndPageScale);
+
+        // Make sure that we don't introduce rounding errors if the viewport is to be exactly as
+        // wide as the contents.
+        if (w == contentWidthPix) {
+            widthDip = mContentWidthCss;
+        }
+
+        // This is workaround due to the fact that in wrap content mode we need to use a fixed
+        // layout size independent of view height, otherwise things like <div style="height:120%">
+        // cause the webview to grow indefinitely. We need to use a height independent of the
+        // webview's height. 0 is the value used in WebViewClassic.
+        mDelegate.setFixedLayoutSize(widthDip, FIXED_LAYOUT_HEIGHT);
     }
 }

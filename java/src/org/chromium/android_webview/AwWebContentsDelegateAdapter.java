@@ -10,6 +10,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.view.View;
 import android.webkit.ConsoleMessage;
 import android.webkit.ValueCallback;
 
@@ -23,25 +24,13 @@ import org.chromium.content.browser.ContentViewCore;
 class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
     private static final String TAG = "AwWebContentsDelegateAdapter";
 
-    /**
-     * Listener definition for a callback to be invoked when the preferred size of the page
-     * contents changes.
-     */
-    public interface PreferredSizeChangedListener {
-        /**
-         * Called when the preferred size of the page contents changes.
-         * @see AwWebContentsDelegate#updatePreferredSize
-         */
-        void updatePreferredSize(int width, int height);
-    }
-
     final AwContentsClient mContentsClient;
-    final PreferredSizeChangedListener mPreferredSizeChangedListener;
+    final View mContainerView;
 
     public AwWebContentsDelegateAdapter(AwContentsClient contentsClient,
-            PreferredSizeChangedListener preferredSizeChangedListener) {
+            View containerView) {
         mContentsClient = contentsClient;
-        mPreferredSizeChangedListener = preferredSizeChangedListener;
+        mContainerView = containerView;
     }
 
     @Override
@@ -51,7 +40,43 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
 
     @Override
     public void handleKeyboardEvent(KeyEvent event) {
+        if (event.getAction() == KeyEvent.ACTION_DOWN) {
+            int direction;
+            switch (event.getKeyCode()) {
+                case KeyEvent.KEYCODE_DPAD_DOWN:
+                    direction = View.FOCUS_DOWN;
+                    break;
+                case KeyEvent.KEYCODE_DPAD_UP:
+                    direction = View.FOCUS_UP;
+                    break;
+                case KeyEvent.KEYCODE_DPAD_LEFT:
+                    direction = View.FOCUS_LEFT;
+                    break;
+                case KeyEvent.KEYCODE_DPAD_RIGHT:
+                    direction = View.FOCUS_RIGHT;
+                    break;
+                default:
+                    direction = 0;
+                    break;
+            }
+            if (direction != 0 && tryToMoveFocus(direction)) return;
+        }
         mContentsClient.onUnhandledKeyEvent(event);
+    }
+
+    @Override
+    public boolean takeFocus(boolean reverse) {
+        int direction =
+            (reverse == (mContainerView.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL)) ?
+            View.FOCUS_RIGHT : View.FOCUS_LEFT;
+        if (tryToMoveFocus(direction)) return true;
+        direction = reverse ? View.FOCUS_UP : View.FOCUS_DOWN;
+        return tryToMoveFocus(direction);
+    }
+
+    private boolean tryToMoveFocus(int direction) {
+        View focus = mContainerView.focusSearch(direction);
+        return focus != null && focus != mContainerView && focus.requestFocus();
     }
 
     @Override
@@ -161,10 +186,5 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
     @Override
     public void activateContents() {
         mContentsClient.onRequestFocus();
-    }
-
-    @Override
-    public void updatePreferredSize(int width, int height) {
-        mPreferredSizeChangedListener.updatePreferredSize(width, height);
     }
 }

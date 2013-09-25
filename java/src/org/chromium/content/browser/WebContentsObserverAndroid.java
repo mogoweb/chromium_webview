@@ -120,6 +120,20 @@ public abstract class WebContentsObserverAndroid {
     }
 
     /**
+     * Called when an interstitial page gets attached to the tab content.
+     */
+    @CalledByNative
+    public void didAttachInterstitialPage() {
+    }
+
+    /**
+     * Called when an interstitial page gets detached from the tab content.
+     */
+    @CalledByNative
+    public void didDetachInterstitialPage() {
+    }
+
+    /**
      * Destroy the corresponding native object.
      */
     @CalledByNative
