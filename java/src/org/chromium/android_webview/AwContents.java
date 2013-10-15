@@ -4,6 +4,8 @@
 
 package org.chromium.android_webview;
 
+import android.content.ComponentCallbacks2;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
@@ -74,6 +76,10 @@ public class AwContents {
     private static final String TAG = "AwContents";
 
     private static final String WEB_ARCHIVE_EXTENSION = ".mht";
+
+    // Used to avoid enabling zooming in / out if resulting zooming will
+    // produce little visible difference.
+    private static final float ZOOM_CONTROLS_EPSILON = 0.007f;
 
     /**
      * WebKit hit test related data strcutre. These are used to implement
@@ -185,7 +191,15 @@ public class AwContents {
     private boolean mClearViewActive;
     private boolean mPictureListenerEnabled;
 
+    // These come from the compositor and are updated immediately (in contrast to the values in
+    // ContentViewCore, which are updated at end of every frame).
+    private float mPageScaleFactor = 1.0f;
+    private float mContentWidthDip;
+    private float mContentHeightDip;
+
     private AwAutofillManagerDelegate mAwAutofillManagerDelegate;
+
+    private ComponentCallbacks2 mComponentCallbacks;
 
     private static final class DestroyRunnable implements Runnable {
         private int mNativeAwContents;
@@ -355,22 +369,6 @@ public class AwContents {
     }
 
     //--------------------------------------------------------------------------------------------
-    // NOTE: This content size change notification comes from the compositor and reflects the size
-    // of the content on screen (but not neccessarily in the renderer main thread).
-    private class AwContentUpdateFrameInfoListener
-                implements ContentViewCore.UpdateFrameInfoListener {
-        @Override
-        public void onFrameInfoUpdated(float widthCss, float heightCss, float pageScaleFactor) {
-            if (mNativeAwContents == 0) return;
-            int widthPix = (int) Math.floor(widthCss * mDIPScale * pageScaleFactor);
-            int heightPix = (int) Math.floor(heightCss * mDIPScale * pageScaleFactor);
-            mScrollOffsetManager.setContentSize(widthPix, heightPix);
-
-            nativeSetDisplayedPageScaleFactor(mNativeAwContents, pageScaleFactor);
-        }
-    }
-
-    //--------------------------------------------------------------------------------------------
     private class AwScrollOffsetManagerDelegate implements AwScrollOffsetManager.Delegate {
         @Override
         public void overScrollContainerViewBy(int deltaX, int deltaY, int scrollX, int scrollY,
@@ -441,6 +439,33 @@ public class AwContents {
         }
     }
 
+    //--------------------------------------------------------------------------------------------
+    private class AwComponentCallbacks implements ComponentCallbacks2 {
+          @Override
+          public void onTrimMemory(int level) {
+              if (mNativeAwContents == 0) return;
+              nativeTrimMemory(mNativeAwContents, level);
+          }
+
+          @Override
+          public void onLowMemory() {
+          }
+
+          @Override
+          public void onConfigurationChanged(Configuration configuration) {
+          }
+    };
+
+    //--------------------------------------------------------------------------------------------
+    private class AwLayoutChangeListener implements View.OnLayoutChangeListener {
+        @Override
+        public void onLayoutChange(View v, int left, int top, int right, int bottom,
+                int oldLeft, int oldTop, int oldRight, int oldBottom) {
+            assert v == mContainerView;
+            mLayoutSizer.onLayoutChange();
+        }
+    }
+
     /**
      * @param browserContext the browsing context to associate this view contents with.
      * @param containerView the view-hierarchy item this object will be bound to.
@@ -495,7 +520,7 @@ public class AwContents {
         mInternalAccessAdapter = internalAccessAdapter;
         mContentsClient = contentsClient;
         mLayoutSizer = layoutSizer;
-        mDIPScale = DeviceDisplayInfo.create(containerView.getContext()).getDIPScale();
+        mDIPScale = DeviceDisplayInfo.create(mContainerView.getContext()).getDIPScale();
         mLayoutSizer.setDelegate(new AwLayoutSizerDelegate());
         mLayoutSizer.setDIPScale(mDIPScale);
         mWebContentsDelegate = new AwWebContentsDelegateAdapter(contentsClient, mContainerView);
@@ -504,7 +529,7 @@ public class AwContents {
         mIoThreadClient = new IoThreadClientImpl();
         mInterceptNavigationDelegate = new InterceptNavigationDelegateImpl();
 
-        boolean hasInternetPermission = containerView.getContext().checkPermission(
+        boolean hasInternetPermission = mContainerView.getContext().checkPermission(
                     android.Manifest.permission.INTERNET,
                     Process.myPid(),
                     Process.myUid()) == PackageManager.PERMISSION_GRANTED;
@@ -522,12 +547,12 @@ public class AwContents {
         mDefaultVideoPosterRequestHandler = new DefaultVideoPosterRequestHandler(mContentsClient);
         mSettings.setDefaultVideoPosterURL(
                 mDefaultVideoPosterRequestHandler.getDefaultVideoPosterURL());
-        mContentsClient.setDIPScale(mDIPScale);
         mScrollOffsetManager = new AwScrollOffsetManager(new AwScrollOffsetManagerDelegate(),
                 new OverScroller(mContainerView.getContext()));
 
         setOverScrollMode(mContainerView.getOverScrollMode());
         setScrollBarStyle(mInternalAccessAdapter.super_getScrollBarStyle());
+        mContainerView.addOnLayoutChangeListener(new AwLayoutChangeListener());
 
         setNewAwContents(nativeInit(browserContext));
 
@@ -567,7 +592,6 @@ public class AwContents {
         nativeSetJavaPeers(mNativeAwContents, this, mWebContentsDelegate, mContentsClientBridge,
                 mIoThreadClient, mInterceptNavigationDelegate);
         mContentsClient.installWebContentsObserver(mContentViewCore);
-        mContentViewCore.setUpdateFrameInfoListener(new AwContentUpdateFrameInfoListener());
         mSettings.setWebContents(nativeWebContents);
         nativeSetDipScale(mNativeAwContents, (float) mDIPScale);
         updateGlobalVisibleRect();
@@ -683,6 +707,10 @@ public class AwContents {
         return nativeGetAwDrawGLFunction();
     }
 
+    public static void setShouldDownloadFavicons() {
+        nativeSetShouldDownloadFavicons();
+    }
+
     /**
      * Intended for test code.
      * @return the number of native instances of this class.
@@ -756,11 +784,11 @@ public class AwContents {
     }
 
     public int getContentHeightCss() {
-        return (int) Math.ceil(mContentViewCore.getContentHeightCss());
+        return (int) Math.ceil(mContentHeightDip);
     }
 
     public int getContentWidthCss() {
-        return (int) Math.ceil(mContentViewCore.getContentWidthCss());
+        return (int) Math.ceil(mContentWidthDip);
     }
 
     public Picture capturePicture() {
@@ -1345,7 +1373,7 @@ public class AwContents {
      * the screen density factor. See CTS WebViewTest.testSetInitialScale.
      */
     public float getScale() {
-        return (float)(mContentViewCore.getScale() * mDIPScale);
+        return (float)(mPageScaleFactor * mDIPScale);
     }
 
     /**
@@ -1372,29 +1400,47 @@ public class AwContents {
     /**
      * @see android.webkit.WebView#canZoomIn()
      */
+    // This method uses the term 'zoom' for legacy reasons, but relates
+    // to what chrome calls the 'page scale factor'.
     public boolean canZoomIn() {
-        return mContentViewCore.canZoomIn();
+        final float zoomInExtent = mContentViewCore.getRenderCoordinates().getMaxPageScaleFactor()
+                - mPageScaleFactor;
+        return zoomInExtent > ZOOM_CONTROLS_EPSILON;
     }
 
     /**
      * @see android.webkit.WebView#canZoomOut()
      */
+    // This method uses the term 'zoom' for legacy reasons, but relates
+    // to what chrome calls the 'page scale factor'.
     public boolean canZoomOut() {
-        return mContentViewCore.canZoomOut();
+        final float zoomOutExtent = mPageScaleFactor
+                - mContentViewCore.getRenderCoordinates().getMinPageScaleFactor();
+        return zoomOutExtent > ZOOM_CONTROLS_EPSILON;
     }
 
     /**
      * @see android.webkit.WebView#zoomIn()
      */
+    // This method uses the term 'zoom' for legacy reasons, but relates
+    // to what chrome calls the 'page scale factor'.
     public boolean zoomIn() {
-        return mContentViewCore.zoomIn();
+        if (!canZoomIn()) {
+            return false;
+        }
+        return mContentViewCore.pinchByDelta(1.25f);
     }
 
     /**
      * @see android.webkit.WebView#zoomOut()
      */
+    // This method uses the term 'zoom' for legacy reasons, but relates
+    // to what chrome calls the 'page scale factor'.
     public boolean zoomOut() {
-        return mContentViewCore.zoomOut();
+        if (!canZoomOut()) {
+            return false;
+        }
+        return mContentViewCore.pinchByDelta(0.8f);
     }
 
     /**
@@ -1491,6 +1537,10 @@ public class AwContents {
         mContentViewCore.onAttachedToWindow();
         nativeOnAttachedToWindow(mNativeAwContents, mContainerView.getWidth(),
                 mContainerView.getHeight());
+
+        if (mComponentCallbacks != null) return;
+        mComponentCallbacks = new AwComponentCallbacks();
+        mContainerView.getContext().registerComponentCallbacks(mComponentCallbacks);
     }
 
     /**
@@ -1504,6 +1554,11 @@ public class AwContents {
         }
 
         mContentViewCore.onDetachedFromWindow();
+
+        if (mComponentCallbacks != null) {
+          mContainerView.getContext().unregisterComponentCallbacks(mComponentCallbacks);
+          mComponentCallbacks = null;
+        }
 
         if (mPendingDetachCleanupReferences != null) {
             for (int i = 0; i < mPendingDetachCleanupReferences.size(); ++i) {
@@ -1535,9 +1590,11 @@ public class AwContents {
     public void onSizeChanged(int w, int h, int ow, int oh) {
         if (mNativeAwContents == 0) return;
         mScrollOffsetManager.setContainerViewSize(w, h);
+        // The AwLayoutSizer needs to go first so that if we're in fixedLayoutSize mode the update
+        // to enter fixedLayoutSize mode is sent before the first resize update.
+        mLayoutSizer.onSizeChanged(w, h, ow, oh);
         mContentViewCore.onPhysicalBackingSizeChanged(w, h);
         mContentViewCore.onSizeChanged(w, h, ow, oh);
-        mLayoutSizer.onSizeChanged(w, h, ow, oh);
         nativeOnSizeChanged(mNativeAwContents, w, h, ow, oh);
     }
 
@@ -1823,8 +1880,34 @@ public class AwContents {
     }
 
     @CalledByNative
+    private void setMaxContainerViewScrollOffset(int maxX, int maxY) {
+        mScrollOffsetManager.setMaxScrollOffset(maxX, maxY);
+    }
+
+    @CalledByNative
     private void scrollContainerViewTo(int x, int y) {
         mScrollOffsetManager.scrollContainerViewTo(x, y);
+    }
+
+    @CalledByNative
+    private boolean isFlingActive() {
+        return mScrollOffsetManager.isFlingActive();
+    }
+
+    @CalledByNative
+    private void setContentsSize(int widthDip, int heightDip) {
+        mContentWidthDip = widthDip;
+        mContentHeightDip = heightDip;
+    }
+
+    @CalledByNative
+    private void setPageScaleFactor(float pageScaleFactor) {
+        if (mPageScaleFactor == pageScaleFactor)
+            return;
+        float oldPageScaleFactor = mPageScaleFactor;
+        mPageScaleFactor = pageScaleFactor;
+        mContentsClient.getCallbackHelper().postOnScaleChangedScaled(
+                (float)(oldPageScaleFactor * mDIPScale), (float)(mPageScaleFactor * mDIPScale));
     }
 
     @CalledByNative
@@ -1907,6 +1990,7 @@ public class AwContents {
     private static native void nativeSetAwDrawGLFunctionTable(int functionTablePointer);
     private static native int nativeGetAwDrawGLFunction();
     private static native int nativeGetNativeInstanceCount();
+    private static native void nativeSetShouldDownloadFavicons();
     private native void nativeSetJavaPeers(int nativeAwContents, AwContents awContents,
             AwWebContentsDelegate webViewWebContentsDelegate,
             AwContentsClientBridge contentsClientBridge,
@@ -1942,8 +2026,6 @@ public class AwContents {
     private native void nativeOnAttachedToWindow(int nativeAwContents, int w, int h);
     private static native void nativeOnDetachedFromWindow(int nativeAwContents);
     private native void nativeSetDipScale(int nativeAwContents, float dipScale);
-    private native void nativeSetDisplayedPageScaleFactor(int nativeAwContents,
-            float pageScaleFactor);
     private native void nativeSetFixedLayoutSize(int nativeAwContents, int widthDip, int heightDip);
 
     // Returns null if save state fails.
@@ -1964,4 +2046,6 @@ public class AwContents {
             int nativeAwContents, boolean value, String requestingFrame);
 
     private native void nativeSetJsOnlineProperty(int nativeAwContents, boolean networkUp);
+
+    private native void nativeTrimMemory(int nativeAwContents, int level);
 }

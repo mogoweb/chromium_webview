@@ -390,6 +390,13 @@ public class ChildProcessConnection {
         }
     }
 
+    /** @return true iff the strong oom binding is currently bound. */
+    boolean isStrongBindingBound() {
+        synchronized(mLock) {
+            return mStrongBinding.isBound();
+        }
+    }
+
     /**
      * Called to remove the strong binding estabilished when the connection was started. It is safe
      * to call this multiple times.
@@ -397,6 +404,19 @@ public class ChildProcessConnection {
     void removeInitialBinding() {
         synchronized(mLock) {
             mInitialBinding.unbind();
+        }
+    }
+
+    /**
+     * Unbinds the bindings that protect the process from oom killing. It is safe to call this
+     * multiple times, before as well as after stop().
+     */
+    void dropOomBindings() {
+        synchronized(mLock) {
+            mInitialBinding.unbind();
+
+            mAttachAsActiveCount = 0;
+            mStrongBinding.unbind();
         }
     }
 

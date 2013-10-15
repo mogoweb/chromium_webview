@@ -370,20 +370,6 @@ public class ContentView extends FrameLayout
     }
 
     /**
-     * This method should be called when the containing activity is paused.
-     **/
-    public void onActivityPause() {
-        mContentViewCore.onActivityPause();
-    }
-
-    /**
-     * This method should be called when the containing activity is resumed.
-     **/
-    public void onActivityResume() {
-        mContentViewCore.onActivityResume();
-    }
-
-    /**
      * To be called when the ContentView is shown.
      **/
     public void onShow() {
@@ -661,35 +647,6 @@ public class ContentView extends FrameLayout
      */
     public boolean isCrashed() {
         return mContentViewCore.isCrashed();
-    }
-
-    /**
-     * @return Whether a reload happens when this ContentView is activated.
-     */
-    public boolean needsReload() {
-        return mContentViewCore.needsReload();
-    }
-
-    /**
-     * Checks whether the WebView can be zoomed in.
-     *
-     * @return True if the WebView can be zoomed in.
-     */
-    // This method uses the term 'zoom' for legacy reasons, but relates
-    // to what chrome calls the 'page scale factor'.
-    public boolean canZoomIn() {
-        return mContentViewCore.canZoomIn();
-    }
-
-    /**
-     * Checks whether the WebView can be zoomed out.
-     *
-     * @return True if the WebView can be zoomed out.
-     */
-    // This method uses the term 'zoom' for legacy reasons, but relates
-    // to what chrome calls the 'page scale factor'.
-    public boolean canZoomOut() {
-        return mContentViewCore.canZoomOut();
     }
 
     /**

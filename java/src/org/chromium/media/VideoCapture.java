@@ -180,6 +180,14 @@ public class VideoCapture implements PreviewCallback, OnFrameAvailableListener {
 
             calculateImageFormat(matchedWidth, matchedHeight);
 
+            if (parameters.isVideoStabilizationSupported()){
+                Log.d(TAG, "Image stabilization supported, currently: "
+                      + parameters.getVideoStabilization() + ", setting it.");
+                parameters.setVideoStabilization(true);
+            } else {
+                Log.d(TAG, "Image stabilization not supported.");
+            }
+
             parameters.setPreviewSize(matchedWidth, matchedHeight);
             parameters.setPreviewFormat(mImageFormat);
             parameters.setPreviewFpsRange(fpsMin, fpsMax);

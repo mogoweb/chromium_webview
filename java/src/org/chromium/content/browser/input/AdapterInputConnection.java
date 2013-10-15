@@ -36,7 +36,6 @@ public class AdapterInputConnection extends BaseInputConnection {
 
     private boolean mSingleLine;
     private int mNumNestedBatchEdits = 0;
-    private boolean mIgnoreTextInputStateUpdates = false;
 
     private int mLastUpdateSelectionStart = INVALID_SELECTION;
     private int mLastUpdateSelectionEnd = INVALID_SELECTION;
@@ -104,26 +103,30 @@ public class AdapterInputConnection extends BaseInputConnection {
     }
 
     /**
-     * Updates the AdapterInputConnection's internal representation of the text
-     * being edited and its selection and composition properties. The resulting
-     * Editable is accessible through the getEditable() method.
-     * If the text has not changed, this also calls updateSelection on the InputMethodManager.
-     * @param text The String contents of the field being edited
-     * @param selectionStart The character offset of the selection start, or the caret
-     * position if there is no selection
-     * @param selectionEnd The character offset of the selection end, or the caret
-     * position if there is no selection
-     * @param compositionStart The character offset of the composition start, or -1
-     * if there is no composition
-     * @param compositionEnd The character offset of the composition end, or -1
-     * if there is no selection
+     * Updates the AdapterInputConnection's internal representation of the text being edited and
+     * its selection and composition properties. The resulting Editable is accessible through the
+     * getEditable() method. If the text has not changed, this also calls updateSelection on the
+     * InputMethodManager.
+     *
+     * @param text The String contents of the field being edited.
+     * @param selectionStart The character offset of the selection start, or the caret position if
+     *                       there is no selection.
+     * @param selectionEnd The character offset of the selection end, or the caret position if there
+     *                     is no selection.
+     * @param compositionStart The character offset of the composition start, or -1 if there is no
+     *                         composition.
+     * @param compositionEnd The character offset of the composition end, or -1 if there is no
+     *                       selection.
+     * @param requireAck True when the update was not caused by IME, false otherwise.
      */
-    public void setEditableText(String text, int selectionStart, int selectionEnd,
-            int compositionStart, int compositionEnd) {
+    public void updateState(String text, int selectionStart, int selectionEnd, int compositionStart,
+            int compositionEnd, boolean requireAck) {
         if (DEBUG) {
-            Log.w(TAG, "setEditableText [" + text + "] [" + selectionStart + " " + selectionEnd
-                    + "] [" + compositionStart + " " + compositionEnd + "]");
+            Log.w(TAG, "updateState [" + text + "] [" + selectionStart + " " + selectionEnd + "] ["
+                    + compositionStart + " " + compositionEnd + "] [" + requireAck + "]");
         }
+        if (!requireAck) return;
+
         // Non-breaking spaces can cause the IME to get confused. Replace with normal spaces.
         text = text.replace('\u00A0', ' ');
 
@@ -140,19 +143,6 @@ public class AdapterInputConnection extends BaseInputConnection {
             editable.replace(0, editable.length(), text);
         }
 
-        int prevSelectionStart = Selection.getSelectionStart(editable);
-        int prevSelectionEnd = Selection.getSelectionEnd(editable);
-        int prevCompositionStart = getComposingSpanStart(editable);
-        int prevCompositionEnd = getComposingSpanEnd(editable);
-
-        if (prevSelectionStart == selectionStart && prevSelectionEnd == selectionEnd
-                && prevCompositionStart == compositionStart
-                && prevCompositionEnd == compositionEnd) {
-            if (mIgnoreTextInputStateUpdates) return;
-            updateSelection(selectionStart, selectionEnd, compositionStart, compositionEnd);
-            return;
-        }
-
         Selection.setSelection(editable, selectionStart, selectionEnd);
 
         if (compositionStart == compositionEnd) {
@@ -160,14 +150,20 @@ public class AdapterInputConnection extends BaseInputConnection {
         } else {
             super.setComposingRegion(compositionStart, compositionEnd);
         }
-
-        if (mIgnoreTextInputStateUpdates) return;
-        updateSelection(selectionStart, selectionEnd, compositionStart, compositionEnd);
+        updateSelectionIfRequired();
     }
 
-    @VisibleForTesting
-    protected void updateSelection(int selectionStart, int selectionEnd, int compositionStart,
-            int compositionEnd) {
+    /**
+     * Sends selection update to the InputMethodManager unless we are currently in a batch edit or
+     * if the exact same selection and composition update was sent already.
+     */
+    private void updateSelectionIfRequired() {
+        if (mNumNestedBatchEdits != 0) return;
+        Editable editable = getEditable();
+        int selectionStart = Selection.getSelectionStart(editable);
+        int selectionEnd = Selection.getSelectionEnd(editable);
+        int compositionStart = getComposingSpanStart(editable);
+        int compositionEnd = getComposingSpanEnd(editable);
         // Avoid sending update if we sent an exact update already previously.
         if (mLastUpdateSelectionStart == selectionStart &&
                 mLastUpdateSelectionEnd == selectionEnd &&
@@ -176,7 +172,7 @@ public class AdapterInputConnection extends BaseInputConnection {
             return;
         }
         if (DEBUG) {
-            Log.w(TAG, "updateSelection [" + selectionStart + " " + selectionEnd + "] ["
+            Log.w(TAG, "updateSelectionIfRequired [" + selectionStart + " " + selectionEnd + "] ["
                     + compositionStart + " " + compositionEnd + "]");
         }
         // updateSelection should be called every time the selection or composition changes
@@ -196,6 +192,7 @@ public class AdapterInputConnection extends BaseInputConnection {
     public boolean setComposingText(CharSequence text, int newCursorPosition) {
         if (DEBUG) Log.w(TAG, "setComposingText [" + text + "] [" + newCursorPosition + "]");
         super.setComposingText(text, newCursorPosition);
+        updateSelectionIfRequired();
         return mImeAdapter.checkCompositionQueueAndCallNative(text.toString(),
                 newCursorPosition, false);
     }
@@ -207,6 +204,7 @@ public class AdapterInputConnection extends BaseInputConnection {
     public boolean commitText(CharSequence text, int newCursorPosition) {
         if (DEBUG) Log.w(TAG, "commitText [" + text + "] [" + newCursorPosition + "]");
         super.commitText(text, newCursorPosition);
+        updateSelectionIfRequired();
         return mImeAdapter.checkCompositionQueueAndCallNative(text.toString(),
                 newCursorPosition, text.length() > 0);
     }
@@ -274,10 +272,8 @@ public class AdapterInputConnection extends BaseInputConnection {
     @Override
     public boolean beginBatchEdit() {
         if (DEBUG) Log.w(TAG, "beginBatchEdit [" + (mNumNestedBatchEdits == 0) + "]");
-        if (mNumNestedBatchEdits == 0) mImeAdapter.batchStateChanged(true);
-
         mNumNestedBatchEdits++;
-        return false;
+        return true;
     }
 
     /**
@@ -286,11 +282,10 @@ public class AdapterInputConnection extends BaseInputConnection {
     @Override
     public boolean endBatchEdit() {
         if (mNumNestedBatchEdits == 0) return false;
-
         --mNumNestedBatchEdits;
         if (DEBUG) Log.w(TAG, "endBatchEdit [" + (mNumNestedBatchEdits == 0) + "]");
-        if (mNumNestedBatchEdits == 0) mImeAdapter.batchStateChanged(false);
-        return false;
+        if (mNumNestedBatchEdits == 0) updateSelectionIfRequired();
+        return mNumNestedBatchEdits != 0;
     }
 
     /**
@@ -307,6 +302,7 @@ public class AdapterInputConnection extends BaseInputConnection {
         beforeLength = Math.min(beforeLength, availableBefore);
         afterLength = Math.min(afterLength, availableAfter);
         super.deleteSurroundingText(beforeLength, afterLength);
+        updateSelectionIfRequired();
         return mImeAdapter.deleteSurroundingText(beforeLength, afterLength);
     }
 
@@ -315,16 +311,19 @@ public class AdapterInputConnection extends BaseInputConnection {
      */
     @Override
     public boolean sendKeyEvent(KeyEvent event) {
-        if (DEBUG) Log.w(TAG, "sendKeyEvent [" + event.getAction() + "]");
-
+        if (DEBUG) {
+            Log.w(TAG, "sendKeyEvent [" + event.getAction() + "] [" + event.getKeyCode() + "]");
+        }
         // If this is a key-up, and backspace/del or if the key has a character representation,
         // need to update the underlying Editable (i.e. the local representation of the text
         // being edited).
         if (event.getAction() == KeyEvent.ACTION_UP) {
             if (event.getKeyCode() == KeyEvent.KEYCODE_DEL) {
-                super.deleteSurroundingText(1, 0);
+                deleteSurroundingText(1, 0);
+                return true;
             } else if (event.getKeyCode() == KeyEvent.KEYCODE_FORWARD_DEL) {
-                super.deleteSurroundingText(0, 1);
+                deleteSurroundingText(0, 1);
+                return true;
             } else {
                 int unicodeChar = event.getUnicodeChar();
                 if (unicodeChar != 0) {
@@ -348,6 +347,10 @@ public class AdapterInputConnection extends BaseInputConnection {
                 mImeAdapter.translateAndSendNativeEvents(event);
                 endBatchEdit();
                 return true;
+            } else if (event.getKeyCode() == KeyEvent.KEYCODE_DEL) {
+                return true;
+            } else if (event.getKeyCode() == KeyEvent.KEYCODE_FORWARD_DEL) {
+                return true;
             }
         }
         mImeAdapter.translateAndSendNativeEvents(event);
@@ -366,6 +369,7 @@ public class AdapterInputConnection extends BaseInputConnection {
         }
 
         super.finishComposingText();
+        updateSelectionIfRequired();
         mImeAdapter.finishComposingText();
 
         return true;
@@ -380,6 +384,7 @@ public class AdapterInputConnection extends BaseInputConnection {
         int textLength = getEditable().length();
         if (start < 0 || end < 0 || start > textLength || end > textLength) return true;
         super.setSelection(start, end);
+        updateSelectionIfRequired();
         return mImeAdapter.setEditableSelectionOffsets(start, end);
     }
 
@@ -390,7 +395,6 @@ public class AdapterInputConnection extends BaseInputConnection {
     void restartInput() {
         if (DEBUG) Log.w(TAG, "restartInput");
         getInputMethodManagerWrapper().restartInput(mInternalView);
-        mIgnoreTextInputStateUpdates = false;
         mNumNestedBatchEdits = 0;
     }
 
@@ -413,27 +417,12 @@ public class AdapterInputConnection extends BaseInputConnection {
         } else {
             super.setComposingRegion(a, b);
         }
+        updateSelectionIfRequired();
         return mImeAdapter.setComposingRegion(a, b);
     }
 
     boolean isActive() {
         return getInputMethodManagerWrapper().isActive(mInternalView);
-    }
-
-    public void setIgnoreTextInputStateUpdates(boolean shouldIgnore) {
-        mIgnoreTextInputStateUpdates = shouldIgnore;
-        if (shouldIgnore) return;
-
-        Editable editable = getEditable();
-        updateSelection(Selection.getSelectionStart(editable),
-                Selection.getSelectionEnd(editable),
-                getComposingSpanStart(editable),
-                getComposingSpanEnd(editable));
-    }
-
-    @VisibleForTesting
-    protected boolean isIgnoringTextInputStateUpdates() {
-        return mIgnoreTextInputStateUpdates;
     }
 
     private InputMethodManagerWrapper getInputMethodManagerWrapper() {

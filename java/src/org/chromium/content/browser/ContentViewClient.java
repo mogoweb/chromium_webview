@@ -43,13 +43,6 @@ public class ContentViewClient {
     }
 
     /**
-      * Lets client listen on the scaling changes on delayed, throttled
-      * and best-effort basis. Used for WebView.onScaleChanged.
-      */
-    public void onScaleChanged(float oldScale, float newScale) {
-    }
-
-    /**
      * Notifies the client that the position of the top controls has changed.
      * @param topControlsOffsetYPix The Y offset of the top controls in physical pixels.
      * @param contentOffsetYPix The Y offset of the content in physical pixels.

@@ -35,12 +35,6 @@ public class TestContentViewClientWrapper extends TestContentViewClient {
     }
 
     @Override
-    public void onScaleChanged(float oldScale, float newScale) {
-        super.onScaleChanged(oldScale, newScale);
-        mWrappedClient.onScaleChanged(oldScale, newScale);
-    }
-
-    @Override
     public void onRendererCrash(boolean processWasOomProtected) {
         super.onRendererCrash(processWasOomProtected);
         mWrappedClient.onRendererCrash(processWasOomProtected);

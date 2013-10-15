@@ -88,7 +88,6 @@ public class ImeAdapter {
     static int sTextInputTypeEmail;
     static int sTextInputTypeTel;
     static int sTextInputTypeNumber;
-    static int sTextInputTypeWeek;
     static int sTextInputTypeContentEditable;
     static int sModifierShift;
     static int sModifierAlt;
@@ -225,7 +224,6 @@ public class ImeAdapter {
                 return;
             }
 
-            int previousType = mTextInputType;
             attach(nativeImeAdapter, textInputType, selectionStart, selectionEnd);
 
             mInputMethodManagerWrapper.restartInput(mViewEmbedder.getAttachedView());
@@ -412,11 +410,6 @@ public class ImeAdapter {
         return true;
     }
 
-    void batchStateChanged(boolean isBegin) {
-        if (mNativeImeAdapterAndroid == 0) return;
-        nativeImeBatchStateChanged(mNativeImeAdapterAndroid, isBegin);
-    }
-
     void commitText() {
         cancelComposition();
         if (mNativeImeAdapterAndroid != 0) {
@@ -506,9 +499,7 @@ public class ImeAdapter {
     private static void initializeTextInputTypes(int textInputTypeNone, int textInputTypeText,
             int textInputTypeTextArea, int textInputTypePassword, int textInputTypeSearch,
             int textInputTypeUrl, int textInputTypeEmail, int textInputTypeTel,
-            int textInputTypeNumber, int textInputTypeDate, int textInputTypeDateTime,
-            int textInputTypeDateTimeLocal, int textInputTypeMonth, int textInputTypeTime,
-            int textInputTypeWeek, int textInputTypeContentEditable) {
+            int textInputTypeNumber, int textInputTypeContentEditable) {
         sTextInputTypeNone = textInputTypeNone;
         sTextInputTypeText = textInputTypeText;
         sTextInputTypeTextArea = textInputTypeTextArea;
@@ -518,7 +509,6 @@ public class ImeAdapter {
         sTextInputTypeEmail = textInputTypeEmail;
         sTextInputTypeTel = textInputTypeTel;
         sTextInputTypeNumber = textInputTypeNumber;
-        sTextInputTypeWeek = textInputTypeWeek;
         sTextInputTypeContentEditable = textInputTypeContentEditable;
     }
 
@@ -558,8 +548,6 @@ public class ImeAdapter {
 
     private native void nativeDeleteSurroundingText(int nativeImeAdapterAndroid,
             int before, int after);
-
-    private native void nativeImeBatchStateChanged(int nativeImeAdapterAndroid, boolean isBegin);
 
     private native void nativeUnselect(int nativeImeAdapterAndroid);
     private native void nativeSelectAll(int nativeImeAdapterAndroid);

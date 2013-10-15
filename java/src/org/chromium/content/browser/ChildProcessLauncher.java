@@ -198,20 +198,26 @@ public class ChildProcessLauncher {
         // mCountLock.
         private final SparseIntArray mOomBindingCount = new SparseIntArray();
 
-        // Should be acquired before binding or unbinding the connections and modifying
-        // mOomBindingCount.
+        // Pid of the renderer that was most recently oom bound. This is used on low-memory devices
+        // to drop oom bindings of a process when another one acquires them, making sure that only
+        // one renderer process at a time is oom bound. Should be accessed with mCountLock.
+        private int mLastOomPid = -1;
+
+        // Should be acquired before binding or unbinding the connections and modifying state
+        // variables: mOomBindingCount and mLastOomPid.
         private final Object mCountLock = new Object();
 
         /**
-         * Registers new oom binging bound for a child process. Should be called with mCountLock.
+         * Registers an oom binding bound for a child process. Should be called with mCountLock.
          * @param pid handle of the process.
          */
         private void incrementOomCount(int pid) {
             mOomBindingCount.put(pid, mOomBindingCount.get(pid) + 1);
+            mLastOomPid = pid;
         }
 
         /**
-         * Registers an oom binging unbound for a child process. Should be called with mCountLock.
+         * Registers an oom binding unbound for a child process. Should be called with mCountLock.
          * @param pid handle of the process.
          */
         private void decrementOomCount(int pid) {
@@ -226,13 +232,38 @@ public class ChildProcessLauncher {
         }
 
         /**
-         * Registers a freshly started child process.
+         * Drops all oom bindings for the given renderer.
+         * @param pid handle of the process.
+         */
+        private void dropOomBindings(int pid) {
+            ChildProcessConnection connection = sServiceMap.get(pid);
+            if (connection == null) {
+                LogPidWarning(pid, "Tried to drop oom bindings for a non-existent connection");
+                return;
+            }
+            synchronized (mCountLock) {
+                connection.dropOomBindings();
+                mOomBindingCount.delete(pid);
+            }
+        }
+
+        /**
+         * Registers a freshly started child process. On low-memory devices this will also drop the
+         * oom bindings of the last process that was oom-bound. We can do that, because every time a
+         * connection is created on the low-end, it is used in foreground (no prerendering, no
+         * loading of tabs opened in background).
          * @param pid handle of the process.
          */
         void addNewConnection(int pid) {
-            // Every new connection is bound with initial oom binding.
             synchronized (mCountLock) {
-                mOomBindingCount.put(pid, 1);
+                if (SysUtils.isLowEndDevice() && mLastOomPid >= 0) {
+                    dropOomBindings(mLastOomPid);
+                }
+                // This will reset the previous entry for the pid in the unlikely event of the OS
+                // reusing renderer pids.
+                mOomBindingCount.put(pid, 0);
+                // Every new connection is bound with initial oom binding.
+                incrementOomCount(pid);
             }
         }
 
@@ -265,7 +296,7 @@ public class ChildProcessLauncher {
         /**
          * Bind a child process as a high priority process so that it has the same priority as the
          * main process. This can be used for the foreground renderer process to distinguish it from
-         * the the background renderer process.
+         * the background renderer process.
          * @param pid The process handle of the service connection.
          */
         void bindAsHighPriority(final int pid) {
@@ -290,15 +321,27 @@ public class ChildProcessLauncher {
                 LogPidWarning(pid, "Tried to unbind non-existent connection");
                 return;
             }
-            ThreadUtils.postOnUiThreadDelayed(new Runnable() {
+            if (!connection.isStrongBindingBound()) return;
+
+            // This runnable performs the actual unbinding. It will be executed synchronously when
+            // on low-end devices and posted with a delay otherwise.
+            Runnable doUnbind = new Runnable() {
                 @Override
                 public void run() {
                     synchronized (mCountLock) {
-                        decrementOomCount(pid);
-                        connection.detachAsActive();
+                        if (connection.isStrongBindingBound()) {
+                            decrementOomCount(pid);
+                            connection.detachAsActive();
+                        }
                     }
                 }
-            }, SysUtils.isLowEndDevice() ? 0 : DETACH_AS_ACTIVE_HIGH_END_DELAY_MILLIS);
+            };
+
+            if (SysUtils.isLowEndDevice()) {
+                doUnbind.run();
+            } else {
+                ThreadUtils.postOnUiThreadDelayed(doUnbind, DETACH_AS_ACTIVE_HIGH_END_DELAY_MILLIS);
+            }
         }
 
         /**
@@ -437,7 +480,6 @@ public class ChildProcessLauncher {
                 }
                 nativeOnChildProcessStarted(clientContext, pid);
             }
-
         };
 
         // TODO(sievers): Revisit this as it doesn't correctly handle the utility process

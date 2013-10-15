@@ -53,7 +53,7 @@ class LocationProvider {
         @Override
         public void onActivityStateChange(int state) {
             if (state == ActivityStatus.PAUSED) {
-                mShouldRunAfterActivityResume = mIsRunning;
+                mShouldRunAfterActivityResume |= mIsRunning;
                 unregisterFromLocationUpdates();
             } else if (state == ActivityStatus.RESUMED) {
                 assert !mIsRunning;
@@ -74,10 +74,7 @@ class LocationProvider {
             }
             mIsGpsEnabled = gpsEnabled;
 
-            int activityState = ActivityStatus.getState();
-            if (activityState == ActivityStatus.PAUSED
-                    || activityState == ActivityStatus.STOPPED
-                    || activityState == ActivityStatus.DESTROYED) {
+            if (ActivityStatus.getState() != ActivityStatus.RESUMED) {
                 mShouldRunAfterActivityResume = true;
             } else {
                 unregisterFromLocationUpdates();
