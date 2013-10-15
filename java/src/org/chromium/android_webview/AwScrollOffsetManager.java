@@ -9,8 +9,6 @@ import android.widget.OverScroller;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import org.chromium.base.CalledByNative;
-
 /**
  * Takes care of syncing the scroll offset between the Android View system and the
  * InProcessViewRenderer.
@@ -52,9 +50,9 @@ public class AwScrollOffsetManager {
     private int mNativeScrollX;
     private int mNativeScrollY;
 
-    // Content size.
-    private int mContentWidth;
-    private int mContentHeight;
+    // How many pixels can we scroll in a given direction.
+    private int mMaxHorizontalScrollOffset;
+    private int mMaxVerticalScrollOffset;
 
     // Size of the container view.
     private int mContainerViewWidth;
@@ -63,17 +61,13 @@ public class AwScrollOffsetManager {
     // Whether we're in the middle of processing a touch event.
     private boolean mProcessingTouchEvent;
 
+    private boolean mFlinging;
+
     // Whether (and to what value) to update the native side scroll offset after we've finished
-    // provessing a touch event.
+    // processing a touch event.
     private boolean mApplyDeferredNativeScroll;
     private int mDeferredNativeScrollX;
     private int mDeferredNativeScrollY;
-
-    // Whether (and to what value) to update the container view scroll offset after we've received
-    // a valid content size.
-    private boolean mApplyDeferredContainerScrollOnValidContentSize;
-    private int mDeferredContainerScrollX;
-    private int mDeferredContainerScrollY;
 
     // The velocity of the last recorded fling,
     private int mLastFlingVelocityX;
@@ -89,11 +83,11 @@ public class AwScrollOffsetManager {
     //----- Scroll range and extent calculation methods -------------------------------------------
 
     public int computeHorizontalScrollRange() {
-        return Math.max(mContainerViewWidth, mContentWidth);
+        return mContainerViewWidth + mMaxHorizontalScrollOffset;
     }
 
     public int computeMaximumHorizontalScrollOffset() {
-        return computeHorizontalScrollRange() - mContainerViewWidth;
+        return mMaxHorizontalScrollOffset;
     }
 
     public int computeHorizontalScrollOffset() {
@@ -101,11 +95,11 @@ public class AwScrollOffsetManager {
     }
 
     public int computeVerticalScrollRange() {
-        return Math.max(mContainerViewHeight, mContentHeight);
+        return mContainerViewHeight + mMaxVerticalScrollOffset;
     }
 
     public int computeMaximumVerticalScrollOffset() {
-        return computeVerticalScrollRange() - mContainerViewHeight;
+        return mMaxVerticalScrollOffset;
     }
 
     public int computeVerticalScrollOffset() {
@@ -117,18 +111,10 @@ public class AwScrollOffsetManager {
     }
 
     //---------------------------------------------------------------------------------------------
-
-    // Called when the content size changes. This needs to be the size of the on-screen content and
-    // therefore we can't use the WebContentsDelegate preferred size.
-    public void setContentSize(int width, int height) {
-        mContentWidth = width;
-        mContentHeight = height;
-
-        if (mApplyDeferredContainerScrollOnValidContentSize &&
-                mContentWidth != 0 && mContentHeight != 0) {
-            mApplyDeferredContainerScrollOnValidContentSize = false;
-            scrollContainerViewTo(mDeferredContainerScrollX, mDeferredContainerScrollY);
-        }
+    // Called when the scroll range changes. This needs to be the size of the on-screen content.
+    public void setMaxScrollOffset(int width, int height) {
+        mMaxHorizontalScrollOffset = width;
+        mMaxVerticalScrollOffset = height;
     }
 
     // Called when the physical size of the view changes.
@@ -154,16 +140,8 @@ public class AwScrollOffsetManager {
         }
     }
 
-    // Called by the native side to attempt to scroll the container view.
+    // Called by the native side to scroll the container view.
     public void scrollContainerViewTo(int x, int y) {
-        if (mContentWidth == 0 && mContentHeight == 0) {
-            mApplyDeferredContainerScrollOnValidContentSize = true;
-            mDeferredContainerScrollX = x;
-            mDeferredContainerScrollY = y;
-            return;
-        }
-        mApplyDeferredContainerScrollOnValidContentSize = false;
-
         mNativeScrollX = x;
         mNativeScrollY = y;
 
@@ -178,6 +156,10 @@ public class AwScrollOffsetManager {
         // method for handling both over-scroll as well as in-bounds scroll.
         mDelegate.overScrollContainerViewBy(deltaX, deltaY, scrollX, scrollY,
                 scrollRangeX, scrollRangeY, mProcessingTouchEvent);
+    }
+
+    public boolean isFlingActive() {
+        return mFlinging;
     }
 
     // Called by the native side to over-scroll the container view.
@@ -255,9 +237,6 @@ public class AwScrollOffsetManager {
         if (x == mNativeScrollX && y == mNativeScrollY)
             return;
 
-        // Updating the native scroll will override any pending scroll originally sent from native.
-        mApplyDeferredContainerScrollOnValidContentSize = false;
-
         // The scrollNativeTo call should be a simple store, so it's OK to assume it always
         // succeeds.
         mNativeScrollX = x;
@@ -291,29 +270,33 @@ public class AwScrollOffsetManager {
     public void flingScroll(int velocityX, int velocityY) {
         final int scrollX = mDelegate.getContainerViewScrollX();
         final int scrollY = mDelegate.getContainerViewScrollY();
-        final int rangeX = computeMaximumHorizontalScrollOffset();
-        final int rangeY = computeMaximumVerticalScrollOffset();
+        final int scrollRangeX = computeMaximumHorizontalScrollOffset();
+        final int scrollRangeY = computeMaximumVerticalScrollOffset();
 
         mScroller.fling(scrollX, scrollY, velocityX, velocityY,
-                0, rangeX, 0, rangeY);
+                0, scrollRangeX, 0, scrollRangeY);
+        mFlinging = true;
         mDelegate.invalidate();
     }
 
     // Called immediately before the draw to update the scroll offset.
     public void computeScrollAndAbsorbGlow(OverScrollGlow overScrollGlow) {
         final boolean stillAnimating = mScroller.computeScrollOffset();
-        if (!stillAnimating) return;
+        if (!stillAnimating) {
+            mFlinging = false;
+            return;
+        }
 
         final int oldX = mDelegate.getContainerViewScrollX();
         final int oldY = mDelegate.getContainerViewScrollY();
         int x = mScroller.getCurrX();
         int y = mScroller.getCurrY();
 
-        int rangeX = computeMaximumHorizontalScrollOffset();
-        int rangeY = computeMaximumVerticalScrollOffset();
+        final int scrollRangeX = computeMaximumHorizontalScrollOffset();
+        final int scrollRangeY = computeMaximumVerticalScrollOffset();
 
         if (overScrollGlow != null) {
-            overScrollGlow.absorbGlow(x, y, oldX, oldY, rangeX, rangeY,
+            overScrollGlow.absorbGlow(x, y, oldX, oldY, scrollRangeX, scrollRangeY,
                     mScroller.getCurrVelocity());
         }
 

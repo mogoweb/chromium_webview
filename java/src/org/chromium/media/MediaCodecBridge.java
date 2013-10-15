@@ -225,9 +225,15 @@ class MediaCodecBridge {
     }
 
     @CalledByNative
-    private void start() {
-        mMediaCodec.start();
-        mInputBuffers = mMediaCodec.getInputBuffers();
+    private boolean start() {
+        try {
+            mMediaCodec.start();
+            mInputBuffers = mMediaCodec.getInputBuffers();
+        } catch (IllegalStateException e) {
+            Log.e(TAG, "Cannot start the media codec " + e.toString());
+            return false;
+        }
+        return true;
     }
 
     @CalledByNative
@@ -338,8 +344,14 @@ class MediaCodecBridge {
     }
 
     @CalledByNative
-    private void getOutputBuffers() {
-        mOutputBuffers = mMediaCodec.getOutputBuffers();
+    private boolean getOutputBuffers() {
+        try {
+            mOutputBuffers = mMediaCodec.getOutputBuffers();
+        } catch (IllegalStateException e) {
+            Log.e(TAG, "Cannot get output buffers " + e.toString());
+            return false;
+        }
+        return true;
     }
 
     @CalledByNative
@@ -384,7 +396,7 @@ class MediaCodecBridge {
             mMediaCodec.configure(format, surface, crypto, flags);
             return true;
         } catch (IllegalStateException e) {
-          Log.e(TAG, "Cannot configure the video codec " + e.toString());
+            Log.e(TAG, "Cannot configure the video codec " + e.toString());
         }
         return false;
     }

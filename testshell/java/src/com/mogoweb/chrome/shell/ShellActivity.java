@@ -37,7 +37,7 @@ import com.mogoweb.chrome.WebViewClient;
  */
 public class ShellActivity extends Activity {
     private final static String PREFERENCES_NAME = "AwShellPrefs";
-    private final static String INITIAL_URL = "http://www.activeshare.cn/OEBPS/xhtml/p1.html";
+    private final static String INITIAL_URL = "http://mogoweb.net"; //"http://www.activeshare.cn/OEBPS/xhtml/p1.html";
     private WebView mWebView;
     private EditText mUrlTextView;
     private ImageButton mPrevButton;

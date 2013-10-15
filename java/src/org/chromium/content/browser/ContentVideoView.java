@@ -616,10 +616,12 @@ public class ContentVideoView
     @CalledByNative
     private void destroyContentVideoView(boolean nativeViewDestroyed) {
         if (mVideoSurfaceView != null) {
-            mClient.onDestroyContentVideoView();
             removeControls();
             removeSurfaceView();
             setVisibility(View.GONE);
+
+            // To prevent re-entrance, call this after removeSurfaceView.
+            mClient.onDestroyContentVideoView();
         }
         if (nativeViewDestroyed) {
             mNativeContentVideoView = 0;

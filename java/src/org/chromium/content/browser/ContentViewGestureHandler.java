@@ -107,13 +107,6 @@ class ContentViewGestureHandler implements LongPressDelegate {
 
     private boolean mPinchInProgress = false;
 
-    // Tracks whether a touch cancel event has been sent as a result of switching
-    // into scrolling or pinching mode.
-    private boolean mTouchCancelEventSent = false;
-
-    // Last cancelled touch event as a result of scrolling or pinching.
-    private MotionEvent mLastCancelledEvent = null;
-
     private static final int DOUBLE_TAP_TIMEOUT = ViewConfiguration.getDoubleTapTimeout();
 
     //On single tap this will store the x, y coordinates of the touch.
@@ -584,7 +577,7 @@ class ContentViewGestureHandler implements LongPressDelegate {
                                     pinchBy(e.getEventTime(),
                                             Math.round(mDoubleTapDragZoomAnchorX),
                                             Math.round(mDoubleTapDragZoomAnchorY),
-                                            (float) Math.pow(dy < 0 ?
+                                            (float) Math.pow(dy > 0 ?
                                                     1.0f - DOUBLE_TAP_DRAG_ZOOM_SPEED :
                                                     1.0f + DOUBLE_TAP_DRAG_ZOOM_SPEED,
                                                     Math.abs(dy * mPxToDp)));
@@ -977,8 +970,6 @@ class ContentViewGestureHandler implements LongPressDelegate {
         if (type == TouchPoint.CONVERSION_ERROR) return EVENT_NOT_FORWARDED;
 
         if (!mTouchScrolling && !mPinchInProgress) {
-            mTouchCancelEventSent = false;
-
             if (mMotionEventDelegate.sendTouchEvent(event.getEventTime(), type, pts)) {
                 // If confirmTouchEvent() is called synchronously with respect to sendTouchEvent(),
                 // then |event| will have been recycled. Only start the timer if the sent event has
@@ -990,18 +981,6 @@ class ContentViewGestureHandler implements LongPressDelegate {
                     mTouchEventTimeoutHandler.start(event.getEventTime(), pts);
                 }
                 return EVENT_FORWARDED_TO_NATIVE;
-            }
-        } else if (!mTouchCancelEventSent) {
-            mTouchCancelEventSent = true;
-
-            MotionEvent previousCancelEvent = mLastCancelledEvent;
-            mLastCancelledEvent = event;
-
-            if (mMotionEventDelegate.sendTouchEvent(event.getEventTime(),
-                    TouchPoint.TOUCH_EVENT_TYPE_CANCEL, pts)) {
-                return EVENT_CONVERTED_TO_CANCEL;
-            } else {
-                mLastCancelledEvent = previousCancelEvent;
             }
         }
         return EVENT_NOT_FORWARDED;
@@ -1082,12 +1061,6 @@ class ContentViewGestureHandler implements LongPressDelegate {
             }
 
             MotionEvent ackedEvent = mPendingMotionEvents.removeFirst();
-            if (ackedEvent == mLastCancelledEvent) {
-                // The event is canceled, just drain all the pending events until next
-                // touch down.
-                ackResult = INPUT_EVENT_ACK_STATE_NO_CONSUMER_EXISTS;
-                TraceEvent.instant("confirmTouchEvent:CanceledEvent");
-            }
             switch (ackResult) {
                 case INPUT_EVENT_ACK_STATE_UNKNOWN:
                     // This should never get sent.
@@ -1150,9 +1123,6 @@ class ContentViewGestureHandler implements LongPressDelegate {
     }
 
     private void recycleEvent(MotionEvent event) {
-        if (event == mLastCancelledEvent) {
-            mLastCancelledEvent = null;
-        }
         event.recycle();
     }
 
@@ -1213,14 +1183,6 @@ class ContentViewGestureHandler implements LongPressDelegate {
      */
     MotionEvent peekFirstInPendingMotionEventsForTesting() {
         return mPendingMotionEvents.peekFirst();
-    }
-
-    /**
-     * This is for testing only.
-     * @return Whether the motion event is cancelled.
-     */
-    boolean isEventCancelledForTesting(MotionEvent event) {
-        return event != null && event == mLastCancelledEvent;
     }
 
     /**
