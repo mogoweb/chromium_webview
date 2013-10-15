@@ -24,6 +24,7 @@ import java.util.Map;
 
 import org.chromium.android_webview.AwBrowserContext;
 import org.chromium.android_webview.AwContents;
+import org.chromium.android_webview.AwLayoutSizer;
 import org.chromium.content.browser.ContentViewCore;
 import org.chromium.content.browser.LoadUrlParams;
 import org.chromium.content.browser.NavigationHistory;
@@ -429,16 +430,16 @@ public class WebView extends FrameLayout {
         if (isInEditMode()) {
             return;  // Chromium isn't loaded in edit mode.
         }
-
-        try {
-            Activity activity = (Activity)context;
-            activity.getWindow().setFlags(
-                    WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
-                    WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
-
-        } catch(ClassCastException e) {
-            // Hope that hardware acceleration is enabled.
-        }
+// TODO(alex): chromium webview not support hardware accelerated yet.
+//        try {
+//            Activity activity = (Activity)context;
+//            activity.getWindow().setFlags(
+//                    WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+//                    WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
+//
+//        } catch(ClassCastException e) {
+//            // Hope that hardware acceleration is enabled.
+//        }
 
         SharedPreferences sharedPreferences = context.getSharedPreferences(
                 "chromeview", Context.MODE_PRIVATE);
@@ -448,7 +449,7 @@ public class WebView extends FrameLayout {
         mInternalAccessAdapter = new ChromeInternalAcccessAdapter();
         mAwContentsClient = new ChromeAwContentsClientProxy(this);
         mAwContents = new AwContents(mBrowserContext, this, mInternalAccessAdapter,
-                mAwContentsClient, true);
+                mAwContentsClient, false, new AwLayoutSizer(), true);
         mContentViewCore = mAwContents.getContentViewCore();
     }
 
@@ -1337,16 +1338,19 @@ public class WebView extends FrameLayout {
 
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
         mAwContents.onConfigurationChanged(newConfig);
     }
 
     @Override
     public void onAttachedToWindow() {
+        super.onAttachedToWindow();
         mAwContents.onAttachedToWindow();
     }
 
     @Override
     public void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
         mAwContents.onDetachedFromWindow();
     }
 
@@ -1378,27 +1382,45 @@ public class WebView extends FrameLayout {
 
     @Override
     public void onSizeChanged(int w, int h, int ow, int oh) {
+        super.onSizeChanged(w, h, ow, oh);
         mAwContents.onSizeChanged(w, h, ow, oh);
     }
 
     @Override
+    public void onOverScrolled(int scrollX, int scrollY, boolean clampedX, boolean clampedY) {
+        mAwContents.onContainerViewOverScrolled(scrollX, scrollY, clampedX, clampedY);
+    }
+
+    @Override
+    public void onScrollChanged(int l, int t, int oldl, int oldt) {
+        super.onScrollChanged(l, t, oldl, oldt);
+        if (mAwContents != null) {
+            mAwContents.onContainerViewScrollChanged(l, t, oldl, oldt);
+        }
+    }
+
+    @Override
     public void onVisibilityChanged(View changedView, int visibility) {
+        super.onVisibilityChanged(changedView, visibility);
         mAwContents.onVisibilityChanged(changedView, visibility);
     }
 
     @Override
     public void onWindowVisibilityChanged(int visibility) {
+        super.onWindowVisibilityChanged(visibility);
         mAwContents.onWindowVisibilityChanged(visibility);
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent ev) {
+        super.onTouchEvent(ev);
         return mAwContents.onTouchEvent(ev);
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
         mAwContents.onDraw(canvas);
+        super.onDraw(canvas);
     }
 
     /** Glue that passes calls from the Chromium view to its container (us). */
