@@ -14,11 +14,6 @@ import android.view.View;
  */
 public interface PageInfo {
     /**
-     * @return The URL of the page.
-     */
-    String getUrl();
-
-    /**
      * @return The title of the page.
      */
     String getTitle();

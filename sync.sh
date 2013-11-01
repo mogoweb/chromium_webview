@@ -103,7 +103,7 @@ rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/lib.java/guava_javalib.jar ${CHROMIU
 rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/lib.java/jsr_305_javalib.jar ${CHROMIUMVIEW_PROJECT_ROOT}/libs/
 
 # android_webview generated sources. Must come after all the other sources.
-rsync -avz ${CHROMIUM_SRC}/android_webview/java/generated_src/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
+rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/android_webview_apk/native_libraries_java/NativeLibraries.java ${CHROMIUMVIEW_PROJECT_ROOT}/src/org/chromium/content/app/
 
 
 # sync test class

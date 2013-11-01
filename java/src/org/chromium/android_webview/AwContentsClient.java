@@ -43,8 +43,7 @@ import org.chromium.net.NetError;
 public abstract class AwContentsClient {
 
     private static final String TAG = "AwContentsClient";
-    private final AwContentsClientCallbackHelper mCallbackHelper =
-        new AwContentsClientCallbackHelper(this);
+    private final AwContentsClientCallbackHelper mCallbackHelper;
 
     private AwWebContentsObserver mWebContentsObserver;
 
@@ -55,6 +54,15 @@ public abstract class AwContentsClient {
     private int mCachedRendererBackgroundColor = INVALID_COLOR;
 
     private static final int INVALID_COLOR = 0;
+
+    public AwContentsClient() {
+        this(Looper.myLooper());
+    }
+
+    // Alllow injection of the callback thread, for testing.
+    public AwContentsClient(Looper looper) {
+        mCallbackHelper = new AwContentsClientCallbackHelper(looper, this);
+    }
 
     class AwWebContentsObserver extends WebContentsObserverAndroid {
         public AwWebContentsObserver(ContentViewCore contentViewCore) {

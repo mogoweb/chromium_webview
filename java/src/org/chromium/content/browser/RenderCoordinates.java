@@ -271,6 +271,14 @@ public class RenderCoordinates {
     public boolean hasFixedPageScale() { return mMinPageScaleFactor == mMaxPageScaleFactor; }
 
     /**
+     * @return True if the page has a width=device-width or narrower viewport.
+     */
+    public boolean hasMobileViewport() {
+        float windowWidthDip = mPageScaleFactor * mLastFrameViewportWidthCss;
+        return mContentWidthCss <= windowWidthDip;
+    }
+
+    /**
      * @return Maximum possible horizontal scroll in physical pixels.
      */
     public float getMaxHorizontalScrollPix() {

@@ -54,7 +54,7 @@ public class PepperPluginManager {
             return null;
         }
         // Assemble the plugin info, according to the format described in
-        // pepper_plugin_registry.cc.
+        // pepper_plugin_list.cc.
         // (eg. path<#name><#description><#version>;mimetype)
         StringBuffer plugin = new StringBuffer(PEPPER_PLUGIN_ROOT);
         plugin.append(filename);

@@ -19,7 +19,6 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Message;
-import android.os.Process;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -103,13 +102,6 @@ public class AwContents {
      * dispatching of view methods through the containing view.
      */
     public interface InternalAccessDelegate extends ContentViewCore.InternalAccessDelegate {
-        /**
-         * @see View#onScrollChanged(int, int, int, int)
-         *
-         * TODO(mkosiba): WebViewClassic calls this, AwContents doesn't. Check if there
-         * are any cases we're missing, if not - remove.
-         */
-        void onScrollChanged(int lPix, int tPix, int oldlPix, int oldtPix);
 
         /**
          * @see View#overScrollBy(int, int, int, int, int, int, int, int, boolean);
@@ -163,6 +155,7 @@ public class AwContents {
     private OverScrollGlow mOverScrollGlow;
     // This can be accessed on any thread after construction. See AwContentsIoThreadClient.
     private final AwSettings mSettings;
+    private final ScrollAccessibilityHelper mScrollAccessibilityHelper;
 
     private boolean mIsPaused;
     private boolean mIsViewVisible;
@@ -364,7 +357,14 @@ public class AwContents {
 
         @Override
         public void setFixedLayoutSize(int widthDip, int heightDip) {
+            if (mNativeAwContents == 0) return;
             nativeSetFixedLayoutSize(mNativeAwContents, widthDip, heightDip);
+        }
+
+        @Override
+        public boolean isLayoutParamsHeightWrapContent() {
+            return mContainerView.getLayoutParams() != null &&
+                mContainerView.getLayoutParams().height == ViewGroup.LayoutParams.WRAP_CONTENT;
         }
     }
 
@@ -427,7 +427,6 @@ public class AwContents {
             mScrollOffsetManager.onFlingStartGesture(velocityX, velocityY);
         }
 
-
         @Override
         public void onFlingCancelGesture() {
             mScrollOffsetManager.onFlingCancelGesture();
@@ -436,6 +435,11 @@ public class AwContents {
         @Override
         public void onUnhandledFlingStartEvent() {
             mScrollOffsetManager.onUnhandledFlingStartEvent();
+        }
+
+        @Override
+        public void onScrollUpdateGestureConsumed() {
+            mScrollAccessibilityHelper.postViewScrolledAccessibilityEventCallback();
         }
     }
 
@@ -515,11 +519,20 @@ public class AwContents {
             InternalAccessDelegate internalAccessAdapter, AwContentsClient contentsClient,
             boolean isAccessFromFileURLsGrantedByDefault, AwLayoutSizer layoutSizer,
             boolean supportsLegacyQuirks) {
+        this(browserContext, containerView, internalAccessAdapter, contentsClient,
+                layoutSizer, new AwSettings(containerView.getContext(),
+                        isAccessFromFileURLsGrantedByDefault, supportsLegacyQuirks));
+    }
+
+    public AwContents(AwBrowserContext browserContext, ViewGroup containerView,
+            InternalAccessDelegate internalAccessAdapter, AwContentsClient contentsClient,
+            AwLayoutSizer layoutSizer, AwSettings settings) {
         mBrowserContext = browserContext;
         mContainerView = containerView;
         mInternalAccessAdapter = internalAccessAdapter;
         mContentsClient = contentsClient;
         mLayoutSizer = layoutSizer;
+        mSettings = settings;
         mDIPScale = DeviceDisplayInfo.create(mContainerView.getContext()).getDIPScale();
         mLayoutSizer.setDelegate(new AwLayoutSizerDelegate());
         mLayoutSizer.setDIPScale(mDIPScale);
@@ -529,32 +542,29 @@ public class AwContents {
         mIoThreadClient = new IoThreadClientImpl();
         mInterceptNavigationDelegate = new InterceptNavigationDelegateImpl();
 
-        boolean hasInternetPermission = mContainerView.getContext().checkPermission(
-                    android.Manifest.permission.INTERNET,
-                    Process.myPid(),
-                    Process.myUid()) == PackageManager.PERMISSION_GRANTED;
         AwSettings.ZoomSupportChangeListener zoomListener =
                 new AwSettings.ZoomSupportChangeListener() {
                     @Override
                     public void onGestureZoomSupportChanged(boolean supportsGestureZoom) {
                         mContentViewCore.updateMultiTouchZoomSupport(supportsGestureZoom);
-                        mContentViewCore.updateDoubleTapDragSupport(supportsGestureZoom);
+                        mContentViewCore.updateDoubleTapSupport(supportsGestureZoom);
                     }
 
                 };
-        mSettings = new AwSettings(mContainerView.getContext(), hasInternetPermission, zoomListener,
-                isAccessFromFileURLsGrantedByDefault, mDIPScale, supportsLegacyQuirks);
+        mSettings.setZoomListener(zoomListener);
         mDefaultVideoPosterRequestHandler = new DefaultVideoPosterRequestHandler(mContentsClient);
         mSettings.setDefaultVideoPosterURL(
                 mDefaultVideoPosterRequestHandler.getDefaultVideoPosterURL());
+        mSettings.setDIPScale(mDIPScale);
         mScrollOffsetManager = new AwScrollOffsetManager(new AwScrollOffsetManagerDelegate(),
                 new OverScroller(mContainerView.getContext()));
+        mScrollAccessibilityHelper = new ScrollAccessibilityHelper(mContainerView);
 
         setOverScrollMode(mContainerView.getOverScrollMode());
         setScrollBarStyle(mInternalAccessAdapter.super_getScrollBarStyle());
         mContainerView.addOnLayoutChangeListener(new AwLayoutChangeListener());
 
-        setNewAwContents(nativeInit(browserContext));
+        setNewAwContents(nativeInit(mBrowserContext));
 
         onVisibilityChanged(mContainerView, mContainerView.getVisibility());
         onWindowVisibilityChanged(mContainerView.getWindowVisibility());
@@ -1034,6 +1044,10 @@ public class AwContents {
      * @see View#onScrollChanged(int,int)
      */
     public void onContainerViewScrollChanged(int l, int t, int oldl, int oldt) {
+        // A side-effect of View.onScrollChanged is that the scroll accessibility event being sent
+        // by the base class implementation. This is completely hidden from the base classes and
+        // cannot be prevented, which is why we need the code below.
+        mScrollAccessibilityHelper.removePostedViewScrolledAccessibilityEventCallback();
         mScrollOffsetManager.onContainerViewScrollChanged(l, t);
     }
 
@@ -1222,10 +1236,27 @@ public class AwContents {
         return mContentViewCore.onKeyUp(keyCode, event);
     }
 
+    private boolean isDpadEvent(KeyEvent event) {
+        if (event.getAction() == KeyEvent.ACTION_DOWN) {
+            switch (event.getKeyCode()) {
+                case KeyEvent.KEYCODE_DPAD_CENTER:
+                case KeyEvent.KEYCODE_DPAD_DOWN:
+                case KeyEvent.KEYCODE_DPAD_UP:
+                case KeyEvent.KEYCODE_DPAD_LEFT:
+                case KeyEvent.KEYCODE_DPAD_RIGHT:
+                    return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * @see android.webkit.WebView#dispatchKeyEvent(KeyEvent)
      */
     public boolean dispatchKeyEvent(KeyEvent event) {
+        if (isDpadEvent(event)) {
+            mSettings.setSpatialNavigationEnabled(true);
+        }
         return mContentViewCore.dispatchKeyEvent(event);
     }
 
@@ -1484,6 +1515,10 @@ public class AwContents {
     public boolean onTouchEvent(MotionEvent event) {
         if (mNativeAwContents == 0) return false;
 
+        if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+            mSettings.setSpatialNavigationEnabled(false);
+        }
+
         mScrollOffsetManager.setProcessingTouchEvent(true);
         boolean rv = mContentViewCore.onTouchEvent(event);
         mScrollOffsetManager.setProcessingTouchEvent(false);
@@ -1559,6 +1594,8 @@ public class AwContents {
           mContainerView.getContext().unregisterComponentCallbacks(mComponentCallbacks);
           mComponentCallbacks = null;
         }
+
+        mScrollAccessibilityHelper.removePostedCallbacks();
 
         if (mPendingDetachCleanupReferences != null) {
             for (int i = 0; i < mPendingDetachCleanupReferences.size(); ++i) {

@@ -5,6 +5,8 @@
 package org.chromium.ui.gfx;
 
 import android.content.Context;
+import android.content.ComponentCallbacks;
+import android.content.res.Configuration;
 import android.graphics.PixelFormat;
 import android.os.Build;
 import android.util.DisplayMetrics;
@@ -115,6 +117,35 @@ public class DeviceDisplayInfo {
       return getMetrics().density;
   }
 
+  /**
+   * @return Smallest screen size in density-independent pixels that the
+   *         application will see, regardless of orientation.
+   */
+  @CalledByNative
+  private int getSmallestDIPWidth() {
+      return mAppContext.getResources().getConfiguration().smallestScreenWidthDp;
+  }
+
+  private void registerListener() {
+      mAppContext.registerComponentCallbacks(
+          new ComponentCallbacks() {
+              @Override
+              public void onConfigurationChanged(Configuration configuration) {
+                  updateNativeSharedDisplayInfo();
+              }
+
+              @Override
+              public void onLowMemory() {
+              }
+      });
+  }
+
+  private void updateNativeSharedDisplayInfo() {
+      nativeUpdateSharedDeviceDisplayInfo(getDisplayHeight(),
+          getDisplayWidth(), getBitsPerPixel(), getBitsPerComponent(),
+          getDIPScale(), getSmallestDIPWidth());
+  }
+
   private Display getDisplay() {
       return mWinManager.getDefaultDisplay();
   }
@@ -128,8 +159,20 @@ public class DeviceDisplayInfo {
    * @param context A context to use.
    * @return DeviceDisplayInfo associated with a given Context.
    */
-  @CalledByNative
   public static DeviceDisplayInfo create(Context context) {
       return new DeviceDisplayInfo(context);
   }
+
+  @CalledByNative
+  private static DeviceDisplayInfo createWithListener(Context context) {
+      DeviceDisplayInfo deviceDisplayInfo = new DeviceDisplayInfo(context);
+      deviceDisplayInfo.registerListener();
+      return deviceDisplayInfo;
+  }
+
+  private native void nativeUpdateSharedDeviceDisplayInfo(int displayHeight,
+                        int displayWidth, int bitsPerPixel,
+                        int bitsPerComponent, double dipScale,
+                        int smallestDIPWidth);
+
 }

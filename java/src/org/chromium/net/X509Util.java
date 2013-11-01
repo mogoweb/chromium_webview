@@ -4,8 +4,14 @@
 
 package org.chromium.net;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.security.KeyChain;
 import android.util.Log;
 
+import org.chromium.base.JNINamespace;
 import org.chromium.net.CertVerifyResultAndroid;
 
 import java.io.ByteArrayInputStream;
@@ -25,9 +31,29 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
 
+@JNINamespace("net")
 public class X509Util {
 
     private static final String TAG = "X509Util";
+
+    public static final class TrustStorageListener extends BroadcastReceiver {
+        @Override public void onReceive(Context context, Intent intent) {
+            if (intent.getAction().equals(KeyChain.ACTION_STORAGE_CHANGED)) {
+                try {
+                    reloadDefaultTrustManager();
+                }
+                catch (CertificateException e) {
+                    Log.e(TAG, "Unable to reload the default TrustManager", e);
+                }
+                catch (KeyStoreException e) {
+                    Log.e(TAG, "Unable to reload the default TrustManager", e);
+                }
+                catch (NoSuchAlgorithmException e) {
+                    Log.e(TAG, "Unable to reload the default TrustManager", e);
+                }
+            }
+        }
+    }
 
     private static CertificateFactory sCertificateFactory;
 
@@ -45,6 +71,12 @@ public class X509Util {
     private static X509TrustManager sDefaultTrustManager;
 
     /**
+     * BroadcastReceiver that listens to change in the system keystore to invalidate certificate
+     * caches.
+     */
+    private static TrustStorageListener sTrustStorageListener;
+
+    /**
      * Trust manager backed up by a custom certificate store. We need such manager to plant test
      * root CA to the trust store in testing.
      */
@@ -55,6 +87,13 @@ public class X509Util {
      * Lock object used to synchronize all calls that modify or depend on the trust managers.
      */
     private static final Object sLock = new Object();
+
+    /*
+     * Allow disabling registering the observer for the certificat changes. Net unit tests do not
+     * load native libraries which prevent this to succeed. Moreover, the system does not allow to
+     * interact with the certificate store without user interaction.
+     */
+    private static boolean sDisableCertificateObservationForTest = false;
 
     /**
      * Ensures that the trust managers and certificate factory are initialized.
@@ -76,6 +115,12 @@ public class X509Util {
             }
             if (sTestTrustManager == null) {
                 sTestTrustManager = X509Util.createTrustManager(sTestKeyStore);
+            }
+            if (!sDisableCertificateObservationForTest &&
+                    sTrustStorageListener == null) {
+                sTrustStorageListener = new TrustStorageListener();
+                nativeGetApplicationContext().registerReceiver(sTrustStorageListener,
+                        new IntentFilter(KeyChain.ACTION_STORAGE_CHANGED));
             }
         }
     }
@@ -105,6 +150,16 @@ public class X509Util {
     private static void reloadTestTrustManager() throws KeyStoreException,
             NoSuchAlgorithmException {
         sTestTrustManager = X509Util.createTrustManager(sTestKeyStore);
+    }
+
+    /**
+     * After each modification by the system of the key store, trust manager has to be regenerated.
+     */
+    private static void reloadDefaultTrustManager() throws KeyStoreException,
+            NoSuchAlgorithmException, CertificateException {
+        sDefaultTrustManager = null;
+        nativeNotifyKeyChainChanged();
+        ensureInitialized();
     }
 
     /**
@@ -230,4 +285,18 @@ public class X509Util {
             }
         }
     }
+
+    public static void setDisableCertificateObservationForTest(boolean disabled) {
+        sDisableCertificateObservationForTest = disabled;
+    }
+    /**
+     * Notify the native net::CertDatabase instance that the system database has been updated.
+     */
+    private static native void nativeNotifyKeyChainChanged();
+
+    /**
+     * Returns the application context.
+     */
+    private static native Context nativeGetApplicationContext();
+
 }

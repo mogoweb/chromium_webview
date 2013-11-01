@@ -18,6 +18,8 @@ import org.chromium.base.JNINamespace;
 import org.chromium.base.SysUtils;
 import org.chromium.base.ThreadUtils;
 import org.chromium.content.app.ChildProcessService;
+import org.chromium.content.app.Linker;
+import org.chromium.content.app.LinkerParams;
 import org.chromium.content.app.PrivilegedProcessService;
 import org.chromium.content.app.SandboxedProcessService;
 import org.chromium.content.common.IChildProcessCallback;
@@ -83,7 +85,8 @@ public class ChildProcessLauncher {
         }
 
         public ChildProcessConnection allocate(
-                Context context, ChildProcessConnection.DeathCallback deathCallback) {
+                Context context, ChildProcessConnection.DeathCallback deathCallback,
+                LinkerParams linkerParams) {
             synchronized(mConnectionLock) {
                 if (mFreeConnectionIndices.isEmpty()) {
                     Log.w(TAG, "Ran out of service." );
@@ -92,7 +95,7 @@ public class ChildProcessLauncher {
                 int slot = mFreeConnectionIndices.remove(0);
                 assert mChildProcessConnections[slot] == null;
                 mChildProcessConnections[slot] = new ChildProcessConnection(context, slot,
-                        mInSandbox, deathCallback, mChildClass);
+                        mInSandbox, deathCallback, mChildClass, linkerParams);
                 return mChildProcessConnections[slot];
             }
         }
@@ -139,7 +142,8 @@ public class ChildProcessLauncher {
                 sSandboxedChildConnectionAllocator : sPrivilegedChildConnectionAllocator;
     }
 
-    private static ChildProcessConnection allocateConnection(Context context, boolean inSandbox) {
+    private static ChildProcessConnection allocateConnection(Context context,
+            boolean inSandbox, LinkerParams linkerParams) {
         ChildProcessConnection.DeathCallback deathCallback =
             new ChildProcessConnection.DeathCallback() {
                 @Override
@@ -148,12 +152,37 @@ public class ChildProcessLauncher {
                 }
             };
         sConnectionAllocated = true;
-        return getConnectionAllocator(inSandbox).allocate(context, deathCallback);
+        return getConnectionAllocator(inSandbox).allocate(context, deathCallback, linkerParams);
+    }
+
+    private static boolean sLinkerInitialized = false;
+    private static long sLinkerLoadAddress = 0;
+
+    private static LinkerParams getLinkerParamsForNewConnection() {
+        if (!sLinkerInitialized) {
+            if (Linker.isUsed()) {
+                sLinkerLoadAddress = Linker.getBaseLoadAddress();
+                if (sLinkerLoadAddress == 0) {
+                    Log.i(TAG, "Shared RELRO support disabled!");
+                }
+            }
+            sLinkerInitialized = true;
+        }
+
+        if (sLinkerLoadAddress == 0)
+            return null;
+
+        // Always wait for the shared RELROs in service processes.
+        final boolean waitForSharedRelros = true;
+        return new LinkerParams(sLinkerLoadAddress,
+                                waitForSharedRelros,
+                                Linker.getTestRunnerClassName());
     }
 
     private static ChildProcessConnection allocateBoundConnection(Context context,
             String[] commandLine, boolean inSandbox) {
-        ChildProcessConnection connection = allocateConnection(context, inSandbox);
+        LinkerParams linkerParams = getLinkerParamsForNewConnection();
+        ChildProcessConnection connection = allocateConnection(context, inSandbox, linkerParams);
         if (connection != null) {
             connection.start(commandLine);
         }
@@ -485,8 +514,11 @@ public class ChildProcessLauncher {
         // TODO(sievers): Revisit this as it doesn't correctly handle the utility process
         // assert callbackType != CALLBACK_FOR_UNKNOWN_PROCESS;
 
-        connection.setupConnection(commandLine, filesToBeMapped, createCallback(callbackType),
-                connectionCallback);
+        connection.setupConnection(commandLine,
+                                   filesToBeMapped,
+                                   createCallback(callbackType),
+                                   connectionCallback,
+                                   Linker.getSharedRelros());
     }
 
     /**

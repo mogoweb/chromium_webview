@@ -39,6 +39,7 @@ public class VideoCapture implements PreviewCallback, OnFrameAvailableListener {
     private static class DeviceImageFormatHack {
         private static final String[] sBUGGY_DEVICE_LIST = {
             "SAMSUNG-SGH-I747",
+            "ODROID-U2",
         };
 
         static int getImageFormat() {

@@ -36,6 +36,9 @@ public abstract class CommandLine {
     // Enables test intent handling.
     public static final String ENABLE_TEST_INTENTS = "enable-test-intents";
 
+    // Adds additional thread idle time information into the trace event output.
+    public static final String ENABLE_IDLE_TRACING = "enable-idle-tracing";
+
     // Dump frames-per-second to the log
     public static final String LOG_FPS = "log-fps";
 
@@ -75,6 +78,12 @@ public abstract class CommandLine {
 
     // Native switch - shell_switches::kDumpRenderTree
     public static final String DUMP_RENDER_TREE = "dump-render-tree";
+
+    // Native switch - chrome_switches::kDisablePopupBlocking
+    public static final String DISABLE_POPUP_BLOCKING = "disable-popup-blocking";
+
+    // Whether to disable the click delay by sending click events during double tap
+    public static final String DISABLE_CLICK_DELAY = "disable-click-delay";
 
     // Public abstract interface, implemented in derived classes.
     // All these methods reflect their native-side counterparts.

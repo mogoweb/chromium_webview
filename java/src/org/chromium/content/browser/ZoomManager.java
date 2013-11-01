@@ -123,7 +123,10 @@ class ZoomManager {
         try {
             boolean inGesture = isScaleGestureDetectionInProgress();
             boolean retVal = mMultiTouchDetector.onTouchEvent(event);
-            if (event.getActionMasked() == MotionEvent.ACTION_UP && !inGesture) return false;
+            if (!inGesture && (event.getActionMasked() == MotionEvent.ACTION_UP
+                    || event.getActionMasked() == MotionEvent.ACTION_CANCEL)) {
+                return false;
+            }
             return retVal;
         } catch (Exception e) {
             Log.e(TAG, "ScaleGestureDetector got into a bad state!", e);

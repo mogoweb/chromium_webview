@@ -8,6 +8,7 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import org.chromium.base.JNINamespace;
+import org.chromium.base.SysUtils;
 import org.chromium.content.common.CommandLine;
 import org.chromium.content.common.ProcessInitException;
 import org.chromium.content.common.ResultCodes;
@@ -108,11 +109,27 @@ public class LibraryLoader {
         try {
             if (!sLoaded) {
                 assert !sInitialized;
-                for (String sLibrary : NativeLibraries.libraries) {
-                    Log.i(TAG, "loading: " + sLibrary);
-                    System.loadLibrary(sLibrary);
-                    Log.i(TAG, "loaded: " + sLibrary);
+
+                long startTime = System.currentTimeMillis();
+                boolean useContentLinker = Linker.isUsed();
+
+                if (useContentLinker)
+                    Linker.prepareLibraryLoad();
+
+                for (String library : NativeLibraries.libraries) {
+                    Log.i(TAG, "Loading: " + library);
+                    if (useContentLinker)
+                        Linker.loadLibrary(library);
+                    else
+                        System.loadLibrary(library);
                 }
+                if (useContentLinker)
+                    Linker.finishLibraryLoad();
+                long stopTime = System.currentTimeMillis();
+                Log.i(TAG, String.format("Time to load native libraries: %d ms (timestamps %d-%d)",
+                                         stopTime - startTime,
+                                         startTime % 10000,
+                                         stopTime % 10000));
                 sLoaded = true;
             }
         } catch (UnsatisfiedLinkError e) {
@@ -138,6 +155,10 @@ public class LibraryLoader {
         sInitialized = true;
         CommandLine.enableNativeProxy();
         TraceEvent.setEnabledToMatchNative();
+        // Record histogram for the content linker.
+        if (Linker.isUsed())
+          nativeRecordContentAndroidLinkerHistogram(Linker.loadAtFixedAddressFailed(),
+                                                    SysUtils.isLowEndDevice());
     }
 
     // This is the only method that is registered during System.loadLibrary. We then call it
@@ -148,4 +169,11 @@ public class LibraryLoader {
     // Return 0 on success, otherwise return the error code from
     // content/public/common/result_codes.h.
     private static native int nativeLibraryLoaded(String[] initCommandLine);
+
+    // Method called to record statistics about the content linker operation,
+    // i.e. whether the library failed to be loaded at a fixed address, and
+    // whether the device is 'low-memory'.
+    private static native void nativeRecordContentAndroidLinkerHistogram(
+         boolean loadedAtFixedAddressFailed,
+         boolean isLowMemoryDevice);
 }

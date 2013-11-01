@@ -83,6 +83,17 @@ public class MemoryPressureListener {
         return true;
     }
 
+    public static void maybeNotifyMemoryPresure(int level) {
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_COMPLETE) {
+            nativeOnMemoryPressure(MemoryPressureLevelList.MEMORY_PRESSURE_CRITICAL);
+        } else if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND ||
+                level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL) {
+            // Don't notifiy on TRIM_MEMORY_UI_HIDDEN, since this class only
+            // dispatches actionable memory pressure signals to native.
+            nativeOnMemoryPressure(MemoryPressureLevelList.MEMORY_PRESSURE_MODERATE);
+        }
+    }
+
     private static void simulateLowMemoryPressureSignal(Activity activity) {
         // The Application and the Activity each have a list of callbacks they notify when this
         // method is called.  Notifying these will simulate the event at the App/Activity level
@@ -97,17 +108,6 @@ public class MemoryPressureListener {
         // as well as trigger the listener bound from native in this process.
         activity.getApplication().onTrimMemory(level);
         activity.onTrimMemory(level);
-    }
-
-    private static void maybeNotifyMemoryPresure(int level) {
-        if (level >= ComponentCallbacks2.TRIM_MEMORY_COMPLETE) {
-            nativeOnMemoryPressure(MemoryPressureLevelList.MEMORY_PRESSURE_CRITICAL);
-        } else if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND ||
-                level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL) {
-            // Don't notifiy on TRIM_MEMORY_UI_HIDDEN, since this class only
-            // dispatches actionable memory pressure signals to native.
-            nativeOnMemoryPressure(MemoryPressureLevelList.MEMORY_PRESSURE_MODERATE);
-        }
     }
 
     private static native void nativeOnMemoryPressure(int memoryPressureType);
