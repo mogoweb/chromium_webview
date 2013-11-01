@@ -10,7 +10,6 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
-import android.os.Looper;
 import android.util.Log;
 
 import org.chromium.base.ActivityStatus;
@@ -153,11 +152,11 @@ class LocationProvider {
             try {
                 Criteria criteria = new Criteria();
                 mLocationManager.requestLocationUpdates(0, 0, criteria, this,
-                        Looper.getMainLooper());
+                        ThreadUtils.getUiThreadLooper());
                 if (mIsGpsEnabled) {
                     criteria.setAccuracy(Criteria.ACCURACY_FINE);
                     mLocationManager.requestLocationUpdates(0, 0, criteria, this,
-                            Looper.getMainLooper());
+                            ThreadUtils.getUiThreadLooper());
                 }
             } catch(SecurityException e) {
                 Log.e(TAG, "Caught security exception registering for location updates from " +
@@ -255,7 +254,7 @@ class LocationProvider {
      * Must be called only in the UI thread.
      */
     public boolean isRunning() {
-        assert Looper.myLooper() == Looper.getMainLooper();
+        assert ThreadUtils.runningOnUiThread();
         return mImpl.isRunning();
     }
 

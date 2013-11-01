@@ -5,6 +5,7 @@
 package org.chromium.content.browser;
 
 import android.content.Context;
+import android.media.AudioManager;
 import android.os.Vibrator;
 
 import org.chromium.base.CalledByNative;
@@ -16,6 +17,7 @@ import org.chromium.base.JNINamespace;
 @JNINamespace("content")
 class VibrationMessageFilter {
 
+    private final AudioManager mAudioManager;
     private final Vibrator mVibrator;
 
     @CalledByNative
@@ -25,7 +27,8 @@ class VibrationMessageFilter {
 
     @CalledByNative
     private void vibrate(long milliseconds) {
-        mVibrator.vibrate(milliseconds);
+        if (mAudioManager.getRingerMode() != AudioManager.RINGER_MODE_SILENT)
+            mVibrator.vibrate(milliseconds);
     }
 
     @CalledByNative
@@ -34,6 +37,7 @@ class VibrationMessageFilter {
     }
 
     private VibrationMessageFilter(Context context) {
+        mAudioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
         mVibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
     }
 }

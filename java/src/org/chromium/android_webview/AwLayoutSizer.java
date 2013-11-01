@@ -58,6 +58,7 @@ public class AwLayoutSizer {
         void requestLayout();
         void setMeasuredDimension(int measuredWidth, int measuredHeight);
         void setFixedLayoutSize(int widthDip, int heightDip);
+        boolean isLayoutParamsHeightWrapContent();
     }
 
     /**
@@ -225,14 +226,34 @@ public class AwLayoutSizer {
     // call from onSizeChanged, since onSizeChanged won't fire if the view's physical size doesn't
     // change.
     private void updateFixedLayoutSize(int w, int h, float pageScaleFactor) {
-        // If the WebView's measuredDimension depends on the size of its contents (which is the
-        // case if any of the measurement modes are AT_MOST or UNSPECIFIED) the viewport size
-        // cannot be directly calculated from the size as that can result in the layout being
-        // unstable or unpredictable.
-        // If both the width and height are fixed (specified by the parent) then content size
+        boolean wrapContentForHeight = mDelegate.isLayoutParamsHeightWrapContent();
+        // If the WebView's size in the Android view system depends on the size of its contents then
+        // the viewport size cannot be directly calculated from the WebView's physical size as that
+        // can result in the layout being unstable (for example loading the following contents
+        //   <div style="height:150%">a</a>
+        // would cause the WebView to indefinitely attempt to increase its height by 50%).
+        // If both the width and height are fixed (specified by the parent View) then content size
         // changes will not cause subsequent layout passes and so we don't need to do anything
         // special.
-        if ((mWidthMeasurementIsFixed && mHeightMeasurementIsFixed) || pageScaleFactor == 0) {
+        // We assume the width is 'fixed' if the parent View specified an EXACT or an AT_MOST
+        // measureSpec for the width (in which case the AT_MOST upper bound is the width).
+        // That means that the WebView will ignore LayoutParams.width set to WRAP_CONTENT and will
+        // instead try to take up as much width as possible. This is necessary because it's not
+        // practical to do web layout without a set width.
+        // For height the behavior is different because for a given width it is possible to
+        // calculate the minimum height required to display all of the content. As such the WebView
+        // can size itself vertically to match the content height. Because certain container views
+        // (LinearLayout with a WRAP_CONTENT height, for example) can result in onMeasure calls with
+        // both EXACTLY and AT_MOST height measureSpecs it is not possible to infer the sizing
+        // policy for the whole subtree based on the parameters passed to the onMeasure call.
+        // For that reason the LayoutParams.height property of the WebView is used. This behaves
+        // more predictably and means that toggling the fixedLayoutSize mode (which can have
+        // significant impact on how the web contents is laid out) is a direct consequence of the
+        // developer's choice. The downside is that it could result in the Android layout being
+        // unstable if a parent of the WebView has a wrap_content height while the WebView itself
+        // has height set to match_parent. Unfortunately addressing this edge case is costly so it
+        // will have to stay as is (this is compatible with Classic behavior).
+        if ((mWidthMeasurementIsFixed && !wrapContentForHeight) || pageScaleFactor == 0) {
             setFixedLayoutSize(0, 0);
             return;
         }

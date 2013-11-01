@@ -51,7 +51,7 @@ public class NetworkChangeNotifier {
     private static NetworkChangeNotifier sInstance;
 
     private NetworkChangeNotifier(Context context) {
-        mContext = context;
+        mContext = context.getApplicationContext();
         mNativeChangeNotifiers = new ArrayList<Integer>();
         mConnectionTypeObservers = new ObserverList<ConnectionTypeObserver>();
     }

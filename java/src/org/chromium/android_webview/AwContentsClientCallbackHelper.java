@@ -86,7 +86,13 @@ class AwContentsClientCallbackHelper {
 
     private final AwContentsClient mContentsClient;
 
-    private final Handler mHandler = new Handler(Looper.getMainLooper()) {
+    private final Handler mHandler;
+
+    private class MyHandler extends Handler {
+        private MyHandler(Looper looper) {
+            super(looper);
+        }
+
         @Override
         public void handleMessage(Message msg) {
             switch(msg.what) {
@@ -142,7 +148,8 @@ class AwContentsClientCallbackHelper {
         }
     };
 
-    public AwContentsClientCallbackHelper(AwContentsClient contentsClient) {
+    public AwContentsClientCallbackHelper(Looper looper, AwContentsClient contentsClient) {
+        mHandler = new MyHandler(looper);
         mContentsClient = contentsClient;
     }
 

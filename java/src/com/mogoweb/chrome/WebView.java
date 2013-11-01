@@ -26,10 +26,10 @@ import org.chromium.android_webview.AwBrowserContext;
 import org.chromium.android_webview.AwContents;
 import org.chromium.android_webview.AwLayoutSizer;
 import org.chromium.content.browser.ContentViewCore;
+import org.chromium.content.browser.ContentViewRenderView;
 import org.chromium.content.browser.LoadUrlParams;
 import org.chromium.content.browser.NavigationHistory;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
@@ -44,7 +44,6 @@ import android.util.AttributeSet;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.webkit.ValueCallback;
@@ -398,6 +397,9 @@ public class WebView extends FrameLayout {
     /** Glue that passes calls from the Chromium view to its parent (us).  */
     private ChromeInternalAcccessAdapter mInternalAccessAdapter;
 
+    // The target for content rendering.
+    private ContentViewRenderView mContentViewRenderView;
+
     /**
      * Constructs a new WebView with a Context object.
      *
@@ -451,6 +453,13 @@ public class WebView extends FrameLayout {
         mAwContents = new AwContents(mBrowserContext, this, mInternalAccessAdapter,
                 mAwContentsClient, false, new AwLayoutSizer(), true);
         mContentViewCore = mAwContents.getContentViewCore();
+
+        mContentViewRenderView = new ContentViewRenderView(context) {
+            @Override
+            protected void onReadyToRender() {
+
+            }
+        };
     }
 
     //// Methods from android.webkit.WebView

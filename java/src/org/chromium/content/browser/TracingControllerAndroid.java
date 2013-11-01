@@ -9,11 +9,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Environment;
+import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
 
 import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
+import org.chromium.content.app.LibraryLoader;
 import org.chromium.content.common.TraceEvent;
 import org.chromium.content.R;
 
@@ -49,6 +51,8 @@ public class TracingControllerAndroid {
     private static final String FILE_EXTRA = "file";
     private static final String CATEGORIES_EXTRA = "categories";
     private static final String RECORD_CONTINUOUSLY_EXTRA = "continuous";
+    private static final String DEFAULT_CHROME_CATEGORIES_PLACE_HOLDER =
+            "_DEFAULT_CHROME_CATEGORIES";
 
     private final Context mContext;
     private final TracingBroadcastReceiver mBroadcastReceiver;
@@ -113,15 +117,8 @@ public class TracingControllerAndroid {
     /**
      * Start profiling to a new file in the Downloads directory.
      *
-     * Calls #startTracing(String) with a new timestamped filename.
-     *
-     * @param showToasts Whether or not we want to show toasts during this profiling session.
-     * When we are timing the profile run we might not want to incur extra draw overhead of showing
-     * notifications about the profiling system.
-     * @param categories Which categories to trace. See TracingControllerAndroid::BeginTracing()
-     * (in content/public/browser/trace_controller.h) for the format.
-     * @param recordContinuously Record until the user ends the trace. The trace buffer is fixed
-     * size and we use it as a ring buffer during recording.
+     * Calls #startTracing(String, boolean, String, boolean) with a new timestamped filename.
+     * @see #startTracing(String, boolean, String, boolean)
      */
     public boolean startTracing(boolean showToasts, String categories,
             boolean recordContinuously) {
@@ -244,8 +241,11 @@ public class TracingControllerAndroid {
         public void onReceive(Context context, Intent intent) {
             if (intent.getAction().endsWith(ACTION_START)) {
                 String categories = intent.getStringExtra(CATEGORIES_EXTRA);
-                if (categories == null) {
-                    categories = "*";
+                if (TextUtils.isEmpty(categories)) {
+                    categories = nativeGetDefaultCategories();
+                } else {
+                    categories = categories.replaceFirst(
+                            DEFAULT_CHROME_CATEGORIES_PLACE_HOLDER, nativeGetDefaultCategories());
                 }
                 boolean recordContinuously =
                         intent.getStringExtra(RECORD_CONTINUOUSLY_EXTRA) != null;
@@ -269,4 +269,5 @@ public class TracingControllerAndroid {
     private native boolean nativeStartTracing(int nativeTracingControllerAndroid, String filename,
             String categories, boolean recordContinuously);
     private native void nativeStopTracing(int nativeTracingControllerAndroid);
+    private native String nativeGetDefaultCategories();
 }

@@ -8,6 +8,8 @@ import android.view.View;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import org.chromium.content.browser.PositionObserver;
+
 /**
  * CursorController for selecting a range of text.
  */
@@ -33,8 +35,11 @@ public abstract class SelectionHandleController implements CursorController {
     private int mFixedHandleX;
     private int mFixedHandleY;
 
-    public SelectionHandleController(View parent) {
+    private PositionObserver mPositionObserver;
+
+    public SelectionHandleController(View parent, PositionObserver positionObserver) {
         mParent = parent;
+        mPositionObserver = positionObserver;
     }
 
     /** Automatically show selection anchors when text is selected. */
@@ -190,11 +195,13 @@ public abstract class SelectionHandleController implements CursorController {
     private void createHandlesIfNeeded(int startDir, int endDir) {
         if (mStartHandle == null) {
             mStartHandle = new HandleView(this,
-                startDir == TEXT_DIRECTION_RTL ? HandleView.RIGHT : HandleView.LEFT, mParent);
+                    startDir == TEXT_DIRECTION_RTL ? HandleView.RIGHT : HandleView.LEFT, mParent,
+                    mPositionObserver);
         }
         if (mEndHandle == null) {
             mEndHandle = new HandleView(this,
-                endDir == TEXT_DIRECTION_RTL ? HandleView.LEFT : HandleView.RIGHT, mParent);
+                    endDir == TEXT_DIRECTION_RTL ? HandleView.LEFT : HandleView.RIGHT, mParent,
+                    mPositionObserver);
         }
     }
 

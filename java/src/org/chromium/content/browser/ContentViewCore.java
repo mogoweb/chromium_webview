@@ -172,6 +172,11 @@ public class ContentViewCore
         void super_onConfigurationChanged(Configuration newConfig);
 
         /**
+         * @see View#onScrollChanged(int, int, int, int)
+         */
+        void onScrollChanged(int lPix, int tPix, int oldlPix, int oldtPix);
+
+        /**
          * @see View#awakenScrollBars()
          */
         boolean awakenScrollBars();
@@ -183,8 +188,8 @@ public class ContentViewCore
     }
 
     /**
-     * An interface that allows the embedder to be notified when the pinch gesture starts and
-     * stops.
+     * An interface that allows the embedder to be notified of events and state changes related to
+     * gesture processing.
      */
     public interface GestureStateListener {
         /**
@@ -211,6 +216,14 @@ public class ContentViewCore
          * Called when a fling event was not handled by the renderer.
          */
         void onUnhandledFlingStartEvent();
+
+        /**
+         * Called to indicate that a scroll update gesture had been consumed by the page.
+         * This callback is called whenever any layer is scrolled (like a frame or div). It is
+         * not called when a JS touch handler consumes the event (preventDefault), it is not called
+         * for JS-initiated scrolling.
+         */
+        void onScrollUpdateGestureConsumed();
     }
 
     /**
@@ -377,6 +390,9 @@ public class ContentViewCore
 
     private Runnable mDeferredHandleFadeInRunnable;
 
+    private PositionObserver mPositionObserver;
+    private PositionObserver.Listener mPositionListener;
+
     // Size of the viewport in physical pixels as set from onSizeChanged.
     private int mViewportWidthPix;
     private int mViewportHeightPix;
@@ -385,6 +401,8 @@ public class ContentViewCore
     private int mOverdrawBottomHeightPix;
     private int mViewportSizeOffsetWidthPix;
     private int mViewportSizeOffsetHeightPix;
+    private int mLocationInWindowX;
+    private int mLocationInWindowY;
 
     // Cached copy of all positions and scales as reported by the renderer.
     private final RenderCoordinates mRenderCoordinates;
@@ -426,8 +444,6 @@ public class ContentViewCore
     // because the OSK was just brought up.
     private boolean mUnfocusOnNextSizeChanged = false;
     private final Rect mFocusPreOSKViewportRect = new Rect();
-
-    private boolean mNeedUpdateOrientationChanged;
 
     // Used to keep track of whether we should try to undo the last zoom-to-textfield operation.
     private boolean mScrolledAndZoomedFocusedEditableNode = false;
@@ -717,6 +733,15 @@ public class ContentViewCore
         mHardwareAccelerated = hasHardwareAcceleration(mContext);
 
         mContainerView = containerView;
+        mPositionObserver = new ViewPositionObserver(mContainerView);
+        mPositionListener = new PositionObserver.Listener() {
+            @Override
+            public void onPositionChanged(int x, int y) {
+                if (isSelectionHandleShowing() || isInsertionHandleShowing()) {
+                    temporarilyHideTextHandles();
+                }
+            }
+        };
 
         int windowNativePointer = windowAndroid != null ? windowAndroid.getNativePointer() : 0;
 
@@ -750,12 +775,22 @@ public class ContentViewCore
         };
 
         mPid = nativeGetCurrentRenderProcessId(mNativeContentViewCore);
+        sendOrientationChangeEvent();
     }
 
     @CalledByNative
     void onNativeContentViewCoreDestroyed(int nativeContentViewCore) {
         assert nativeContentViewCore == mNativeContentViewCore;
         mNativeContentViewCore = 0;
+    }
+
+    /**
+     * Set the Container view Internals.
+     * @param internalDispatcher Handles dispatching all hidden or super methods to the
+     *                           containerView.
+     */
+    public void setContainerViewInternals(InternalAccessDelegate internalDispatcher) {
+        mContainerViewInternals = internalDispatcher;
     }
 
     /**
@@ -785,6 +820,7 @@ public class ContentViewCore
         };
 
         mRenderCoordinates.reset();
+        onRenderCoordinatesUpdated();
 
         initPopupZoomer(mContext);
         mImeAdapter = createImeAdapter(mContext);
@@ -1177,6 +1213,20 @@ public class ContentViewCore
     }
 
     /**
+     * Loads the current navigation if there is a pending lazy load (after tab restore).
+     */
+    public void loadIfNecessary() {
+        if (mNativeContentViewCore != 0) nativeLoadIfNecessary(mNativeContentViewCore);
+    }
+
+    /**
+     * Requests the current navigation to be loaded upon the next call to loadIfNecessary().
+     */
+    public void requestRestoreLoad() {
+        if (mNativeContentViewCore != 0) nativeRequestRestoreLoad(mNativeContentViewCore);
+    }
+
+    /**
      * Reload the current page.
      */
     public void reload() {
@@ -1265,6 +1315,14 @@ public class ContentViewCore
         }
     }
 
+    @SuppressWarnings("unused")
+    @CalledByNative
+    private void onScrollUpdateGestureConsumed() {
+        if (mGestureStateListener != null) {
+            mGestureStateListener.onScrollUpdateGestureConsumed();
+        }
+    }
+
     @Override
     public boolean sendGesture(int type, long timeMs, int x, int y, Bundle b) {
         if (offerGestureToEmbedder(type)) return false;
@@ -1277,6 +1335,9 @@ public class ContentViewCore
                 return true;
             case ContentViewGestureHandler.GESTURE_SHOW_PRESS_CANCEL:
                 nativeShowPressCancel(mNativeContentViewCore, timeMs, x, y);
+                return true;
+            case ContentViewGestureHandler.GESTURE_TAP_DOWN:
+                nativeTapDown(mNativeContentViewCore, timeMs, x, y);
                 return true;
             case ContentViewGestureHandler.GESTURE_DOUBLE_TAP:
                 nativeDoubleTap(mNativeContentViewCore, timeMs, x, y);
@@ -1433,9 +1494,16 @@ public class ContentViewCore
                 x, y, computeHorizontalScrollOffset(), computeVerticalScrollOffset());
     }
 
-    @Override
-    public boolean hasFixedPageScale() {
-        return mRenderCoordinates.hasFixedPageScale();
+    private void onRenderCoordinatesUpdated() {
+        if (mContentViewGestureHandler == null) return;
+
+        // We disable double tap zoom for pages that have a width=device-width
+        // or narrower viewport (indicating that this is a mobile-optimized or
+        // responsive web design, so text will be legible without zooming).
+        // We also disable it for pages that disallow the user from zooming in
+        // or out (even if they don't have a device-width or narrower viewport).
+        mContentViewGestureHandler.updateShouldDisableDoubleTap(
+                mRenderCoordinates.hasMobileViewport() || mRenderCoordinates.hasFixedPageScale());
     }
 
     private void hidePopupDialog() {
@@ -1545,7 +1613,18 @@ public class ContentViewCore
             manager.restartInput(mContainerView);
         }
         mContainerViewInternals.super_onConfigurationChanged(newConfig);
-        mNeedUpdateOrientationChanged = true;
+        // Make sure the size is up to date in JavaScript's window.onorientationchanged.
+        mContainerView.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            @Override
+            public void onLayoutChange(View v, int left, int top, int right, int bottom,
+                    int oldLeft, int oldTop, int oldRight, int oldBottom) {
+                mContainerView.removeOnLayoutChangeListener(this);
+                sendOrientationChangeEvent();
+            }
+        });
+        // To request layout has side effect, but it seems OK as it only happen in
+        // onConfigurationChange and layout has to be changed in most case.
+        mContainerView.requestLayout();
         TraceEvent.end();
     }
 
@@ -1563,6 +1642,15 @@ public class ContentViewCore
         }
 
         updateAfterSizeChanged();
+    }
+
+    /**
+     * Called when the ContentView's position in the activity window changed. This information is
+     * used for cropping screenshots.
+     */
+    public void onLocationInWindowChanged(int x, int y) {
+        mLocationInWindowX = x;
+        mLocationInWindowY = y;
     }
 
     /**
@@ -1612,11 +1700,6 @@ public class ContentViewCore
         } else if (mUnfocusOnNextSizeChanged) {
             undoScrollFocusedEditableNodeIntoViewIfNeeded(true);
             mUnfocusOnNextSizeChanged = false;
-        }
-
-        if (mNeedUpdateOrientationChanged) {
-            sendOrientationChangeEvent();
-            mNeedUpdateOrientationChanged = false;
         }
     }
 
@@ -1937,8 +2020,8 @@ public class ContentViewCore
         mZoomManager.updateMultiTouchSupport(supportsMultiTouchZoom);
     }
 
-    public void updateDoubleTapDragSupport(boolean supportsDoubleTapDrag) {
-        mContentViewGestureHandler.updateDoubleTapDragSupport(supportsDoubleTapDrag);
+    public void updateDoubleTapSupport(boolean supportsDoubleTap) {
+        mContentViewGestureHandler.updateDoubleTapSupport(supportsDoubleTap);
     }
 
     public void selectPopupMenuItems(int[] indices) {
@@ -1951,12 +2034,6 @@ public class ContentViewCore
      * Get the screen orientation from the OS and push it to WebKit.
      *
      * TODO(husky): Add a hook for mock orientations.
-     *
-     * TODO(husky): Currently each new tab starts with an orientation of 0 until you actually
-     * rotate the device. This is wrong if you actually started in landscape mode. To fix this, we
-     * need to push the correct orientation, but only after WebKit's Frame object has been fully
-     * initialized. Need to find a good time to do that. onPageFinished() would probably work but
-     * it isn't implemented yet.
      */
     private void sendOrientationChangeEvent() {
         if (mNativeContentViewCore == 0) return;
@@ -1999,7 +2076,8 @@ public class ContentViewCore
 
     private SelectionHandleController getSelectionHandleController() {
         if (mSelectionHandleController == null) {
-            mSelectionHandleController = new SelectionHandleController(getContainerView()) {
+            mSelectionHandleController = new SelectionHandleController(
+                    getContainerView(), mPositionObserver) {
                 @Override
                 public void selectBetweenCoordinates(int x1, int y1, int x2, int y2) {
                     if (mNativeContentViewCore != 0 && !(x1 == x2 && y1 == y2)) {
@@ -2025,7 +2103,8 @@ public class ContentViewCore
 
     private InsertionHandleController getInsertionHandleController() {
         if (mInsertionHandleController == null) {
-            mInsertionHandleController = new InsertionHandleController(getContainerView()) {
+            mInsertionHandleController = new InsertionHandleController(
+                    getContainerView(), mPositionObserver) {
                 private static final int AVERAGE_LINE_HEIGHT = 14;
 
                 @Override
@@ -2091,6 +2170,7 @@ public class ContentViewCore
         if (mInsertionHandleController != null) {
             mInsertionHandleController.hideAndDisallowAutomaticShowing();
         }
+        mPositionObserver.removeListener(mPositionListener);
     }
 
     private void showSelectActionBar() {
@@ -2265,10 +2345,10 @@ public class ContentViewCore
     // Makes the insertion/selection handles invisible. They will fade back in shortly after the
     // last call to scheduleTextHandleFadeIn (or temporarilyHideTextHandles).
     private void temporarilyHideTextHandles() {
-        if (isSelectionHandleShowing()) {
+        if (isSelectionHandleShowing() && !mSelectionHandleController.isDragging()) {
             mSelectionHandleController.setHandleVisibility(HandleView.INVISIBLE);
         }
-        if (isInsertionHandleShowing()) {
+        if (isInsertionHandleShowing() && !mInsertionHandleController.isDragging()) {
             mInsertionHandleController.setHandleVisibility(HandleView.INVISIBLE);
         }
         scheduleTextHandleFadeIn();
@@ -2359,12 +2439,21 @@ public class ContentViewCore
 
         if (needHidePopupZoomer) mPopupZoomer.hide(true);
 
+        if (scrollChanged) {
+            mContainerViewInternals.onScrollChanged(
+                    (int) mRenderCoordinates.fromLocalCssToPix(scrollOffsetX),
+                    (int) mRenderCoordinates.fromLocalCssToPix(scrollOffsetY),
+                    (int) mRenderCoordinates.getScrollXPix(),
+                    (int) mRenderCoordinates.getScrollYPix());
+        }
+
         mRenderCoordinates.updateFrameInfo(
                 scrollOffsetX, scrollOffsetY,
                 contentWidth, contentHeight,
                 viewportWidth, viewportHeight,
                 pageScaleFactor, minPageScaleFactor, maxPageScaleFactor,
                 contentOffsetYPix);
+        onRenderCoordinatesUpdated();
 
         if (needTemporarilyHideHandles) temporarilyHideTextHandles();
         if (needUpdateZoomControls) mZoomControlsDelegate.updateZoomControls();
@@ -2519,6 +2608,9 @@ public class ContentViewCore
                 }
             }
             mHasSelection = false;
+        }
+        if (isSelectionHandleShowing() || isInsertionHandleShowing()) {
+            mPositionObserver.addListener(mPositionListener);
         }
     }
 
@@ -2970,7 +3062,7 @@ public class ContentViewCore
      * Inform WebKit that Fullscreen mode has been exited by the user.
      */
     public void exitFullscreen() {
-        nativeExitFullscreen(mNativeContentViewCore);
+        if (mNativeContentViewCore != 0) nativeExitFullscreen(mNativeContentViewCore);
     }
 
     /**
@@ -2982,7 +3074,10 @@ public class ContentViewCore
      */
     public void updateTopControlsState(boolean enableHiding, boolean enableShowing,
             boolean animate) {
-        nativeUpdateTopControlsState(mNativeContentViewCore, enableHiding, enableShowing, animate);
+        if (mNativeContentViewCore != 0) {
+            nativeUpdateTopControlsState(
+                    mNativeContentViewCore, enableHiding, enableShowing, animate);
+        }
     }
 
     /**
@@ -3034,6 +3129,16 @@ public class ContentViewCore
      */
     public RenderCoordinates getRenderCoordinates() {
         return mRenderCoordinates;
+    }
+
+    @CalledByNative
+    private int getLocationInWindowX() {
+        return mLocationInWindowX;
+    }
+
+    @CalledByNative
+    private int getLocationInWindowY() {
+        return mLocationInWindowY;
     }
 
     @CalledByNative
@@ -3163,6 +3268,9 @@ public class ContentViewCore
     private native void nativeShowPressCancel(
             int nativeContentViewCoreImpl, long timeMs, float x, float y);
 
+    private native void nativeTapDown(
+            int nativeContentViewCoreImpl, long timeMs, float x, float y);
+
     private native void nativeDoubleTap(
             int nativeContentViewCoreImpl, long timeMs, float x, float y);
 
@@ -3192,6 +3300,8 @@ public class ContentViewCore
     private native void nativeGoForward(int nativeContentViewCoreImpl);
     private native void nativeGoToOffset(int nativeContentViewCoreImpl, int offset);
     private native void nativeGoToNavigationIndex(int nativeContentViewCoreImpl, int index);
+    private native void nativeLoadIfNecessary(int nativeContentViewCoreImpl);
+    private native void nativeRequestRestoreLoad(int nativeContentViewCoreImpl);
 
     private native void nativeStopLoading(int nativeContentViewCoreImpl);
 

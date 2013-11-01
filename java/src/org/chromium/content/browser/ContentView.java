@@ -40,6 +40,7 @@ public class ContentView extends FrameLayout
 
     private float mCurrentTouchOffsetX;
     private float mCurrentTouchOffsetY;
+    private final int[] mLocationInWindow = new int[2];
 
     /**
      * Creates an instance of a ContentView.
@@ -111,12 +112,14 @@ public class ContentView extends FrameLayout
                 ContentViewCore.INPUT_EVENTS_DELIVERED_IMMEDIATELY);
     }
 
-    // PageInfo implementation.
-
-    @Override
+    /**
+     * @return The URL of the page.
+     */
     public String getUrl() {
         return mContentViewCore.getUrl();
     }
+
+    // PageInfo implementation.
 
     @Override
     public String getTitle() {
@@ -408,12 +411,27 @@ public class ContentView extends FrameLayout
         return super.drawChild(canvas, child, drawingTime);
     }
 
+    // Needed by ContentViewCore.InternalAccessDelegate
+    @Override
+    public void onScrollChanged(int l, int t, int oldl, int oldt) {
+        super.onScrollChanged(l, t, oldl, oldt);
+    }
+
     @Override
     protected void onSizeChanged(int w, int h, int ow, int oh) {
         TraceEvent.begin();
         super.onSizeChanged(w, h, ow, oh);
         mContentViewCore.onSizeChanged(w, h, ow, oh);
         TraceEvent.end();
+    }
+
+    @Override
+    protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+        super.onLayout(changed, left, top, right, bottom);
+        if (changed) {
+            getLocationInWindow(mLocationInWindow);
+            mContentViewCore.onLocationInWindowChanged(mLocationInWindow[0], mLocationInWindow[1]);
+        }
     }
 
     @Override
@@ -477,6 +495,7 @@ public class ContentView extends FrameLayout
         MotionEvent offset = createOffsetMotionEvent(event);
         boolean consumed = mContentViewCore.onHoverEvent(offset);
         offset.recycle();
+        super.onHoverEvent(event);
         return consumed;
     }
 
