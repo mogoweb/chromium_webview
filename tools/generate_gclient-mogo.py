@@ -30,8 +30,8 @@ class GClientFileGenerator(object):
     self._vars = None
     self._chromium_version = None
     self._ParseDepsFile()
-    if not 'src' in self._deps:
-      raise RuntimeError("'src' not specified in deps file(%s)" % options.deps)
+    #if not 'src' in self._deps:
+    #  raise RuntimeError("'src' not specified in deps file(%s)" % options.deps)
     self._src_dep = self._deps['src']
     # self should be at src/chromeview/tools/fetch_deps.py
     # so src is at self/../../../
