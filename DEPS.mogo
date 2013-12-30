@@ -1,0 +1,13 @@
+''' This file indicate the dependencies ChromeView lays on.
+    DO NOT use this DEPS to checkout code, it's for tools/generate_gclient-mogo.py.
+'''
+
+# chromium_version is the version of chromium ChromeView based,
+# Usually it's major.minor.build.patch
+# Use 'Trunk' for trunk.
+# If using trunk, will use '.DEPS.git' for gclient.
+chromium_version = '32.0.1700.58'
+deps_mogo = {
+}
+vars_mogo = {
+}
