@@ -56,6 +56,7 @@ repos = [
   'external/accessibility-developer-tools',
   'external/google-breakpad/src',
   'chromium/tools/swarm_client',
+  'chromium/src/third_party/freetype',
 ]
 google_repo_root = 'https://chromium.googlesource.com/'
 local_repo_root = '/home/alex/gitroot/chromium'
