@@ -31,12 +31,12 @@ hooks = [
     "pattern": ".",
     "action": ["python", "src/chromeview/tools/generate_gclient-mogo.py"],
   },
-  #{
-  #  # Fetch ChromeView dependencies.
-  #  "name": "fetch-deps",
-  #  "pattern": ".",
-  #  "action": ["python", "src/chromeview/tools/fetch_deps.py", "-v"],
-  #},
+  {
+    # Fetch ChromeView dependencies.
+    "name": "fetch-deps",
+    "pattern": ".",
+    "action": ["python", "src/chromeview/tools/fetch_deps.py", "-v"],
+  },
   #{
   #  # Apply patches.
   #  "name": "patcher",
