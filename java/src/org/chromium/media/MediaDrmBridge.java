@@ -43,7 +43,6 @@ class MediaDrmBridge {
     private String mMimeType;
     private Handler mHandler;
     private byte[] mPendingInitData;
-    private boolean mResetDeviceCredentialsPending;
 
     private static UUID getUUIDFromBytes(byte[] data) {
         if (data.length != 16) {
@@ -66,7 +65,6 @@ class MediaDrmBridge {
         mMediaDrm = new MediaDrm(schemeUUID);
         mHandler = new Handler();
         mNativeMediaDrmBridge = nativeMediaDrmBridge;
-        mResetDeviceCredentialsPending = false;
         mMediaDrm.setOnEventListener(new MediaDrmListener());
         mMediaDrm.setPropertyString(PRIVACY_MODE, "enable");
         String currentSecurityLevel = mMediaDrm.getPropertyString(SECURITY_LEVEL);
@@ -180,17 +178,6 @@ class MediaDrmBridge {
     @CalledByNative
     private MediaCrypto getMediaCrypto() {
         return mMediaCrypto;
-    }
-
-    /**
-     * Reset the device DRM credentials.
-     */
-    @CalledByNative
-    private void resetDeviceCredentials() {
-        mResetDeviceCredentialsPending = true;
-        MediaDrm.ProvisionRequest request = mMediaDrm.getProvisionRequest();
-        PostRequestTask postTask = new PostRequestTask(request.getData());
-        postTask.execute(request.getDefaultUrl());
     }
 
     /**
@@ -354,50 +341,29 @@ class MediaDrmBridge {
     private void onProvisionResponse(byte[] response) {
         Log.d(TAG, "onProvisionResponse()");
 
-        // If |mMediaDrm| is released, there is no need to callback native.
-        if (mMediaDrm == null) {
-            return;
-        }
-
-        boolean success = provideProvisionResponse(response);
-        if (mResetDeviceCredentialsPending) {
-            nativeOnResetDeviceCredentialsCompleted(mNativeMediaDrmBridge, success);
-            mResetDeviceCredentialsPending = false;
-            return;
-        }
-
-        if (!success) {
-            onKeyError();
-        }
-    }
-
-    /**
-     * Provide the provisioning response to MediaDrm.
-     * @returns false if the response is invalid or on error, true otherwise.
-     */
-    boolean provideProvisionResponse(byte[] response) {
         if (response == null || response.length == 0) {
             Log.e(TAG, "Invalid provision response.");
-            return false;
+            onKeyError();
+            return;
         }
 
         try {
             mMediaDrm.provideProvisionResponse(response);
         } catch (android.media.DeniedByServerException e) {
             Log.e(TAG, "failed to provide provision response: " + e.toString());
-            return false;
+            onKeyError();
+            return;
         } catch (java.lang.IllegalStateException e) {
             Log.e(TAG, "failed to provide provision response: " + e.toString());
-            return false;
+            onKeyError();
+            return;
         }
 
         if (mPendingInitData != null) {
-            assert(!mResetDeviceCredentialsPending);
             byte[] initData = mPendingInitData;
             mPendingInitData = null;
             generateKeyRequest(initData, mMimeType);
         }
-        return true;
     }
 
     private void onKeyError() {
@@ -500,7 +466,4 @@ class MediaDrmBridge {
     private native void nativeOnKeyAdded(int nativeMediaDrmBridge, String sessionId);
 
     private native void nativeOnKeyError(int nativeMediaDrmBridge, String sessionId);
-
-    private native void nativeOnResetDeviceCredentialsCompleted(
-            int nativeMediaDrmBridge, boolean success);
 }

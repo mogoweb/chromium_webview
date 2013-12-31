@@ -99,7 +99,10 @@ public class ActivityStatus {
      * @param activity Current activity.
      * @param newState New state value.
      */
-    private static void onStateChange(Activity activity, int newState) {
+    // TODO(tedchoc): Make this method private (and remove @Deprecated) once all downstream usages
+    //                move to the initialize method.
+    @Deprecated
+    public static void onStateChange(Activity activity, int newState) {
         if (activity == null) throw new IllegalArgumentException("null activity is not supported");
 
         if (sActivity != activity) {
@@ -135,6 +138,18 @@ public class ActivityStatus {
      */
     public static void onStateChangeForTesting(Activity activity, int newState) {
         onStateChange(activity, newState);
+    }
+
+    /**
+     * Indicates that the current activity is paused.
+     *
+     * Use explicit state checking instead.
+     */
+    @Deprecated
+    public static boolean isPaused() {
+        if (sActivity == null) return false;
+        Integer currentStatus = sActivityStates.get(sActivity);
+        return currentStatus != null && currentStatus.intValue() == PAUSED;
     }
 
     /**
@@ -174,7 +189,7 @@ public class ActivityStatus {
      *   <li> Activity A - CREATED
      *   <li> Activity A - STARTED
      *   <li> Activity A - RESUMED
-     *   <li> -- Starting Activity B --
+     *   <li> -- Staring Activity B --
      *   <li> Activity A - PAUSED
      *   <li> Activity B - CREATED
      *   <li> Activity B - STARTED
@@ -237,15 +252,4 @@ public class ActivityStatus {
     // Called to notify the native side of state changes.
     // IMPORTANT: This is always called on the main thread!
     private static native void nativeOnActivityStateChange(int newState);
-
-    /**
-     * Checks whether or not the Application's current Activity is visible to the user.  Note that
-     * this includes the PAUSED state, which can happen when the Activity is temporarily covered
-     * by another Activity's Fragment (e.g.).
-     * @return True if the Activity is visible, false otherwise.
-     */
-    public static boolean isApplicationVisible() {
-        int state = getState();
-        return state != STOPPED && state != DESTROYED;
-    }
 }

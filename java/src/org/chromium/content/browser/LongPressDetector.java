@@ -73,12 +73,6 @@ class LongPressDetector {
         public void onLongPress(MotionEvent event);
     }
 
-    private static long calculateLongPressTimeoutTime(MotionEvent ev) {
-        // Using getEventTime instead of getDownTime since for Android WebView,
-        // event stream can be arbitrarily delayed.
-        return ev.getEventTime() + TAP_TIMEOUT + LONGPRESS_TIMEOUT;
-    }
-
     /**
      * Initiates a LONG_PRESS gesture timer if needed.
      */
@@ -90,8 +84,8 @@ class LongPressDetector {
         if (mCurrentDownEvent != null) return;
 
         mCurrentDownEvent = MotionEvent.obtain(ev);
-        mLongPressHandler.sendEmptyMessageAtTime(LONG_PRESS,
-                calculateLongPressTimeoutTime(mCurrentDownEvent));
+        mLongPressHandler.sendEmptyMessageAtTime(LONG_PRESS, mCurrentDownEvent.getDownTime()
+                + TAP_TIMEOUT + LONGPRESS_TIMEOUT);
         mInLongPress = false;
     }
 
@@ -115,7 +109,8 @@ class LongPressDetector {
                 break;
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
-                if (calculateLongPressTimeoutTime(mCurrentDownEvent) > ev.getEventTime()) {
+                if (mCurrentDownEvent.getDownTime() + TAP_TIMEOUT + LONGPRESS_TIMEOUT >
+                    ev.getEventTime()) {
                     cancelLongPress();
                 }
                 break;

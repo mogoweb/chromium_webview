@@ -21,6 +21,7 @@ import org.chromium.base.JNINamespace;
 
 @JNINamespace("media")
 class WebAudioMediaCodecBridge {
+    private static final boolean DEBUG = true;
     static final String LOG_TAG = "WebAudioMediaCodec";
     // TODO(rtoy): What is the correct timeout value for reading
     // from a file in memory?
@@ -80,8 +81,18 @@ class WebAudioMediaCodecBridge {
             }
         }
 
-        Log.d(LOG_TAG, "Initial: Tracks: " + extractor.getTrackCount() +
-              " Format: " + format);
+        if (DEBUG) {
+            Log.d(LOG_TAG, "Tracks: " + extractor.getTrackCount()
+                  + " Rate: " + sampleRate
+                  + " Channels: " + inputChannelCount
+                  + " Mime: " + mime
+                  + " Duration: " + durationMicroseconds + " microsec");
+        }
+
+        nativeInitializeDestination(nativeMediaCodecBridge,
+                                    inputChannelCount,
+                                    sampleRate,
+                                    durationMicroseconds);
 
         // Create decoder
         MediaCodec codec = MediaCodec.createDecoderByType(mime);
@@ -96,7 +107,6 @@ class WebAudioMediaCodecBridge {
 
         boolean sawInputEOS = false;
         boolean sawOutputEOS = false;
-        boolean destinationInitialized = false;
 
         // Keep processing until the output is done.
         while (!sawOutputEOS) {
@@ -135,24 +145,7 @@ class WebAudioMediaCodecBridge {
             if (outputBufIndex >= 0) {
                 ByteBuffer buf = codecOutputBuffers[outputBufIndex];
 
-                if (!destinationInitialized) {
-                    // Initialize the destination as late as possible to
-                    // catch any changes in format. But be sure to
-                    // initialize it BEFORE we send any decoded audio,
-                    // and only initialize once.
-                    Log.d(LOG_TAG, "Final:  Rate: " + sampleRate +
-                          " Channels: " + inputChannelCount +
-                          " Mime: " + mime +
-                          " Duration: " + durationMicroseconds + " microsec");
-
-                    nativeInitializeDestination(nativeMediaCodecBridge,
-                                                inputChannelCount,
-                                                sampleRate,
-                                                durationMicroseconds);
-                    destinationInitialized = true;
-                }
-
-                if (destinationInitialized && info.size > 0) {
+                if (info.size > 0) {
                     nativeOnChunkDecoded(nativeMediaCodecBridge, buf, info.size,
                                          inputChannelCount, outputChannelCount);
                 }
@@ -168,7 +161,6 @@ class WebAudioMediaCodecBridge {
             } else if (outputBufIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                 MediaFormat newFormat = codec.getOutputFormat();
                 outputChannelCount = newFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
-                sampleRate = newFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE);
                 Log.d(LOG_TAG, "output format changed to " + newFormat);
             }
         }

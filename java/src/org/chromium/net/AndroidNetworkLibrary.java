@@ -17,7 +17,6 @@ import org.chromium.net.CertificateMimeType;
 
 import java.net.Inet6Address;
 import java.net.InetAddress;
-import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.URLConnection;
@@ -25,7 +24,6 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.util.Enumeration;
-import java.util.List;
 
 /**
  * This class implements net utilities required by the net component.
@@ -167,25 +165,24 @@ class AndroidNetworkLibrary {
                 // Skip loopback interfaces, and ones which are down.
                 if (!netIf.isUp() || netIf.isLoopback())
                     continue;
-                for (InterfaceAddress interfaceAddress : netIf.getInterfaceAddresses()) {
-                    InetAddress address = interfaceAddress.getAddress();
+                Enumeration<InetAddress> addressList = netIf.getInetAddresses();
+                while (addressList.hasMoreElements()) {
+                    InetAddress address = addressList.nextElement();
                     // Skip loopback addresses configured on non-loopback interfaces.
                     if (address.isLoopbackAddress())
                         continue;
                     StringBuilder addressString = new StringBuilder();
                     addressString.append(netIf.getName());
-                    addressString.append("\t");
+                    addressString.append(",");
 
                     String ipAddress = address.getHostAddress();
                     if (address instanceof Inet6Address && ipAddress.contains("%")) {
                         ipAddress = ipAddress.substring(0, ipAddress.lastIndexOf("%"));
                     }
                     addressString.append(ipAddress);
-                    addressString.append("/");
-                    addressString.append(interfaceAddress.getNetworkPrefixLength());
 
                     if (result.length() != 0)
-                        result.append("\n");
+                        result.append(";");
                     result.append(addressString.toString());
                 }
             } catch (SocketException e) {

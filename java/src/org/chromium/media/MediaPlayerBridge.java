@@ -172,8 +172,7 @@ public class MediaPlayerBridge {
      * allowed on the media player.
      */
     @CalledByNative
-    private static AllowedOperations getAllowedOperations(MediaPlayerBridge bridge) {
-        MediaPlayer player = bridge.getLocalPlayer();
+    private static AllowedOperations getAllowedOperations(MediaPlayer player) {
         boolean canPause = true;
         boolean canSeekForward = true;
         boolean canSeekBackward = true;

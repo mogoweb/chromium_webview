@@ -113,13 +113,6 @@ public abstract class WebContentsObserverAndroid {
     }
 
     /**
-     * Notifies that a navigation entry has been committed.
-     */
-    @CalledByNative
-    public void navigationEntryCommitted() {
-    }
-
-    /**
      * Invoked when visible SSL state changes.
      */
     @CalledByNative

@@ -24,8 +24,6 @@ import org.chromium.base.CpuFeatures;
 import org.chromium.base.SysUtils;
 import org.chromium.base.ThreadUtils;
 import org.chromium.content.app.ChildProcessService;
-import org.chromium.content.app.Linker;
-import org.chromium.content.app.LinkerParams;
 import org.chromium.content.common.CommandLine;
 import org.chromium.content.common.IChildProcessCallback;
 import org.chromium.content.common.IChildProcessService;
@@ -105,23 +103,18 @@ public class ChildProcessConnection {
     // Incremented on attachAsActive(), decremented on detachAsActive().
     private int mAttachAsActiveCount = 0;
 
-    // Linker-related parameters.
-    private LinkerParams mLinkerParams = null;
-
     private static final String TAG = "ChildProcessConnection";
 
     private static class ConnectionParams {
         final String[] mCommandLine;
         final FileDescriptorInfo[] mFilesToBeMapped;
         final IChildProcessCallback mCallback;
-        final Bundle mSharedRelros;
 
         ConnectionParams(String[] commandLine, FileDescriptorInfo[] filesToBeMapped,
-                IChildProcessCallback callback, Bundle sharedRelros) {
+                IChildProcessCallback callback) {
             mCommandLine = commandLine;
             mFilesToBeMapped = filesToBeMapped;
             mCallback = callback;
-            mSharedRelros = sharedRelros;
         }
     }
 
@@ -149,8 +142,6 @@ public class ChildProcessConnection {
                 if (commandLine != null) {
                     intent.putExtra(EXTRA_COMMAND_LINE, commandLine);
                 }
-                if (mLinkerParams != null)
-                    mLinkerParams.addIntentExtras(intent);
                 mBound = mContext.bindService(intent, this, mBindFlags);
             }
             return mBound;
@@ -213,14 +204,12 @@ public class ChildProcessConnection {
 
     ChildProcessConnection(Context context, int number, boolean inSandbox,
             ChildProcessConnection.DeathCallback deathCallback,
-            Class<? extends ChildProcessService> serviceClass,
-            LinkerParams linkerParams) {
+            Class<? extends ChildProcessService> serviceClass) {
         mContext = context;
         mServiceNumber = number;
         mInSandbox = inSandbox;
         mDeathCallback = deathCallback;
         mServiceClass = serviceClass;
-        mLinkerParams = linkerParams;
         mInitialBinding = new ChildServiceConnection(Context.BIND_AUTO_CREATE);
         mStrongBinding = new ChildServiceConnection(
                 Context.BIND_AUTO_CREATE | Context.BIND_IMPORTANT);
@@ -284,14 +273,12 @@ public class ChildProcessConnection {
             String[] commandLine,
             FileDescriptorInfo[] filesToBeMapped,
             IChildProcessCallback processCallback,
-            ConnectionCallback connectionCallbacks,
-            Bundle sharedRelros) {
+            ConnectionCallback connectionCallbacks) {
         synchronized(mLock) {
             TraceEvent.begin();
             assert mConnectionParams == null;
             mConnectionCallback = connectionCallbacks;
-            mConnectionParams = new ConnectionParams(
-                    commandLine, filesToBeMapped, processCallback, sharedRelros);
+            mConnectionParams = new ConnectionParams(commandLine, filesToBeMapped, processCallback);
             // Make sure that the service is already connected. If not, doConnectionSetup() will be
             // called from onServiceConnected().
             if (mServiceConnectComplete) {
@@ -374,9 +361,6 @@ public class ChildProcessConnection {
             bundle.putInt(EXTRA_CPU_COUNT, CpuFeatures.getCount());
             bundle.putLong(EXTRA_CPU_FEATURES, CpuFeatures.getMask());
 
-            bundle.putBundle(Linker.EXTRA_LINKER_SHARED_RELROS,
-                             mConnectionParams.mSharedRelros);
-
             try {
                 mPID = mService.setupConnection(bundle, mConnectionParams.mCallback);
             } catch (android.os.RemoteException re) {
@@ -406,13 +390,6 @@ public class ChildProcessConnection {
         }
     }
 
-    /** @return true iff the strong oom binding is currently bound. */
-    boolean isStrongBindingBound() {
-        synchronized(mLock) {
-            return mStrongBinding.isBound();
-        }
-    }
-
     /**
      * Called to remove the strong binding estabilished when the connection was started. It is safe
      * to call this multiple times.
@@ -420,19 +397,6 @@ public class ChildProcessConnection {
     void removeInitialBinding() {
         synchronized(mLock) {
             mInitialBinding.unbind();
-        }
-    }
-
-    /**
-     * Unbinds the bindings that protect the process from oom killing. It is safe to call this
-     * multiple times, before as well as after stop().
-     */
-    void dropOomBindings() {
-        synchronized(mLock) {
-            mInitialBinding.unbind();
-
-            mAttachAsActiveCount = 0;
-            mStrongBinding.unbind();
         }
     }
 
