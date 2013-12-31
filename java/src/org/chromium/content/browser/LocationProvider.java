@@ -10,6 +10,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.Looper;
 import android.util.Log;
 
 import org.chromium.base.ActivityStatus;
@@ -52,7 +53,7 @@ class LocationProvider {
         @Override
         public void onActivityStateChange(int state) {
             if (state == ActivityStatus.PAUSED) {
-                mShouldRunAfterActivityResume |= mIsRunning;
+                mShouldRunAfterActivityResume = mIsRunning;
                 unregisterFromLocationUpdates();
             } else if (state == ActivityStatus.RESUMED) {
                 assert !mIsRunning;
@@ -73,7 +74,10 @@ class LocationProvider {
             }
             mIsGpsEnabled = gpsEnabled;
 
-            if (ActivityStatus.getState() != ActivityStatus.RESUMED) {
+            int activityState = ActivityStatus.getState();
+            if (activityState == ActivityStatus.PAUSED
+                    || activityState == ActivityStatus.STOPPED
+                    || activityState == ActivityStatus.DESTROYED) {
                 mShouldRunAfterActivityResume = true;
             } else {
                 unregisterFromLocationUpdates();
@@ -152,11 +156,11 @@ class LocationProvider {
             try {
                 Criteria criteria = new Criteria();
                 mLocationManager.requestLocationUpdates(0, 0, criteria, this,
-                        ThreadUtils.getUiThreadLooper());
+                        Looper.getMainLooper());
                 if (mIsGpsEnabled) {
                     criteria.setAccuracy(Criteria.ACCURACY_FINE);
                     mLocationManager.requestLocationUpdates(0, 0, criteria, this,
-                            ThreadUtils.getUiThreadLooper());
+                            Looper.getMainLooper());
                 }
             } catch(SecurityException e) {
                 Log.e(TAG, "Caught security exception registering for location updates from " +
@@ -254,7 +258,7 @@ class LocationProvider {
      * Must be called only in the UI thread.
      */
     public boolean isRunning() {
-        assert ThreadUtils.runningOnUiThread();
+        assert Looper.myLooper() == Looper.getMainLooper();
         return mImpl.isRunning();
     }
 

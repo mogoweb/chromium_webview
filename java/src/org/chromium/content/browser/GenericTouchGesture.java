@@ -8,6 +8,7 @@ import android.animation.TimeAnimator;
 import android.animation.TimeAnimator.TimeListener;
 import android.os.Build;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.view.MotionEvent;
 import android.view.MotionEvent.PointerProperties;
@@ -16,7 +17,6 @@ import android.view.ViewConfiguration;
 
 import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
-import org.chromium.base.ThreadUtils;
 
 /**
  * Provides a Java-side implementation for simulating touch gestures,
@@ -26,7 +26,7 @@ import org.chromium.base.ThreadUtils;
 public class GenericTouchGesture {
     private final ContentViewCore mContentViewCore;
 
-    private final Handler mHandler = new Handler(ThreadUtils.getUiThreadLooper());
+    private final Handler mHandler = new Handler(Looper.getMainLooper());
 
     private TimeAnimator mTimeAnimator;
 

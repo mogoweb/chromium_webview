@@ -105,8 +105,6 @@ public class DefaultVideoPosterRequestHandler {
     private static String GenerateDefaulVideoPosterURL() {
         Random randomGenerator = new Random();
         String path = String.valueOf(randomGenerator.nextLong());
-        // The scheme of this URL should be kept in sync with kAndroidWebViewVideoPosterScheme
-        // on the native side (see android_webview/common/url_constants.h)
-        return "android-webview-video-poster:default_video_poster/" + path;
+        return "android-webview:default_video_poster/" + path;
     }
 }

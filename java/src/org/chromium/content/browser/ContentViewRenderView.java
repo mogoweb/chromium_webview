@@ -5,19 +5,13 @@
 package org.chromium.content.browser;
 
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Color;
 import android.os.Build;
-import android.os.Handler;
 import android.view.Surface;
 import android.view.SurfaceView;
 import android.view.SurfaceHolder;
 import android.widget.FrameLayout;
 
-import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
-import org.chromium.content.common.TraceEvent;
 
 /***
  * This view is used by a ContentView to render its content.
@@ -26,27 +20,15 @@ import org.chromium.content.common.TraceEvent;
  */
 @JNINamespace("content")
 public class ContentViewRenderView extends FrameLayout {
-    private static final int MAX_SWAP_BUFFER_COUNT = 2;
 
     // The native side of this object.
-    private int mNativeContentViewRenderView;
+    private int mNativeContentViewRenderView = 0;
     private final SurfaceHolder.Callback mSurfaceCallback;
 
     private SurfaceView mSurfaceView;
     private VSyncAdapter mVSyncAdapter;
 
-    private int mPendingRenders;
-    private int mPendingSwapBuffers;
-    private boolean mNeedToRender;
-
     private ContentView mCurrentContentView;
-
-    private final Runnable mRenderRunnable = new Runnable() {
-        @Override
-        public void run() {
-            render();
-        }
-    };
 
     /**
      * Constructs a new ContentViewRenderView that should be can to a view hierarchy.
@@ -58,8 +40,6 @@ public class ContentViewRenderView extends FrameLayout {
 
         mNativeContentViewRenderView = nativeInit();
         assert mNativeContentViewRenderView != 0;
-
-        setBackgroundColor(Color.WHITE);
 
         mSurfaceView = createSurfaceView(getContext());
         mSurfaceCallback = new SurfaceHolder.Callback() {
@@ -95,7 +75,7 @@ public class ContentViewRenderView extends FrameLayout {
                         FrameLayout.LayoutParams.MATCH_PARENT));
     }
 
-    private class VSyncAdapter implements VSyncManager.Provider, VSyncMonitor.Listener {
+    private static class VSyncAdapter implements VSyncManager.Provider, VSyncMonitor.Listener {
         private final VSyncMonitor mVSyncMonitor;
         private boolean mVSyncNotificationEnabled;
         private VSyncManager.Listener mVSyncListener;
@@ -112,29 +92,18 @@ public class ContentViewRenderView extends FrameLayout {
 
         @Override
         public void onVSync(VSyncMonitor monitor, long vsyncTimeMicros) {
-            if (mNeedToRender) {
-                if (mPendingSwapBuffers + mPendingRenders <= MAX_SWAP_BUFFER_COUNT) {
-                    mNeedToRender = false;
-                    mPendingRenders++;
-                    render();
-                } else {
-                    TraceEvent.instant("ContentViewRenderView:bail");
+            if (mVSyncListener == null) return;
+            if (mVSyncNotificationEnabled) {
+                mVSyncListener.onVSync(vsyncTimeMicros);
+                mVSyncMonitor.requestUpdate();
+            } else {
+                // Compensate for input event lag. Input events are delivered immediately on
+                // pre-JB releases, so this adjustment is only done for later versions.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+                    vsyncTimeMicros += INPUT_EVENT_LAG_FROM_VSYNC_MICROSECONDS;
                 }
-            }
-
-            if (mVSyncListener != null) {
-                if (mVSyncNotificationEnabled) {
-                    mVSyncListener.onVSync(vsyncTimeMicros);
-                    mVSyncMonitor.requestUpdate();
-                } else {
-                    // Compensate for input event lag. Input events are delivered immediately on
-                    // pre-JB releases, so this adjustment is only done for later versions.
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-                        vsyncTimeMicros += INPUT_EVENT_LAG_FROM_VSYNC_MICROSECONDS;
-                    }
-                    mVSyncListener.updateVSync(vsyncTimeMicros,
-                            mVSyncMonitor.getVSyncPeriodInMicroseconds());
-                }
+                mVSyncListener.updateVSync(vsyncTimeMicros,
+                        mVSyncMonitor.getVSyncPeriodInMicroseconds());
             }
         }
 
@@ -153,10 +122,6 @@ public class ContentViewRenderView extends FrameLayout {
             mVSyncListener = listener;
             if (mVSyncListener != null) mVSyncMonitor.requestUpdate();
         }
-
-        void requestUpdate() {
-            mVSyncMonitor.requestUpdate();
-        }
     }
 
     /**
@@ -174,18 +139,13 @@ public class ContentViewRenderView extends FrameLayout {
      */
     public void setCurrentContentView(ContentView contentView) {
         assert mNativeContentViewRenderView != 0;
-        mCurrentContentView = contentView;
-
-        ContentViewCore contentViewCore =
-                contentView != null ? contentView.getContentViewCore() : null;
-
+        ContentViewCore contentViewCore = contentView.getContentViewCore();
         nativeSetCurrentContentView(mNativeContentViewRenderView,
-                contentViewCore != null ? contentViewCore.getNativeContentViewCore() : 0);
+                contentViewCore.getNativeContentViewCore());
 
-        if (contentViewCore != null) {
-            contentViewCore.onPhysicalBackingSizeChanged(getWidth(), getHeight());
-            mVSyncAdapter.setVSyncListener(contentViewCore.getVSyncListener(mVSyncAdapter));
-        }
+        mCurrentContentView = contentView;
+        contentViewCore.onPhysicalBackingSizeChanged(getWidth(), getHeight());
+        mVSyncAdapter.setVSyncListener(contentViewCore.getVSyncListener(mVSyncAdapter));
     }
 
     /**
@@ -193,8 +153,6 @@ public class ContentViewRenderView extends FrameLayout {
      * render.
      */
     protected void onReadyToRender() {
-        mPendingSwapBuffers = 0;
-        mPendingRenders = 0;
     }
 
     /**
@@ -204,18 +162,7 @@ public class ContentViewRenderView extends FrameLayout {
      * @return The created SurfaceView object.
      */
     protected SurfaceView createSurfaceView(Context context) {
-        return new SurfaceView(context) {
-            @Override
-            public void onDraw(Canvas canvas) {
-                // We only need to draw to software canvases, which are used for taking screenshots.
-                if (canvas.isHardwareAccelerated()) return;
-                Bitmap bitmap = Bitmap.createBitmap(getWidth(), getHeight(),
-                        Bitmap.Config.ARGB_8888);
-                if (nativeCompositeToBitmap(mNativeContentViewRenderView, bitmap)) {
-                    canvas.drawBitmap(bitmap, 0, 0, null);
-                }
-            }
-        };
+        return new SurfaceView(context);
     }
 
     /**
@@ -225,72 +172,7 @@ public class ContentViewRenderView extends FrameLayout {
         return mSurfaceView.getHolder().getSurface() != null;
     }
 
-    @CalledByNative
-    private void requestRender() {
-        ContentViewCore contentViewCore = mCurrentContentView != null ?
-                mCurrentContentView.getContentViewCore() : null;
-
-        boolean rendererHasFrame =
-                contentViewCore != null && contentViewCore.consumePendingRendererFrame();
-
-        if (rendererHasFrame && mPendingSwapBuffers + mPendingRenders < MAX_SWAP_BUFFER_COUNT) {
-            TraceEvent.instant("requestRender:now");
-            mNeedToRender = false;
-            mPendingRenders++;
-
-            // The handler can be null if we are detached from the window.  Calling
-            // {@link View#post(Runnable)} properly handles this case, but we lose the front of
-            // queue behavior.  That is okay for this edge case.
-            Handler handler = getHandler();
-            if (handler != null) {
-                handler.postAtFrontOfQueue(mRenderRunnable);
-            } else {
-                post(mRenderRunnable);
-            }
-            mVSyncAdapter.requestUpdate();
-        } else if (mPendingRenders <= 0) {
-            assert mPendingRenders == 0;
-            TraceEvent.instant("requestRender:later");
-            mNeedToRender = true;
-            mVSyncAdapter.requestUpdate();
-        }
-    }
-
-    @CalledByNative
-    private void onSwapBuffersCompleted() {
-        TraceEvent.instant("onSwapBuffersCompleted");
-
-        if (mPendingSwapBuffers == MAX_SWAP_BUFFER_COUNT && mNeedToRender) requestRender();
-        if (mPendingSwapBuffers > 0) mPendingSwapBuffers--;
-    }
-
-    private void didCompositeAndDraw() {
-        if (mCurrentContentView == null) return;
-        ContentViewCore contentViewCore = mCurrentContentView.getContentViewCore();
-        if (contentViewCore == null || !contentViewCore.isReady() || getBackground() == null) {
-            return;
-        }
-        if (getBackground() != null) {
-            post(new Runnable() {
-                @Override
-                public void run() {
-                    setBackgroundResource(0);
-                }
-            });
-        }
-    }
-
-    private void render() {
-        if (mPendingRenders > 0) mPendingRenders--;
-
-        boolean didDraw = nativeComposite(mNativeContentViewRenderView);
-        if (didDraw) {
-            mPendingSwapBuffers++;
-            didCompositeAndDraw();
-        }
-    }
-
-    private native int nativeInit();
+    private static native int nativeInit();
     private native void nativeDestroy(int nativeContentViewRenderView);
     private native void nativeSetCurrentContentView(int nativeContentViewRenderView,
             int nativeContentView);
@@ -298,6 +180,4 @@ public class ContentViewRenderView extends FrameLayout {
     private native void nativeSurfaceDestroyed(int nativeContentViewRenderView);
     private native void nativeSurfaceSetSize(int nativeContentViewRenderView,
             int width, int height);
-    private native boolean nativeComposite(int nativeContentViewRenderView);
-    private native boolean nativeCompositeToBitmap(int nativeContentViewRenderView, Bitmap bitmap);
 }
