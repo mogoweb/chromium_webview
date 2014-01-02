@@ -91,6 +91,9 @@ rm -rf ${CHROMIUMVIEW_PROJECT_ROOT}/src/com/googlecode/eyesfree/braille/.git
 rsync -avz ${CHROMIUM_SRC}/components/web_contents_delegate_android/android/java/src/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
 rsync -avz ${CHROMIUM_SRC}/components/navigation_interception/android/java/src/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
 
+# chrome resources.
+rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/gen/chrome_java/java_R/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/ 
+
 # Generated files.
 rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/gen/templates/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
 

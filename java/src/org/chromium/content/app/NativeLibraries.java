@@ -13,6 +13,6 @@ public class NativeLibraries {
 
 
     public static String[] libraries
-= { "webviewchromium"}
+= { "standalonelibwebviewchromium"}
       ;
 }
