@@ -25,11 +25,13 @@ import java.util.Map;
 import org.chromium.android_webview.AwBrowserContext;
 import org.chromium.android_webview.AwContents;
 import org.chromium.android_webview.AwLayoutSizer;
+import org.chromium.android_webview.DrawGLFunctor;
 import org.chromium.content.browser.ContentViewCore;
 import org.chromium.content.browser.ContentViewRenderView;
 import org.chromium.content.browser.LoadUrlParams;
 import org.chromium.content.browser.NavigationHistory;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
@@ -44,6 +46,7 @@ import android.util.AttributeSet;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.webkit.ValueCallback;
@@ -400,6 +403,8 @@ public class WebView extends FrameLayout {
     // The target for content rendering.
     private ContentViewRenderView mContentViewRenderView;
 
+    private DrawGLFunctor mGLFunctor;
+
     /**
      * Constructs a new WebView with a Context object.
      *
@@ -433,15 +438,15 @@ public class WebView extends FrameLayout {
             return;  // Chromium isn't loaded in edit mode.
         }
 // TODO(alex): chromium webview not support hardware accelerated yet.
-//        try {
-//            Activity activity = (Activity)context;
-//            activity.getWindow().setFlags(
-//                    WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
-//                    WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
-//
-//        } catch(ClassCastException e) {
-//            // Hope that hardware acceleration is enabled.
-//        }
+        try {
+            Activity activity = (Activity)context;
+            activity.getWindow().setFlags(
+                    WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+                    WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
+
+        } catch(ClassCastException e) {
+            // Hope that hardware acceleration is enabled.
+        }
 
         SharedPreferences sharedPreferences = context.getSharedPreferences(
                 "chromeview", Context.MODE_PRIVATE);
@@ -460,6 +465,8 @@ public class WebView extends FrameLayout {
 
             }
         };
+
+        DrawGLFunctor.setChromiumAwDrawGLFunction(AwContents.getAwDrawGLFunction());
     }
 
     //// Methods from android.webkit.WebView
@@ -569,6 +576,11 @@ public class WebView extends FrameLayout {
      */
     public void destroy() {
         mAwContents.destroy();
+
+        if (mGLFunctor != null) {
+            mGLFunctor.destroy();
+            mGLFunctor = null;
+        }
     }
 
     /**
@@ -1361,6 +1373,10 @@ public class WebView extends FrameLayout {
     public void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         mAwContents.onDetachedFromWindow();
+
+        if (mGLFunctor != null) {
+            mGLFunctor.detach();
+        }
     }
 
     @Override
@@ -1509,25 +1525,10 @@ public class WebView extends FrameLayout {
 
       @Override
       public boolean requestDrawGL(Canvas canvas) {
-        if (canvas != null) {
-          if (canvas.isHardwareAccelerated()) {
-            // TODO(pwnall): figure out what AwContents wants from us, and do it;
-            //               most likely something to do with
-            //               AwContents.getAwDrawGLFunction()
-            return false;
-          } else {
-            return false;
+          if (mGLFunctor == null) {
+              mGLFunctor = new DrawGLFunctor(mAwContents.getAwDrawGLViewContext());
           }
-        } else {
-          if (WebView.this.isHardwareAccelerated()) {
-            // TODO(pwnall): figure out what AwContents wants from us, and do it;
-            //               most likely something to do with
-            //               AwContents.getAwDrawGLFunction()
-            return false;
-          } else {
-            return false;
-          }
-        }
+          return mGLFunctor.requestDrawGL(canvas);
       }
     }
 }
