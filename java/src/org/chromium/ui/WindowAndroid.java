@@ -225,12 +225,10 @@ public class WindowAndroid {
     @CalledByNative
     public byte[] grabSnapshot(int windowX, int windowY, int width, int height) {
         try {
-            // Take a screenshot of the content view. This generally includes UI
-            // controls such as the URL bar.
-            View contentView = mActivity.findViewById(android.R.id.content);
-            if (contentView == null) return null;
-            Bitmap bitmap =
-                    UiUtils.generateScaledScreenshot(contentView, 0, Bitmap.Config.ARGB_8888);
+            // Take a screenshot of the root activity view. This generally includes UI
+            // controls such as the URL bar and OS windows such as the status bar.
+            View rootView = mActivity.findViewById(android.R.id.content).getRootView();
+            Bitmap bitmap = UiUtils.generateScaledScreenshot(rootView, 0, Bitmap.Config.ARGB_8888);
             if (bitmap == null) return null;
 
             // Clip the result into the requested region.

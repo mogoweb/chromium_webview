@@ -39,6 +39,7 @@ public class VideoCapture implements PreviewCallback, OnFrameAvailableListener {
     private static class DeviceImageFormatHack {
         private static final String[] sBUGGY_DEVICE_LIST = {
             "SAMSUNG-SGH-I747",
+            "ODROID-U2",
         };
 
         static int getImageFormat() {
@@ -179,6 +180,14 @@ public class VideoCapture implements PreviewCallback, OnFrameAvailableListener {
                   ", height=" + matchedHeight);
 
             calculateImageFormat(matchedWidth, matchedHeight);
+
+            if (parameters.isVideoStabilizationSupported()){
+                Log.d(TAG, "Image stabilization supported, currently: "
+                      + parameters.getVideoStabilization() + ", setting it.");
+                parameters.setVideoStabilization(true);
+            } else {
+                Log.d(TAG, "Image stabilization not supported.");
+            }
 
             parameters.setPreviewSize(matchedWidth, matchedHeight);
             parameters.setPreviewFormat(mImageFormat);

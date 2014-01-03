@@ -16,8 +16,6 @@
 
 package com.mogoweb.chrome;
 
-import org.chromium.android_webview.AwCookieManager;
-
 import android.webkit.CookieSyncManager;
 
 /**
@@ -26,12 +24,12 @@ import android.webkit.CookieSyncManager;
  */
 public class CookieManager {
     /** The class that's doing all the work. */
-    private AwCookieManager mAwCookieManager;
+//    private AwCookieManager mAwCookieManager;
 
     private static CookieManager sInstance = null;
 
     private CookieManager() {
-        mAwCookieManager = new AwCookieManager();
+//        mAwCookieManager = new AwCookieManager();
     }
 
     @Override
@@ -62,7 +60,7 @@ public class CookieManager {
      *               cookies
      */
     public synchronized void setAcceptCookie(boolean accept) {
-        mAwCookieManager.setAcceptCookie(accept);
+//        mAwCookieManager.setAcceptCookie(accept);
     }
 
     /**
@@ -72,7 +70,7 @@ public class CookieManager {
      * @return true if {@link WebView} instances send and accept cookies
      */
     public synchronized boolean acceptCookie() {
-        return mAwCookieManager.acceptCookie();
+        return false; //return mAwCookieManager.acceptCookie();
     }
 
     /**
@@ -86,7 +84,7 @@ public class CookieManager {
     *              HTTP response header
     */
    public void setCookie(String url, String value) {
-       mAwCookieManager.setCookie(url, value);
+//       mAwCookieManager.setCookie(url, value);
    }
 
    /**
@@ -97,7 +95,7 @@ public class CookieManager {
     *               HTTP request header
     */
    public String getCookie(String url) {
-       return mAwCookieManager.getCookie(url);
+       return null;//return mAwCookieManager.getCookie(url);
    }
 
    /**
@@ -105,14 +103,14 @@ public class CookieManager {
     * date.
     */
    public void removeSessionCookie() {
-       mAwCookieManager.removeSessionCookie();
+//       mAwCookieManager.removeSessionCookie();
    }
 
    /**
     * Removes all cookies.
     */
    public void removeAllCookie() {
-       mAwCookieManager.removeAllCookie();
+//       mAwCookieManager.removeAllCookie();
    }
 
    /**
@@ -121,14 +119,14 @@ public class CookieManager {
     * @return true if there are stored cookies
     */
    public synchronized boolean hasCookies() {
-       return mAwCookieManager.hasCookies();
+       return false;//return mAwCookieManager.hasCookies();
    }
 
    /**
     * Removes all expired cookies.
     */
    public void removeExpiredCookie() {
-       mAwCookieManager.removeExpiredCookie();
+//       mAwCookieManager.removeExpiredCookie();
    }
 
    /**
@@ -159,10 +157,10 @@ public class CookieManager {
    }
 
    private boolean allowFileSchemeCookiesImpl() {
-       return mAwCookieManager.allowFileSchemeCookies();
+       return false;//return mAwCookieManager.allowFileSchemeCookies();
    }
 
    private void setAcceptFileSchemeCookiesImpl(boolean accept) {
-       mAwCookieManager.setAcceptFileSchemeCookies(accept);
+//       mAwCookieManager.setAcceptFileSchemeCookies(accept);
    }
 }

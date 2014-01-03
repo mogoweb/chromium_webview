@@ -10,6 +10,7 @@ import org.chromium.base.JNINamespace;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.os.Build;
 import android.text.TextUtils;
 
 /**
@@ -87,6 +88,22 @@ public class Clipboard {
     @CalledByNative
     private void setText(final String text) {
         mClipboardManager.setPrimaryClip(ClipData.newPlainText(null, text));
+    }
+
+    /**
+     * Writes HTML to the clipboard, together with a plain-text representation
+     * of that very data. This API is only available in Android JellyBean+ and
+     * will be a no-operation in older versions.
+     *
+     * @param html The HTML content to be pasted to the clipboard.
+     * @param text Plain-text representation of the HTML content.
+     */
+    @CalledByNative
+    private void setHTMLText(final String html, final String text) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            mClipboardManager.setPrimaryClip(
+                    ClipData.newHtmlText(null, text, html));
+        }
     }
 
     /**

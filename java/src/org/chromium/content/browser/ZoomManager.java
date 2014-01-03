@@ -18,6 +18,10 @@ class ZoomManager {
 
     private ContentViewCore mContentViewCore;
 
+    // ScaleGestureDetector previous to 4.2.2 failed to record touch event times (b/7626515),
+    // so we record them manually for use when synthesizing pinch gestures.
+    private long mCurrentEventTime;
+
     private class ScaleGestureListener implements ScaleGestureDetector.OnScaleGestureListener {
         // Completely silence scaling events. Used in WebView when zoom support
         // is turned off.
@@ -28,6 +32,13 @@ class ZoomManager {
 
         // Whether any pinch zoom event has been sent to native.
         private boolean mPinchEventSent;
+
+        long getEventTime(ScaleGestureDetector detector) {
+            // Workaround for b/7626515, fixed in 4.2.2.
+            assert mCurrentEventTime != 0;
+            assert detector.getEventTime() == 0 || detector.getEventTime() == mCurrentEventTime;
+            return mCurrentEventTime;
+        }
 
         boolean getPermanentlyIgnoreDetectorEvents() {
             return mPermanentlyIgnoreDetectorEvents;
@@ -56,7 +67,7 @@ class ZoomManager {
         @Override
         public void onScaleEnd(ScaleGestureDetector detector) {
             if (!mPinchEventSent || !mContentViewCore.isAlive()) return;
-            mContentViewCore.getContentViewGestureHandler().pinchEnd(detector.getEventTime());
+            mContentViewCore.getContentViewGestureHandler().pinchEnd(getEventTime(detector));
             mPinchEventSent = false;
         }
 
@@ -70,12 +81,12 @@ class ZoomManager {
             // that pinchBy() is called without any pinchBegin().
             // To solve this problem, we call pinchBegin() here if it is never called.
             if (!mPinchEventSent) {
-                mContentViewCore.getContentViewGestureHandler().pinchBegin(detector.getEventTime(),
+                mContentViewCore.getContentViewGestureHandler().pinchBegin(getEventTime(detector),
                         (int) detector.getFocusX(), (int) detector.getFocusY());
                 mPinchEventSent = true;
             }
             mContentViewCore.getContentViewGestureHandler().pinchBy(
-                    detector.getEventTime(), (int) detector.getFocusX(), (int) detector.getFocusY(),
+                    getEventTime(detector), (int) detector.getFocusX(), (int) detector.getFocusY(),
                     detector.getScaleFactor());
             return true;
         }
@@ -106,6 +117,7 @@ class ZoomManager {
     // of processing, if any.
     void passTouchEventThrough(MotionEvent event) {
         mMultiTouchListener.setTemporarilyIgnoreDetectorEvents(true);
+        mCurrentEventTime = event.getEventTime();
         try {
             mMultiTouchDetector.onTouchEvent(event);
         } catch (Exception e) {
@@ -120,10 +132,14 @@ class ZoomManager {
     boolean processTouchEvent(MotionEvent event) {
         // TODO: Need to deal with multi-touch transition
         mMultiTouchListener.setTemporarilyIgnoreDetectorEvents(false);
+        mCurrentEventTime = event.getEventTime();
         try {
             boolean inGesture = isScaleGestureDetectionInProgress();
             boolean retVal = mMultiTouchDetector.onTouchEvent(event);
-            if (event.getActionMasked() == MotionEvent.ACTION_UP && !inGesture) return false;
+            if (!inGesture && (event.getActionMasked() == MotionEvent.ACTION_UP
+                    || event.getActionMasked() == MotionEvent.ACTION_CANCEL)) {
+                return false;
+            }
             return retVal;
         } catch (Exception e) {
             Log.e(TAG, "ScaleGestureDetector got into a bad state!", e);

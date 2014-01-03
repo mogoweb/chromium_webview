@@ -10,7 +10,7 @@ import android.graphics.BitmapFactory;
 import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
 
-@JNINamespace("ui")
+@JNINamespace("gfx")
 public class BitmapHelper {
     @CalledByNative
     public static Bitmap createBitmap(int width, int height) {

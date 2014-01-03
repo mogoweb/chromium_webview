@@ -14,6 +14,8 @@ public class ResourceId {
 0,
 
 
+R.drawable.infobar_protected_media_identifier,
+
 R.drawable.infobar_geolocation,
 R.drawable.infobar_didyoumean,
 R.drawable.infobar_autofill,

@@ -110,10 +110,6 @@ public class ContentVideoView
 
         @Override
         protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-            if (mVideoWidth == 0 && mVideoHeight == 0) {
-                setMeasuredDimension(1, 1);
-                return;
-            }
             int width = getDefaultSize(mVideoWidth, widthMeasureSpec);
             int height = getDefaultSize(mVideoHeight, heightMeasureSpec);
             if (mVideoWidth > 0 && mVideoHeight > 0) {
@@ -235,8 +231,8 @@ public class ContentVideoView
 
     private void showContentVideoView() {
         FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
                 Gravity.CENTER);
         this.addView(mVideoSurfaceView, layoutParams);
         View progressView = mClient.getVideoLoadingProgressView();
@@ -245,7 +241,10 @@ public class ContentVideoView
         } else {
             mProgressView = new ProgressView(getContext(), mVideoLoadingText);
         }
-        this.addView(mProgressView, layoutParams);
+        this.addView(mProgressView, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER));
         mVideoSurfaceView.setZOrderOnTop(true);
         mVideoSurfaceView.setOnKeyListener(this);
         mVideoSurfaceView.setOnTouchListener(this);
@@ -309,9 +308,8 @@ public class ContentVideoView
     private void onVideoSizeChanged(int width, int height) {
         mVideoWidth = width;
         mVideoHeight = height;
-        if (mVideoWidth != 0 && mVideoHeight != 0) {
-            mVideoSurfaceView.getHolder().setFixedSize(mVideoWidth, mVideoHeight);
-        }
+        // This will trigger the SurfaceView.onMeasure() call.
+        mVideoSurfaceView.getHolder().setFixedSize(mVideoWidth, mVideoHeight);
     }
 
     @CalledByNative
@@ -616,10 +614,12 @@ public class ContentVideoView
     @CalledByNative
     private void destroyContentVideoView(boolean nativeViewDestroyed) {
         if (mVideoSurfaceView != null) {
-            mClient.onDestroyContentVideoView();
             removeControls();
             removeSurfaceView();
             setVisibility(View.GONE);
+
+            // To prevent re-entrance, call this after removeSurfaceView.
+            mClient.onDestroyContentVideoView();
         }
         if (nativeViewDestroyed) {
             mNativeContentVideoView = 0;

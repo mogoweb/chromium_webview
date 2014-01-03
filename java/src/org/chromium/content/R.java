@@ -17,8 +17,6 @@ package org.chromium.content;
  */
 public final class R {
     public static final class attr {
-        public static int action_mode_share_drawable;
-        public static int action_mode_web_search_drawable;
         public static int select_dialog_multichoice;
         public static int select_dialog_singlechoice;
     }
@@ -39,6 +37,12 @@ public final class R {
         public static int second;
         public static int second_colon;
         public static int second_dot;
+        public static int select_action_menu_select_all;
+        public static int select_action_menu_cut;
+        public static int select_action_menu_copy;
+        public static int select_action_menu_paste;
+        public static int select_action_menu_share;
+        public static int select_action_menu_web_search;
         public static int time_picker;
         public static int year;
     }
@@ -46,6 +50,9 @@ public final class R {
         public static int date_time_picker_dialog;
         public static int two_field_date_picker;
         public static int multi_field_time_picker_dialog;
+    }
+    public static final class menu {
+        public static int select_action_menu;
     }
     public static final class string {
         public static int accessibility_content_view;
@@ -66,6 +73,10 @@ public final class R {
         public static int media_player_error_title;
         public static int media_player_loading_video;
         public static int month_picker_dialog_title;
+        public static int profiler_error_toast;
+        public static int profiler_no_storage_toast;
+        public static int profiler_started_toast;
+        public static int profiler_stopped_toast;
         public static int time_picker_dialog_am;
         public static int time_picker_dialog_hour_minute_separator;
         public static int time_picker_dialog_minute_second_separator;
@@ -74,7 +85,6 @@ public final class R {
         public static int week_picker_dialog_title;
     }
     public static final class style {
-        public static int ContentActionBar;
         public static int SelectPopupDialog;
     }
 }

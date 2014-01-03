@@ -40,6 +40,7 @@ public class ContentView extends FrameLayout
 
     private float mCurrentTouchOffsetX;
     private float mCurrentTouchOffsetY;
+    private final int[] mLocationInWindow = new int[2];
 
     /**
      * Creates an instance of a ContentView.
@@ -111,12 +112,14 @@ public class ContentView extends FrameLayout
                 ContentViewCore.INPUT_EVENTS_DELIVERED_IMMEDIATELY);
     }
 
-    // PageInfo implementation.
-
-    @Override
+    /**
+     * @return The URL of the page.
+     */
     public String getUrl() {
         return mContentViewCore.getUrl();
     }
+
+    // PageInfo implementation.
 
     @Override
     public String getTitle() {
@@ -370,20 +373,6 @@ public class ContentView extends FrameLayout
     }
 
     /**
-     * This method should be called when the containing activity is paused.
-     **/
-    public void onActivityPause() {
-        mContentViewCore.onActivityPause();
-    }
-
-    /**
-     * This method should be called when the containing activity is resumed.
-     **/
-    public void onActivityResume() {
-        mContentViewCore.onActivityResume();
-    }
-
-    /**
      * To be called when the ContentView is shown.
      **/
     public void onShow() {
@@ -422,12 +411,27 @@ public class ContentView extends FrameLayout
         return super.drawChild(canvas, child, drawingTime);
     }
 
+    // Needed by ContentViewCore.InternalAccessDelegate
+    @Override
+    public void onScrollChanged(int l, int t, int oldl, int oldt) {
+        super.onScrollChanged(l, t, oldl, oldt);
+    }
+
     @Override
     protected void onSizeChanged(int w, int h, int ow, int oh) {
         TraceEvent.begin();
         super.onSizeChanged(w, h, ow, oh);
         mContentViewCore.onSizeChanged(w, h, ow, oh);
         TraceEvent.end();
+    }
+
+    @Override
+    protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+        super.onLayout(changed, left, top, right, bottom);
+        if (changed) {
+            getLocationInWindow(mLocationInWindow);
+            mContentViewCore.onLocationInWindowChanged(mLocationInWindow[0], mLocationInWindow[1]);
+        }
     }
 
     @Override
@@ -491,6 +495,7 @@ public class ContentView extends FrameLayout
         MotionEvent offset = createOffsetMotionEvent(event);
         boolean consumed = mContentViewCore.onHoverEvent(offset);
         offset.recycle();
+        super.onHoverEvent(event);
         return consumed;
     }
 
@@ -661,35 +666,6 @@ public class ContentView extends FrameLayout
      */
     public boolean isCrashed() {
         return mContentViewCore.isCrashed();
-    }
-
-    /**
-     * @return Whether a reload happens when this ContentView is activated.
-     */
-    public boolean needsReload() {
-        return mContentViewCore.needsReload();
-    }
-
-    /**
-     * Checks whether the WebView can be zoomed in.
-     *
-     * @return True if the WebView can be zoomed in.
-     */
-    // This method uses the term 'zoom' for legacy reasons, but relates
-    // to what chrome calls the 'page scale factor'.
-    public boolean canZoomIn() {
-        return mContentViewCore.canZoomIn();
-    }
-
-    /**
-     * Checks whether the WebView can be zoomed out.
-     *
-     * @return True if the WebView can be zoomed out.
-     */
-    // This method uses the term 'zoom' for legacy reasons, but relates
-    // to what chrome calls the 'page scale factor'.
-    public boolean canZoomOut() {
-        return mContentViewCore.canZoomOut();
     }
 
     /**

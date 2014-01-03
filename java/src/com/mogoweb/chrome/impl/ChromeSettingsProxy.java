@@ -4,8 +4,6 @@
 
 package com.mogoweb.chrome.impl;
 
-import org.chromium.android_webview.AwContents;
-import org.chromium.android_webview.AwSettings;
 import org.chromium.content.browser.ContentSettings;
 
 import android.annotation.SuppressLint;
@@ -18,88 +16,88 @@ import com.mogoweb.chrome.WebSettings;
 public class ChromeSettingsProxy extends WebSettings {
 
     /** The AwContents powering the ChromeView whose settings we're proxying. */
-    private AwContents mAwContents;
+//    private AwContents mAwContents;
 
     /** ContentsSettings proxy target. */
     private ContentSettings mContentSettings;
 
-    /** WebSettings proxy target. */
-    private AwSettings mAwSettings;
-
-    public ChromeSettingsProxy(AwContents awContents) {
-        mAwContents = awContents;
-        mContentSettings = mAwContents.getContentSettings();
-        mAwSettings = mAwContents.getSettings();
-    }
+//    /** WebSettings proxy target. */
+//    private AwSettings mAwSettings;
+//
+//    public ChromeSettingsProxy(AwContents awContents) {
+//        mAwContents = awContents;
+//        mContentSettings = mAwContents.getContentSettings();
+//        mAwSettings = mAwContents.getSettings();
+//    }
 
     @Override
     public void setSupportZoom(boolean support) {
-        mAwSettings.setSupportZoom(support);
+//        mAwSettings.setSupportZoom(support);
     }
 
     @Override
     public boolean supportZoom() {
-        return mAwSettings.supportZoom();
+        return false;//return mAwSettings.supportZoom();
     }
 
     @Override
     public void setMediaPlaybackRequiresUserGesture(boolean require) {
-        mAwSettings.setMediaPlaybackRequiresUserGesture(require);
+//        mAwSettings.setMediaPlaybackRequiresUserGesture(require);
     }
 
     @Override
     public boolean getMediaPlaybackRequiresUserGesture() {
-        return mAwSettings.getMediaPlaybackRequiresUserGesture();
+        return false;//return mAwSettings.getMediaPlaybackRequiresUserGesture();
     }
 
     @Override
     public void setBuiltInZoomControls(boolean enabled) {
-        mAwSettings.setBuiltInZoomControls(enabled);
+//        mAwSettings.setBuiltInZoomControls(enabled);
     }
 
     @Override
     public boolean getBuiltInZoomControls() {
-        return mAwSettings.getBuiltInZoomControls();
+        return false;//return mAwSettings.getBuiltInZoomControls();
     }
 
     @Override
     public void setDisplayZoomControls(boolean enabled) {
-        mAwSettings.setDisplayZoomControls(enabled);
+//        mAwSettings.setDisplayZoomControls(enabled);
     }
 
     @Override
     public boolean getDisplayZoomControls() {
-        return mAwSettings.getDisplayZoomControls();
+        return false;//return mAwSettings.getDisplayZoomControls();
     }
 
     @Override
     public void setAllowFileAccess(boolean allow) {
-        mAwSettings.setAllowFileAccess(allow);
+//        mAwSettings.setAllowFileAccess(allow);
     }
 
     @Override
     public boolean getAllowFileAccess() {
-        return mAwSettings.getAllowFileAccess();
+        return false;//return mAwSettings.getAllowFileAccess();
     }
 
     @Override
     public void setAllowContentAccess(boolean allow) {
-        mAwSettings.setAllowContentAccess(allow);
+//        mAwSettings.setAllowContentAccess(allow);
     }
 
     @Override
     public boolean getAllowContentAccess() {
-        return mAwSettings.getAllowContentAccess();
+        return false;//return mAwSettings.getAllowContentAccess();
     }
 
     @Override
     public void setLoadWithOverviewMode(boolean overview) {
-        mAwSettings.setLoadWithOverviewMode(overview);
+//        mAwSettings.setLoadWithOverviewMode(overview);
     }
 
     @Override
     public boolean getLoadWithOverviewMode() {
-        return mAwSettings.getLoadWithOverviewMode();
+        return false;//return mAwSettings.getLoadWithOverviewMode();
     }
 
     @Override
@@ -126,12 +124,12 @@ public class ChromeSettingsProxy extends WebSettings {
 
     @Override
     public void setTextZoom(int textZoom) {
-        mAwSettings.setTextZoom(textZoom);
+//        mAwSettings.setTextZoom(textZoom);
     }
 
     @Override
     public int getTextZoom() {
-        return mAwSettings.getTextZoom();
+        return 0;//return mAwSettings.getTextZoom();
     }
 
     @Override
@@ -158,67 +156,68 @@ public class ChromeSettingsProxy extends WebSettings {
 
     @Override
     public void setUseWideViewPort(boolean use) {
-        mAwSettings.setUseWideViewPort(use);
+//        mAwSettings.setUseWideViewPort(use);
     }
 
     @Override
     public boolean getUseWideViewPort() {
-        return mAwSettings.getUseWideViewPort();
+        return false;//return mAwSettings.getUseWideViewPort();
     }
 
     @Override
     public void setSupportMultipleWindows(boolean support) {
-        mAwSettings.setSupportMultipleWindows(support);
+//        mAwSettings.setSupportMultipleWindows(support);
     }
 
     @Override
     public boolean supportMultipleWindows() {
-        return mAwSettings.supportMultipleWindows();
+        return false;//return mAwSettings.supportMultipleWindows();
     }
 
     @Override
     public void setLayoutAlgorithm(LayoutAlgorithm l) {
-        AwSettings.LayoutAlgorithm algorithm = AwSettings.LayoutAlgorithm.NORMAL;
-        switch(l) {
-        case NORMAL:
-            algorithm = AwSettings.LayoutAlgorithm.NORMAL;
-        case SINGLE_COLUMN:
-            algorithm = AwSettings.LayoutAlgorithm.SINGLE_COLUMN;
-        case NARROW_COLUMNS:
-            algorithm = AwSettings.LayoutAlgorithm.NARROW_COLUMNS;
-        }
-        mAwSettings.setLayoutAlgorithm(algorithm);
+//        AwSettings.LayoutAlgorithm algorithm = AwSettings.LayoutAlgorithm.NORMAL;
+//        switch(l) {
+//        case NORMAL:
+//            algorithm = AwSettings.LayoutAlgorithm.NORMAL;
+//        case SINGLE_COLUMN:
+//            algorithm = AwSettings.LayoutAlgorithm.SINGLE_COLUMN;
+//        case NARROW_COLUMNS:
+//            algorithm = AwSettings.LayoutAlgorithm.NARROW_COLUMNS;
+//        }
+//        mAwSettings.setLayoutAlgorithm(algorithm);
     }
 
     @Override
     public LayoutAlgorithm getLayoutAlgorithm() {
-        switch (mAwSettings.getLayoutAlgorithm()) {
-        case NORMAL:
-            return LayoutAlgorithm.NORMAL;
-        case SINGLE_COLUMN:
-            return LayoutAlgorithm.SINGLE_COLUMN;
-        case NARROW_COLUMNS:
-            return LayoutAlgorithm.NARROW_COLUMNS;
-        case TEXT_AUTOSIZING:
-            return LayoutAlgorithm.NORMAL;
-        default:
-            return LayoutAlgorithm.NORMAL;
-        }
+//        switch (mAwSettings.getLayoutAlgorithm()) {
+//        case NORMAL:
+//            return LayoutAlgorithm.NORMAL;
+//        case SINGLE_COLUMN:
+//            return LayoutAlgorithm.SINGLE_COLUMN;
+//        case NARROW_COLUMNS:
+//            return LayoutAlgorithm.NARROW_COLUMNS;
+//        case TEXT_AUTOSIZING:
+//            return LayoutAlgorithm.NORMAL;
+//        default:
+//            return LayoutAlgorithm.NORMAL;
+//        }
+        return LayoutAlgorithm.NORMAL;
     }
 
     @Override
     public void setStandardFontFamily(String font) {
-        mAwSettings.setStandardFontFamily(font);
+//        mAwSettings.setStandardFontFamily(font);
     }
 
     @Override
     public String getStandardFontFamily() {
-        return mAwSettings.getStandardFontFamily();
+        return null;//return mAwSettings.getStandardFontFamily();
     }
 
     @Override
     public void setFixedFontFamily(String font) {
-        mAwSettings.setFixedFontFamily(font);
+//        mAwSettings.setFixedFontFamily(font);
     }
 
     @Override
@@ -228,91 +227,91 @@ public class ChromeSettingsProxy extends WebSettings {
 
     @Override
     public void setSansSerifFontFamily(String font) {
-        mAwSettings.setSansSerifFontFamily(font);
+//        mAwSettings.setSansSerifFontFamily(font);
     }
 
     @Override
     public String getSansSerifFontFamily() {
-        return mAwSettings.getSansSerifFontFamily();
+        return null;//return mAwSettings.getSansSerifFontFamily();
     }
 
     @Override
     public void setSerifFontFamily(String font) {
-        mAwSettings.setSerifFontFamily(font);
+//        mAwSettings.setSerifFontFamily(font);
     }
 
     @Override
     public String getSerifFontFamily() {
-        return mAwSettings.getSerifFontFamily();
+        return null;//return mAwSettings.getSerifFontFamily();
     }
 
     @Override
     public void setCursiveFontFamily(String font) {
-        mAwSettings.setCursiveFontFamily(font);
+//        mAwSettings.setCursiveFontFamily(font);
     }
 
     @Override
     public String getCursiveFontFamily() {
-        return mAwSettings.getCursiveFontFamily();
+        return null;//mAwSettings.getCursiveFontFamily();
     }
 
     @Override
     public void setFantasyFontFamily(String font) {
-        mAwSettings.setFantasyFontFamily(font);
+//        mAwSettings.setFantasyFontFamily(font);
     }
 
     @Override
     public String getFantasyFontFamily() {
-        return mAwSettings.getFantasyFontFamily();
+        return null;//return mAwSettings.getFantasyFontFamily();
     }
 
     @Override
     public void setMinimumFontSize(int size) {
-        mAwSettings.setMinimumFontSize(size);
+//        mAwSettings.setMinimumFontSize(size);
     }
 
     @Override
     public int getMinimumFontSize() {
-        return mAwSettings.getMinimumFontSize();
+        return 0;//return mAwSettings.getMinimumFontSize();
     }
 
     @Override
     public void setMinimumLogicalFontSize(int size) {
-        mAwSettings.setMinimumLogicalFontSize(size);
+//        mAwSettings.setMinimumLogicalFontSize(size);
     }
 
     @Override
     public int getMinimumLogicalFontSize() {
-        return mAwSettings.getMinimumLogicalFontSize();
+        return 0;//return mAwSettings.getMinimumLogicalFontSize();
     }
 
     @Override
     public void setDefaultFontSize(int size) {
-        mAwSettings.setDefaultFontSize(size);
+//        mAwSettings.setDefaultFontSize(size);
     }
 
     @Override
     public int getDefaultFontSize() {
-        return mAwSettings.getDefaultFontSize();
+        return 0;//return mAwSettings.getDefaultFontSize();
     }
 
     @Override
     public void setDefaultFixedFontSize(int size) {
-        mAwSettings.setDefaultFixedFontSize(size);
+//        mAwSettings.setDefaultFixedFontSize(size);
     }
 
     @Override
     public int getDefaultFixedFontSize() {
-        return mAwSettings.getDefaultFixedFontSize();
+        return 0;//return mAwSettings.getDefaultFixedFontSize();
     }
 
     @Override
     public void setLoadsImagesAutomatically(boolean flag) {
-        mAwSettings.setLoadsImagesAutomatically(flag);
+//        mAwSettings.setLoadsImagesAutomatically(flag);
     }
     @Override
     public boolean getLoadsImagesAutomatically() {
-        return mAwSettings.getLoadsImagesAutomatically();
+        return false;//return mAwSettings.getLoadsImagesAutomatically();
     }
 
     @Override
@@ -328,28 +327,28 @@ public class ChromeSettingsProxy extends WebSettings {
 
     @Override
     public void setBlockNetworkLoads(boolean flag) {
-        mAwSettings.setBlockNetworkLoads(flag);
+//        mAwSettings.setBlockNetworkLoads(flag);
     }
 
     @Override
     public boolean getBlockNetworkLoads() {
-        return mAwSettings.getBlockNetworkLoads();
+        return false;//return mAwSettings.getBlockNetworkLoads();
     }
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
     public void setJavaScriptEnabled(boolean flag) {
-        mAwSettings.setJavaScriptEnabled(flag);
+//        mAwSettings.setJavaScriptEnabled(flag);
     }
 
     @Override
     public void setAllowUniversalAccessFromFileURLs(boolean flag) {
-        mAwSettings.setAllowUniversalAccessFromFileURLs(flag);
+//        mAwSettings.setAllowUniversalAccessFromFileURLs(flag);
     }
 
     @Override
     public void setAllowFileAccessFromFileURLs(boolean flag) {
-        mAwSettings.setAllowFileAccessFromFileURLs(flag);
+//        mAwSettings.setAllowFileAccessFromFileURLs(flag);
     }
 
     @Override
@@ -364,12 +363,12 @@ public class ChromeSettingsProxy extends WebSettings {
 
     @Override
     public void setAppCacheEnabled(boolean flag) {
-        mAwSettings.setAppCacheEnabled(flag);
+//        mAwSettings.setAppCacheEnabled(flag);
     }
 
     @Override
     public void setAppCachePath(String appCachePath) {
-        mAwSettings.setAppCachePath(appCachePath);
+//        mAwSettings.setAppCachePath(appCachePath);
     }
 
     @Override
@@ -379,17 +378,17 @@ public class ChromeSettingsProxy extends WebSettings {
 
     @Override
     public void setDatabaseEnabled(boolean flag) {
-        mAwSettings.setDatabaseEnabled(flag);
+//        mAwSettings.setDatabaseEnabled(flag);
     }
 
     @Override
     public void setDomStorageEnabled(boolean flag) {
-        mAwSettings.setDomStorageEnabled(flag);
+//        mAwSettings.setDomStorageEnabled(flag);
     }
 
     @Override
     public boolean getDomStorageEnabled() {
-        return mAwSettings.getDomStorageEnabled();
+        return false;//return mAwSettings.getDomStorageEnabled();
     }
 
     @Override
@@ -400,12 +399,12 @@ public class ChromeSettingsProxy extends WebSettings {
 
     @Override
     public boolean getDatabaseEnabled() {
-        return mAwSettings.getDatabaseEnabled();
+        return false;//return mAwSettings.getDatabaseEnabled();
     }
 
     @Override
     public void setGeolocationEnabled(boolean flag) {
-        mAwSettings.setGeolocationEnabled(flag);
+//        mAwSettings.setGeolocationEnabled(flag);
     }
 
     @Override
@@ -414,42 +413,42 @@ public class ChromeSettingsProxy extends WebSettings {
     }
     @Override
     public boolean getAllowUniversalAccessFromFileURLs() {
-        return mAwSettings.getAllowUniversalAccessFromFileURLs();
+        return false;//return mAwSettings.getAllowUniversalAccessFromFileURLs();
     }
 
     @Override
     public boolean getAllowFileAccessFromFileURLs() {
-        return mAwSettings.getAllowFileAccessFromFileURLs();
+        return false;//return mAwSettings.getAllowFileAccessFromFileURLs();
     }
 
     @Override
     public void setJavaScriptCanOpenWindowsAutomatically(boolean flag) {
-        mAwSettings.setJavaScriptCanOpenWindowsAutomatically(flag);
+//        mAwSettings.setJavaScriptCanOpenWindowsAutomatically(flag);
     }
 
     @Override
     public boolean getJavaScriptCanOpenWindowsAutomatically() {
-        return mAwSettings.getJavaScriptCanOpenWindowsAutomatically();
+        return false;//return mAwSettings.getJavaScriptCanOpenWindowsAutomatically();
     }
 
     @Override
     public void setDefaultTextEncodingName(String encoding) {
-        mAwSettings.setDefaultTextEncodingName(encoding);
+//        mAwSettings.setDefaultTextEncodingName(encoding);
     }
 
     @Override
     public String getDefaultTextEncodingName() {
-        return mAwSettings.getDefaultTextEncodingName();
+        return null;//return mAwSettings.getDefaultTextEncodingName();
     }
 
     @Override
     public void setUserAgentString(String ua) {
-        mAwSettings.setUserAgentString(ua);
+//        mAwSettings.setUserAgentString(ua);
     }
 
     @Override
     public String getUserAgentString() {
-        return mAwSettings.getUserAgentString();
+        return null;//return mAwSettings.getUserAgentString();
     }
 
     @Override
@@ -464,11 +463,11 @@ public class ChromeSettingsProxy extends WebSettings {
 
     @Override
     public void setCacheMode(int mode) {
-        mAwSettings.setCacheMode(mode);
+//        mAwSettings.setCacheMode(mode);
     }
 
     @Override
     public int getCacheMode() {
-        return mAwSettings.getCacheMode();
+        return 0;//return mAwSettings.getCacheMode();
     }
 }

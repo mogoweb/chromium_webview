@@ -12,19 +12,11 @@ public final class R {
         /** <p>Must be a reference to another resource, in the form "<code>@[+][<i>package</i>:]<i>type</i>:<i>name</i></code>"
 or to a theme attribute in the form "<code>?[<i>package</i>:][<i>type</i>:]<i>name</i></code>".
          */
-        public static int action_mode_share_drawable=0x7f010000;
+        public static int select_dialog_multichoice=0x7f010000;
         /** <p>Must be a reference to another resource, in the form "<code>@[+][<i>package</i>:]<i>type</i>:<i>name</i></code>"
 or to a theme attribute in the form "<code>?[<i>package</i>:][<i>type</i>:]<i>name</i></code>".
          */
-        public static int action_mode_web_search_drawable=0x7f010001;
-        /** <p>Must be a reference to another resource, in the form "<code>@[+][<i>package</i>:]<i>type</i>:<i>name</i></code>"
-or to a theme attribute in the form "<code>?[<i>package</i>:][<i>type</i>:]<i>name</i></code>".
-         */
-        public static int select_dialog_multichoice=0x7f010002;
-        /** <p>Must be a reference to another resource, in the form "<code>@[+][<i>package</i>:]<i>type</i>:<i>name</i></code>"
-or to a theme attribute in the form "<code>?[<i>package</i>:][<i>type</i>:]<i>name</i></code>".
-         */
-        public static int select_dialog_singlechoice=0x7f010003;
+        public static int select_dialog_singlechoice=0x7f010001;
     }
     public static final class bool {
         /**  TabStrip text 
@@ -195,24 +187,25 @@ or to a theme attribute in the form "<code>?[<i>package</i>:][<i>type</i>:]<i>na
         public static int infobar_multiple_downloads=0x7f02002d;
         public static int infobar_plugin=0x7f02002e;
         public static int infobar_plugin_crashed=0x7f02002f;
-        public static int infobar_restore=0x7f020030;
-        public static int infobar_savepassword=0x7f020031;
-        public static int infobar_theme=0x7f020032;
-        public static int infobar_translate=0x7f020033;
-        public static int infobar_update_uma=0x7f020034;
-        public static int infobar_warning=0x7f020035;
-        public static int infobar_warning_background=0x7f020036;
-        public static int missing=0x7f020037;
+        public static int infobar_protected_media_identifier=0x7f020030;
+        public static int infobar_restore=0x7f020031;
+        public static int infobar_savepassword=0x7f020032;
+        public static int infobar_theme=0x7f020033;
+        public static int infobar_translate=0x7f020034;
+        public static int infobar_update_uma=0x7f020035;
+        public static int infobar_warning=0x7f020036;
+        public static int infobar_warning_background=0x7f020037;
+        public static int missing=0x7f020038;
         /**  Notification Colors 
          */
-        public static int notification_icon_bg=0x7f02003f;
-        public static int ondemand_overlay=0x7f020038;
-        public static int pageinfo_bad=0x7f020039;
-        public static int pageinfo_good=0x7f02003a;
-        public static int pageinfo_info=0x7f02003b;
-        public static int pageinfo_warning_major=0x7f02003c;
-        public static int pageinfo_warning_minor=0x7f02003d;
-        public static int warning=0x7f02003e;
+        public static int notification_icon_bg=0x7f020040;
+        public static int ondemand_overlay=0x7f020039;
+        public static int pageinfo_bad=0x7f02003a;
+        public static int pageinfo_good=0x7f02003b;
+        public static int pageinfo_info=0x7f02003c;
+        public static int pageinfo_warning_major=0x7f02003d;
+        public static int pageinfo_warning_minor=0x7f02003e;
+        public static int warning=0x7f02003f;
     }
     public static final class floats {
         public static int top_controls_hide_threshold=0x7f0c0001;
@@ -225,7 +218,7 @@ or to a theme attribute in the form "<code>?[<i>package</i>:][<i>type</i>:]<i>na
     }
     public static final class id {
         public static int ampm=0x7f090020;
-        public static int arrow_image=0x7f090027;
+        public static int arrow_image=0x7f090028;
         public static int autofill_label=0x7f090008;
         public static int autofill_menu_text=0x7f090007;
         /**  AutofillPopup constants 
@@ -241,20 +234,20 @@ or to a theme attribute in the form "<code>?[<i>package</i>:][<i>type</i>:]<i>na
         public static int gradient=0x7f09000c;
         public static int gradient_border=0x7f09000b;
         public static int hour=0x7f09001a;
-        public static int icon_view=0x7f090025;
+        public static int icon_view=0x7f090026;
         public static int infobar_close_button=0x7f090002;
         public static int infobar_extra_check=0x7f090005;
         /**  InfoBar constants 
          */
         public static int infobar_message=0x7f090001;
         public static int js_modal_dialog_prompt=0x7f090018;
-        public static int main_text=0x7f090028;
+        public static int main_text=0x7f090029;
         public static int milli=0x7f09001f;
         public static int minute=0x7f09001b;
         public static int more_colors_button=0x7f090012;
         public static int more_colors_button_border=0x7f090011;
-        public static int pickers=0x7f090021;
-        public static int position_in_year=0x7f090022;
+        public static int pickers=0x7f090022;
+        public static int position_in_year=0x7f090023;
         /**  Notifications 
          */
         public static int remote_notification=0x7f090006;
@@ -262,19 +255,26 @@ or to a theme attribute in the form "<code>?[<i>package</i>:][<i>type</i>:]<i>na
         public static int second_colon=0x7f09001c;
         public static int second_dot=0x7f09001e;
         public static int seek_bar=0x7f09000d;
+        public static int select_action_menu_copy=0x7f090030;
+        public static int select_action_menu_cut=0x7f09002f;
+        public static int select_action_menu_paste=0x7f090031;
+        public static int select_action_menu_select_all=0x7f09002e;
+        public static int select_action_menu_share=0x7f090032;
+        public static int select_action_menu_web_search=0x7f090033;
         public static int selected_color_view=0x7f090015;
         public static int selected_color_view_border=0x7f090014;
-        public static int sub_text=0x7f090029;
+        public static int sub_text=0x7f09002a;
         public static int suppress_js_modal_dialogs=0x7f090019;
         public static int text=0x7f09000a;
-        public static int text_wrapper=0x7f090026;
+        public static int text_wrapper=0x7f090027;
         public static int time_picker=0x7f090017;
         public static int title=0x7f090013;
-        public static int top_view=0x7f090024;
-        public static int website_settings_description=0x7f09002c;
-        public static int website_settings_headline=0x7f09002b;
-        public static int website_settings_icon=0x7f09002a;
-        public static int year=0x7f090023;
+        public static int top_view=0x7f090025;
+        public static int translate_spinner=0x7f090021;
+        public static int website_settings_description=0x7f09002d;
+        public static int website_settings_headline=0x7f09002c;
+        public static int website_settings_icon=0x7f09002b;
+        public static int year=0x7f090024;
     }
     public static final class integer {
         /**  The number of approximation thumbnails that the approximation cache can hold. 
@@ -308,12 +308,17 @@ or to a theme attribute in the form "<code>?[<i>package</i>:][<i>type</i>:]<i>na
         public static int date_time_picker_dialog=0x7f040004;
         public static int dimens=0x7f040005;
         public static int infobar_button=0x7f040006;
-        public static int infobar_text=0x7f040007;
-        public static int js_modal_dialog=0x7f040008;
-        public static int multi_field_time_picker_dialog=0x7f040009;
-        public static int two_field_date_picker=0x7f04000a;
-        public static int validation_message_bubble=0x7f04000b;
-        public static int website_settings=0x7f04000c;
+        public static int infobar_spinner_item=0x7f040007;
+        public static int infobar_text=0x7f040008;
+        public static int js_modal_dialog=0x7f040009;
+        public static int multi_field_time_picker_dialog=0x7f04000a;
+        public static int translate_spinner=0x7f04000b;
+        public static int two_field_date_picker=0x7f04000c;
+        public static int validation_message_bubble=0x7f04000d;
+        public static int website_settings=0x7f04000e;
+    }
+    public static final class menu {
+        public static int select_action_menu=0x7f0d0000;
     }
     public static final class mipmap {
         public static int app_icon=0x7f030000;
@@ -327,7 +332,7 @@ or to a theme attribute in the form "<code>?[<i>package</i>:][<i>type</i>:]<i>na
         public static int accessibility_date_picker_year=0x7f05001c;
         public static int accessibility_datetime_picker_date=0x7f050018;
         public static int accessibility_datetime_picker_time=0x7f050019;
-        public static int accessibility_js_modal_dialog_prompt=0x7f05002e;
+        public static int accessibility_js_modal_dialog_prompt=0x7f050032;
         public static int accessibility_time_picker_ampm=0x7f050021;
         public static int accessibility_time_picker_hour=0x7f05001d;
         public static int accessibility_time_picker_milli=0x7f050020;
@@ -335,7 +340,8 @@ or to a theme attribute in the form "<code>?[<i>package</i>:][<i>type</i>:]<i>na
         public static int accessibility_time_picker_second=0x7f05001f;
         public static int actionbar_share=0x7f050009;
         public static int actionbar_web_search=0x7f05000a;
-        public static int certtitle=0x7f05002f;
+        public static int cancel=0x7f050051;
+        public static int certtitle=0x7f050033;
         public static int color_picker_button_cancel=0x7f050007;
         public static int color_picker_button_more=0x7f050002;
         public static int color_picker_button_set=0x7f050006;
@@ -347,13 +353,15 @@ or to a theme attribute in the form "<code>?[<i>package</i>:][<i>type</i>:]<i>na
         public static int date_picker_dialog_set=0x7f05000c;
         public static int date_picker_dialog_title=0x7f05000e;
         public static int date_time_picker_dialog_title=0x7f05000f;
-        public static int dont_reload_this_page=0x7f05002a;
-        public static int firstrun_signed_in_description=0x7f05003d;
-        public static int firstrun_signed_in_title=0x7f05003c;
-        public static int infobar_close=0x7f05003b;
-        public static int js_modal_dialog_cancel=0x7f05002c;
-        public static int js_modal_dialog_confirm=0x7f05002b;
-        public static int leave_this_page=0x7f050027;
+        public static int dont_reload_this_page=0x7f05002e;
+        public static int firstrun_signed_in_description=0x7f050055;
+        public static int firstrun_signed_in_title=0x7f050054;
+        public static int http_post_warning=0x7f050052;
+        public static int http_post_warning_resend=0x7f050053;
+        public static int infobar_close=0x7f05003f;
+        public static int js_modal_dialog_cancel=0x7f050030;
+        public static int js_modal_dialog_confirm=0x7f05002f;
+        public static int leave_this_page=0x7f05002b;
         public static int low_memory_error=0x7f050000;
         public static int media_player_error_button=0x7f050025;
         public static int media_player_error_text_invalid_progressive_playback=0x7f050023;
@@ -362,36 +370,57 @@ or to a theme attribute in the form "<code>?[<i>package</i>:][<i>type</i>:]<i>na
         public static int media_player_loading_video=0x7f050026;
         public static int month_picker_dialog_title=0x7f050016;
         public static int opening_file_error=0x7f050001;
-        public static int policy_dialog_cancel=0x7f050038;
-        public static int policy_dialog_message=0x7f050036;
-        public static int policy_dialog_proceed=0x7f050037;
-        public static int policy_dialog_title=0x7f050035;
-        public static int reload_this_page=0x7f050029;
-        public static int sad_tab_help_link=0x7f050041;
-        public static int sad_tab_help_message=0x7f050040;
-        public static int sad_tab_message=0x7f05003f;
-        public static int sad_tab_reload_label=0x7f050042;
-        public static int sad_tab_title=0x7f05003e;
-        public static int stay_on_this_page=0x7f050028;
-        public static int suppress_js_modal_dialogs=0x7f05002d;
-        public static int sync_error_connection=0x7f050032;
-        public static int sync_error_domain=0x7f050033;
-        public static int sync_error_ga=0x7f050031;
-        public static int sync_error_generic=0x7f050030;
-        public static int sync_error_service_unavailable=0x7f050034;
+        public static int options_startup_pages_placeholder=0x7f05005b;
+        public static int policy_dialog_cancel=0x7f05003c;
+        public static int policy_dialog_message=0x7f05003a;
+        public static int policy_dialog_proceed=0x7f05003b;
+        public static int policy_dialog_title=0x7f050039;
+        public static int profiler_error_toast=0x7f05002a;
+        public static int profiler_no_storage_toast=0x7f050029;
+        public static int profiler_started_toast=0x7f050027;
+        public static int profiler_stopped_toast=0x7f050028;
+        public static int reload_this_page=0x7f05002d;
+        public static int sad_tab_help_link=0x7f050059;
+        public static int sad_tab_help_message=0x7f050058;
+        public static int sad_tab_message=0x7f050057;
+        public static int sad_tab_reload_label=0x7f05005a;
+        public static int sad_tab_title=0x7f050056;
+        public static int stay_on_this_page=0x7f05002c;
+        public static int suppress_js_modal_dialogs=0x7f050031;
+        public static int sync_error_connection=0x7f050036;
+        public static int sync_error_domain=0x7f050037;
+        public static int sync_error_ga=0x7f050035;
+        public static int sync_error_generic=0x7f050034;
+        public static int sync_error_service_unavailable=0x7f050038;
         public static int time_picker_dialog_am=0x7f050011;
         public static int time_picker_dialog_hour_minute_separator=0x7f050013;
         public static int time_picker_dialog_minute_second_separator=0x7f050014;
         public static int time_picker_dialog_pm=0x7f050012;
         public static int time_picker_dialog_second_subsecond_separator=0x7f050015;
         public static int time_picker_dialog_title=0x7f050010;
+        public static int translate_always_text=0x7f050046;
+        public static int translate_button=0x7f050048;
+        public static int translate_button_done=0x7f05004e;
+        public static int translate_infobar_change_languages=0x7f050041;
+        public static int translate_infobar_error=0x7f050045;
+        public static int translate_infobar_text=0x7f050040;
+        public static int translate_infobar_translating=0x7f050044;
+        public static int translate_infobar_translation_done=0x7f050042;
+        public static int translate_infobar_translation_more_options=0x7f050043;
+        public static int translate_never_translate_language=0x7f050050;
+        public static int translate_never_translate_message_text=0x7f050047;
+        public static int translate_never_translate_site=0x7f05004f;
+        public static int translate_nope=0x7f050049;
+        public static int translate_options_source_hint=0x7f05004c;
+        public static int translate_options_target_hint=0x7f05004d;
+        public static int translate_retry=0x7f05004b;
+        public static int translate_show_original=0x7f05004a;
         public static int week_picker_dialog_title=0x7f050017;
-        public static int wiping_profile_data_message=0x7f05003a;
-        public static int wiping_profile_data_title=0x7f050039;
+        public static int wiping_profile_data_message=0x7f05003e;
+        public static int wiping_profile_data_title=0x7f05003d;
     }
     public static final class style {
         public static int AutofillPopupWindow=0x7f080000;
-        public static int ContentActionBar=0x7f080001;
-        public static int SelectPopupDialog=0x7f080002;
+        public static int SelectPopupDialog=0x7f080001;
     }
 }

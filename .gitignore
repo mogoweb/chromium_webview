@@ -18,3 +18,6 @@ local.properties
 # Eclipse project files
 .classpath
 .project
+
+# ignore so to shrink git repository
+libchromeview.so

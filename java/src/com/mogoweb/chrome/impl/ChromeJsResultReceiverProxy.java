@@ -4,7 +4,7 @@
 
 package com.mogoweb.chrome.impl;
 
-import org.chromium.android_webview.JsResultReceiver;
+//import org.chromium.android_webview.JsResultReceiver;
 
 import com.mogoweb.chrome.JsResult;
 
@@ -15,18 +15,18 @@ import com.mogoweb.chrome.JsResult;
  */
 public class ChromeJsResultReceiverProxy implements JsResult.ResultReceiver {
 
-    /** The proxy target. */
-    private JsResultReceiver mTarget;
-
-    public ChromeJsResultReceiverProxy(JsResultReceiver target) {
-        mTarget = target;
-    }
+//    /** The proxy target. */
+//    private JsResultReceiver mTarget;
+//
+//    public ChromeJsResultReceiverProxy(JsResultReceiver target) {
+//        mTarget = target;
+//    }
     @Override
     public void onJsResultComplete(JsResult result) {
-        if (result.getResult()) {
-            mTarget.confirm();
-        } else {
-            mTarget.cancel();
-        }
+//        if (result.getResult()) {
+//            mTarget.confirm();
+//        } else {
+//            mTarget.cancel();
+//        }
     }
 }

@@ -62,12 +62,9 @@ EOF
  exit 0
 fi
 
-# android_webview
-rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/android_webview_apk/assets/*.pak ${CHROMIUMVIEW_PROJECT_ROOT}/assets
-rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/android_webview_apk/libs/ ${CHROMIUMVIEW_PROJECT_ROOT}/libs
-rsync -avz ${CHROMIUM_SRC}/android_webview/java/src/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
-
-## Dependencies inferred from android_webview/Android.mk
+# chromeview
+rsync -avz ${CHROMIUM_SRC}/out/assets/chromium_testshell/*.pak ${CHROMIUMVIEW_PROJECT_ROOT}/assets
+arm-linux-androideabi-strip --strip-unneeded -o ${CHROMIUMVIEW_PROJECT_ROOT}/libs/armeabi-v7a/libchromeview.so ${CHROMIUM_SRC}/out/${BUILDTYPE}/lib/libchromeview.so
 
 # Resources.
 rsync -avz ${CHROMIUM_SRC}/content/public/android/java/resource_map/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
@@ -79,17 +76,20 @@ rsync -avz ${CHROMIUM_SRC}/content/public/android/java/src/ ${CHROMIUMVIEW_PROJE
 rsync -avz ${CHROMIUM_SRC}/media/base/android/java/src/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
 rsync -avz ${CHROMIUM_SRC}/net/android/java/src/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
 rsync -avz ${CHROMIUM_SRC}/ui/android/java/src/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
-rsync -avz ${CHROMIUM_SRC}/third_party/eyesfree/src/android/java/src/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
+
+# chrome
+rsync -avz ${CHROMIUM_SRC}/chrome/android/java/src/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
+
+# sync, need by chrome
+rsync -avz ${CHROMIUM_SRC}/sync/android/java/src/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
 
 # Strip a ContentView file that's not supposed to be here.
 rm ${CHROMIUMVIEW_PROJECT_ROOT}/src/org/chromium/content/common/common.aidl
 
-# Get rid of the .git directory in eyesfree.
-rm -rf ${CHROMIUMVIEW_PROJECT_ROOT}/src/com/googlecode/eyesfree/braille/.git
-
 # Browser components.
 rsync -avz ${CHROMIUM_SRC}/components/web_contents_delegate_android/android/java/src/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
 rsync -avz ${CHROMIUM_SRC}/components/navigation_interception/android/java/src/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
+rsync -avz ${CHROMIUM_SRC}/components/autofill/core/browser/android/java/src/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
 
 # chrome resources.
 rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/gen/chrome_java/java_R/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/ 
@@ -104,10 +104,10 @@ rm -rf ${CHROMIUMVIEW_PROJECT_ROOT}/src/org.chromium.net
 # JARs.
 rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/lib.java/guava_javalib.jar ${CHROMIUMVIEW_PROJECT_ROOT}/libs/
 rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/lib.java/jsr_305_javalib.jar ${CHROMIUMVIEW_PROJECT_ROOT}/libs/
-
-# android_webview generated sources. Must come after all the other sources.
-rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/android_webview_apk/native_libraries_java/NativeLibraries.java ${CHROMIUMVIEW_PROJECT_ROOT}/src/org/chromium/content/app/
-
+rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/lib.java/cacheinvalidation_javalib.jar ${CHROMIUMVIEW_PROJECT_ROOT}/libs/
+rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/lib.java/cacheinvalidation_proto_java.jar ${CHROMIUMVIEW_PROJECT_ROOT}/libs/
+rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/lib.java/eyesfree_java.jar ${CHROMIUMVIEW_PROJECT_ROOT}/libs/
+rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/lib.java/protobuf_lite_javalib.jar ${CHROMIUMVIEW_PROJECT_ROOT}/libs/
 
 # sync test class
 rsync -avz ${CHROMIUM_SRC}/base/test/android/javatests/src/ ${SHELLVIEW_TEST_PROJECT_ROOT}/src/

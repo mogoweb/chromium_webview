@@ -22,10 +22,8 @@ package com.mogoweb.chrome;
 
 import java.util.Map;
 
-import org.chromium.android_webview.AwBrowserContext;
-import org.chromium.android_webview.AwContents;
-import org.chromium.android_webview.AwLayoutSizer;
-import org.chromium.android_webview.DrawGLFunctor;
+import org.chromium.chrome.browser.ContentViewUtil;
+import org.chromium.content.browser.ContentView;
 import org.chromium.content.browser.ContentViewCore;
 import org.chromium.content.browser.ContentViewRenderView;
 import org.chromium.content.browser.LoadUrlParams;
@@ -50,10 +48,11 @@ import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.webkit.ValueCallback;
+import android.webkit.WebStorage;
 import android.webkit.WebViewDatabase;
 import android.widget.FrameLayout;
 
-import com.mogoweb.chrome.impl.ChromeAwContentsClientProxy;
+//import com.mogoweb.chrome.impl.ChromeAwContentsClientProxy;
 import com.mogoweb.chrome.impl.ChromeSettingsProxy;
 import com.mogoweb.chrome.impl.WebBackForwardListImpl;
 
@@ -386,24 +385,16 @@ public class WebView extends FrameLayout {
     }
 
     /** The closest thing to a WebView that Chromium has to offer. */
-    private AwContents mAwContents;
+    private ContentView mContentView;
 
     /** Implements some of AwContents. */
     private ContentViewCore mContentViewCore;
 
     /** Glue that passes calls from the Chromium view to a WebChromeClient. */
-    private ChromeAwContentsClientProxy mAwContentsClient;
-
-    /** Everything pertaining to the user's browsing session. */
-    private AwBrowserContext mBrowserContext;
-
-    /** Glue that passes calls from the Chromium view to its parent (us).  */
-    private ChromeInternalAcccessAdapter mInternalAccessAdapter;
+//    private ChromeAwContentsClientProxy mAwContentsClient;
 
     // The target for content rendering.
     private ContentViewRenderView mContentViewRenderView;
-
-    private DrawGLFunctor mGLFunctor;
 
     /**
      * Constructs a new WebView with a Context object.
@@ -432,12 +423,29 @@ public class WebView extends FrameLayout {
      * @param defStyle the default style resource ID
      */
     public WebView(Context context, AttributeSet attrs, int defStyle) {
+        this(context, attrs, defStyle, false);
+    }
+
+    /**
+     * Constructs a new WebView with layout parameters and a default style.
+     *
+     * @param context a Context object used to access application assets
+     * @param attrs an AttributeSet passed to our parent
+     * @param defStyle the default style resource ID
+     * @param privateBrowsing whether this WebView will be initialized in private mode
+     *
+     * @deprecated Private browsing is no longer supported directly via
+     * WebView and will be removed in a future release. Prefer suing
+     * {@link WebSettings}, {@link WebViewDatabase}, {@link CookieManager}
+     * and {@link WebStorage} for fine-grained control of privacy data.
+     */
+    public WebView(Context context, AttributeSet attrs, int defStyle, boolean privateBrowsing) {
         super(context, attrs, defStyle);
 
         if (isInEditMode()) {
             return;  // Chromium isn't loaded in edit mode.
         }
-// TODO(alex): chromium webview not support hardware accelerated yet.
+
         try {
             Activity activity = (Activity)context;
             activity.getWindow().setFlags(
@@ -450,14 +458,8 @@ public class WebView extends FrameLayout {
 
         SharedPreferences sharedPreferences = context.getSharedPreferences(
                 "chromeview", Context.MODE_PRIVATE);
-        // TODO(pwnall): is there a better way to get an AwBrowserContext?
-        mBrowserContext = new AwBrowserContext(sharedPreferences);
 
-        mInternalAccessAdapter = new ChromeInternalAcccessAdapter();
-        mAwContentsClient = new ChromeAwContentsClientProxy(this);
-        mAwContents = new AwContents(mBrowserContext, this, mInternalAccessAdapter,
-                mAwContentsClient, false, new AwLayoutSizer(), true);
-        mContentViewCore = mAwContents.getContentViewCore();
+//        mAwContentsClient = new ChromeAwContentsClientProxy(this);
 
         mContentViewRenderView = new ContentViewRenderView(context) {
             @Override
@@ -466,7 +468,16 @@ public class WebView extends FrameLayout {
             }
         };
 
-        DrawGLFunctor.setChromiumAwDrawGLFunction(AwContents.getAwDrawGLFunction());
+        addView(mContentViewRenderView,
+                new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT));
+
+        mContentView = ContentView.newInstance(context, ContentViewUtil.createNativeWebContents(privateBrowsing), null);
+        addView(mContentView);
+        mContentViewRenderView.setCurrentContentView(mContentView);
+
+        mContentViewCore = mContentView.getContentViewCore();
     }
 
     //// Methods from android.webkit.WebView
@@ -514,7 +525,7 @@ public class WebView extends FrameLayout {
      * @return the SSL certificate for the main top-level page
      */
     public SslCertificate getCertificate() {
-        return mAwContents.getCertificate();
+        return null;//mAwContents.getCertificate();
     }
 
     /**
@@ -548,7 +559,7 @@ public class WebView extends FrameLayout {
      */
     public void setHttpAuthUsernamePassword(String host, String realm,
             String username, String password) {
-        mAwContents.setHttpAuthUsernamePassword(host, realm, username, password);
+//        mAwContents.setHttpAuthUsernamePassword(host, realm, username, password);
     }
 
     /**
@@ -566,7 +577,7 @@ public class WebView extends FrameLayout {
      * @see WebViewDatabase#clearHttpAuthUsernamePassword
      */
     public String[] getHttpAuthUsernamePassword(String host, String realm) {
-        return mAwContents.getHttpAuthUsernamePassword(host, realm);
+        return null;//mAwContents.getHttpAuthUsernamePassword(host, realm);
     }
 
     /**
@@ -575,12 +586,7 @@ public class WebView extends FrameLayout {
      * methods may be called on this WebView after destroy.
      */
     public void destroy() {
-        mAwContents.destroy();
-
-        if (mGLFunctor != null) {
-            mGLFunctor.destroy();
-            mGLFunctor = null;
-        }
+//        mAwContents.destroy();
     }
 
     /**
@@ -606,7 +612,7 @@ public class WebView extends FrameLayout {
      *         saveState fails, the returned list will be null.
      */
     public WebBackForwardList saveState(Bundle outState) {
-        mAwContents.saveState(outState);
+//        mAwContents.saveState(outState);
         return copyBackForwardList();
     }
 
@@ -623,7 +629,7 @@ public class WebView extends FrameLayout {
      * @return the restored back/forward list or null if restoreState failed
      */
     public WebBackForwardList restoreState(Bundle inState) {
-        mAwContents.restoreState(inState);
+//        mAwContents.restoreState(inState);
         return copyBackForwardList();
     }
 
@@ -641,7 +647,7 @@ public class WebView extends FrameLayout {
     public void loadUrl(String url, Map<String, String> additionalHttpHeaders) {
         LoadUrlParams loadUrlParams = new LoadUrlParams(url);
         loadUrlParams.setExtraHeaders(additionalHttpHeaders);
-        mAwContents.loadUrl(loadUrlParams);
+        mContentView.loadUrl(loadUrlParams);
     }
 
     /**
@@ -650,7 +656,7 @@ public class WebView extends FrameLayout {
      * @param url the URL of the resource to load
      */
     public void loadUrl(String url) {
-        mAwContents.loadUrl(new LoadUrlParams(url));
+        mContentView.loadUrl(new LoadUrlParams(url));
     }
 
     /**
@@ -662,7 +668,7 @@ public class WebView extends FrameLayout {
      * @param postData the data will be passed to "POST" request
      */
     public void postUrl(String url, byte[] postData) {
-        mAwContents.loadUrl(LoadUrlParams.createLoadHttpPostParams(url, postData));
+        mContentView.loadUrl(LoadUrlParams.createLoadHttpPostParams(url, postData));
     }
 
     /**
@@ -697,7 +703,7 @@ public class WebView extends FrameLayout {
     public void loadData(String data, String mimeType, String encoding) {
         LoadUrlParams loadUrlParams = LoadUrlParams.createLoadDataParams(data,
                 mimeType, encoding.equals("base64"));
-        mAwContents.loadUrl(loadUrlParams);
+        mContentView.loadUrl(loadUrlParams);
     }
 
     /**
@@ -728,7 +734,7 @@ public class WebView extends FrameLayout {
         LoadUrlParams loadUrlParams =
                 LoadUrlParams.createLoadDataParamsWithBaseUrl(data, mimeType,
                         encoding.equals("base64"), baseUrl, historyUrl);
-        mAwContents.loadUrl(loadUrlParams);
+        mContentView.loadUrl(loadUrlParams);
     }
 
     /**
@@ -737,11 +743,11 @@ public class WebView extends FrameLayout {
      * @param filename the filename where the archive should be placed
      */
     public void saveWebArchive(String filename) {
-        ValueCallback<String> callback = new ValueCallback<String>() {
-            @Override
-            public void onReceiveValue(String value) { }
-        };
-        mAwContents.saveWebArchive(filename, false, callback);
+//        ValueCallback<String> callback = new ValueCallback<String>() {
+//            @Override
+//            public void onReceiveValue(String value) { }
+//        };
+//        mAwContents.saveWebArchive(filename, false, callback);
     }
 
     /**
@@ -757,21 +763,21 @@ public class WebView extends FrameLayout {
      *                 file failed.
      */
     public void saveWebArchive(String basename, boolean autoname, ValueCallback<String> callback) {
-        mAwContents.saveWebArchive(basename, autoname, callback);
+//        mAwContents.saveWebArchive(basename, autoname, callback);
     }
 
     /**
      * Stops the current load.
      */
     public void stopLoading() {
-        mAwContents.stopLoading();
+        mContentView.stopLoading();
     }
 
     /**
      * Reloads the current URL.
      */
     public void reload() {
-        mAwContents.reload();
+        mContentView.reload();
     }
 
     /**
@@ -780,14 +786,14 @@ public class WebView extends FrameLayout {
      * @return true iff this WebView has a back history item
      */
     public boolean canGoBack() {
-        return mAwContents.canGoBack();
+        return mContentView.canGoBack();
     }
 
     /**
      * Goes back in the history of this WebView.
      */
     public void goBack() {
-        mAwContents.goBack();
+        mContentView.goBack();
     }
 
     /**
@@ -796,14 +802,14 @@ public class WebView extends FrameLayout {
      * @return true iff this Webview has a forward history item
      */
     public boolean canGoForward() {
-        return mAwContents.canGoForward();
+        return mContentView.canGoForward();
     }
 
     /**
      * Goes forward in the history of this WebView.
      */
     public void goForward() {
-        mAwContents.goForward();
+        mContentView.goForward();
     }
 
     /**
@@ -814,7 +820,7 @@ public class WebView extends FrameLayout {
      *              history
      */
     public boolean canGoBackOrForward(int steps) {
-        return mAwContents.canGoBackOrForward(steps);
+        return false;//return mContentView.canGoBackOrForward(steps);
     }
 
     /**
@@ -826,7 +832,7 @@ public class WebView extends FrameLayout {
      *              forward list
      */
     public void goBackOrForward(int steps) {
-        mAwContents.goBackOrForward(steps);
+//        mContentView.goBackOrForward(steps);
     }
 
     /**
@@ -844,7 +850,7 @@ public class WebView extends FrameLayout {
      * @return true if the page was scrolled
      */
     public boolean pageUp(boolean top) {
-        return mAwContents.pageUp(top);
+        return false;//return mAwContents.pageUp(top);
     }
 
     /**
@@ -854,7 +860,7 @@ public class WebView extends FrameLayout {
      * @return true if the page was scrolled
      */
     public boolean pageDown(boolean bottom) {
-        return mAwContents.pageDown(bottom);
+        return false;//return mAwContents.pageDown(bottom);
     }
 
     /**
@@ -872,7 +878,7 @@ public class WebView extends FrameLayout {
      * @return a picture that captures the current contents of this WebView
      */
     public Picture capturePicture() {
-        return mAwContents.capturePicture();
+        return null;//return mAwContents.capturePicture();
     }
 
     /**
@@ -895,7 +901,7 @@ public class WebView extends FrameLayout {
      * level of this WebView.
      */
     public void invokeZoomPicker() {
-        mAwContents.invokeZoomPicker();
+//        mAwContents.invokeZoomPicker();
     }
 
     /**
@@ -935,7 +941,7 @@ public class WebView extends FrameLayout {
      *                anchor's text. "src" returns the image's src attribute.
      */
     public void requestFocusNodeHref(Message hrefMsg) {
-        mAwContents.requestFocusNodeHref(hrefMsg);
+//        mAwContents.requestFocusNodeHref(hrefMsg);
     }
 
     /**
@@ -946,7 +952,7 @@ public class WebView extends FrameLayout {
      *            as the data member with "url" as key. The result can be null.
      */
     public void requestImageRef(Message msg) {
-        mAwContents.requestImageRef(msg);
+//        mAwContents.requestImageRef(msg);
     }
 
     /**
@@ -958,7 +964,7 @@ public class WebView extends FrameLayout {
      */
 //    @ViewDebug.ExportedProperty(category = "webview")
     public String getUrl() {
-        return mAwContents.getUrl();
+        return mContentView.getUrl();
     }
 
     /**
@@ -972,7 +978,7 @@ public class WebView extends FrameLayout {
      */
 //    @ViewDebug.ExportedProperty(category = "webview")
     public String getOriginalUrl() {
-        return mAwContents.getOriginalUrl();
+        return null;//return mContentView.getOriginalUrl();
     }
 
     /**
@@ -983,7 +989,7 @@ public class WebView extends FrameLayout {
      */
 //    @ViewDebug.ExportedProperty(category = "webview")
     public String getTitle() {
-        return mAwContents.getTitle();
+        return mContentView.getTitle();
     }
 
     /**
@@ -993,7 +999,7 @@ public class WebView extends FrameLayout {
      * @return the favicon for the current page
      */
     public Bitmap getFavicon() {
-        return mAwContents.getFavicon();
+        return null;//return mContentView.getFavicon();
     }
 
     /**
@@ -1013,7 +1019,7 @@ public class WebView extends FrameLayout {
      */
 //    @ViewDebug.ExportedProperty(category = "webview")
     public int getContentHeight() {
-        return mAwContents.getContentHeightCss();
+        return 0;//return mAwContents.getContentHeightCss();
     }
 
     /**
@@ -1024,7 +1030,7 @@ public class WebView extends FrameLayout {
      */
 //    @ViewDebug.ExportedProperty(category = "webview")
     public int getContentWidth() {
-        return mAwContents.getContentWidthCss();
+        return 0;//return mAwContents.getContentWidthCss();
     }
 
     /**
@@ -1033,7 +1039,7 @@ public class WebView extends FrameLayout {
      * useful if the application has been paused.
      */
     public void pauseTimers() {
-        mAwContents.pauseTimers();
+//        mAwContents.pauseTimers();
     }
 
     /**
@@ -1041,7 +1047,7 @@ public class WebView extends FrameLayout {
      * This will resume dispatching all timers.
      */
     public void resumeTimers() {
-        mAwContents.resumeTimers();
+//        mAwContents.resumeTimers();
     }
 
     /**
@@ -1052,14 +1058,14 @@ public class WebView extends FrameLayout {
      * Note that this differs from pauseTimers(), which affects all WebViews.
      */
     public void onPause() {
-        mAwContents.onPause();
+//        mAwContents.onPause();
     }
 
     /**
      * Resumes a WebView after a previous call to onPause().
      */
     public void onResume() {
-        mAwContents.onResume();
+//        mAwContents.onResume();
     }
 
     /**
@@ -1069,7 +1075,7 @@ public class WebView extends FrameLayout {
      * @hide
      */
     public boolean isPaused() {
-        return mAwContents.isPaused();
+        return false;//return mAwContents.isPaused();
     }
 
     /**
@@ -1087,7 +1093,7 @@ public class WebView extends FrameLayout {
      * @param includeDiskFiles if false, only the RAM cache is cleared
      */
     public void clearCache(boolean includeDiskFiles) {
-        mAwContents.clearCache(includeDiskFiles);
+//        mAwContents.clearCache(includeDiskFiles);
     }
 
     /**
@@ -1104,7 +1110,7 @@ public class WebView extends FrameLayout {
      * Tells this WebView to clear its internal back/forward list.
      */
     public void clearHistory() {
-        mAwContents.clearHistory();
+//        mAwContents.clearHistory();
     }
 
     /**
@@ -1112,7 +1118,7 @@ public class WebView extends FrameLayout {
      * SSL certificate errors.
      */
     public void clearSslPreferences() {
-        mAwContents.clearSslPreferences();
+//        mAwContents.clearSslPreferences();
     }
 
     /**
@@ -1124,10 +1130,11 @@ public class WebView extends FrameLayout {
      * updated to reflect any new state.
      */
     public WebBackForwardList copyBackForwardList() {
-        NavigationHistory navHistory = mAwContents.getNavigationHistory();
-        WebBackForwardListImpl backForwardList = new WebBackForwardListImpl(navHistory);
-
-        return backForwardList.clone();
+//        NavigationHistory navHistory = mAwContents.getNavigationHistory();
+//        WebBackForwardListImpl backForwardList = new WebBackForwardListImpl(navHistory);
+//
+//        return backForwardList.clone();
+        return null;
     }
 
     /**
@@ -1137,7 +1144,7 @@ public class WebView extends FrameLayout {
      * @param listener an implementation of {@link FindListener}
      */
     public void setFindListener(FindListener listener) {
-        mAwContentsClient.setFindListener(listener);
+//        mAwContentsClient.setFindListener(listener);
     }
 
     /**
@@ -1151,7 +1158,7 @@ public class WebView extends FrameLayout {
      * @see #setFindListener
      */
     public void findNext(boolean forward) {
-        mAwContents.findNext(forward);
+//        mAwContents.findNext(forward);
     }
 
     /**
@@ -1163,7 +1170,7 @@ public class WebView extends FrameLayout {
      * @see #setFindListener
      */
     public void findAllAsync(String find) {
-        mAwContents.findAllAsync(find);
+//        mAwContents.findAllAsync(find);
     }
 
     /**
@@ -1213,7 +1220,7 @@ public class WebView extends FrameLayout {
      * {@link #findAllAsync}.
      */
     public void clearMatches() {
-        mAwContents.clearMatches();
+//        mAwContents.clearMatches();
     }
 
     /**
@@ -1224,7 +1231,7 @@ public class WebView extends FrameLayout {
      * @param response the message that will be dispatched with the result
      */
     public void documentHasImages(Message response) {
-        mAwContents.documentHasImages(response);
+//        mAwContents.documentHasImages(response);
     }
 
     /**
@@ -1234,7 +1241,7 @@ public class WebView extends FrameLayout {
      * @param client an implementation of WebViewClient
      */
     public void setWebViewClient(WebViewClient client) {
-        mAwContentsClient.setWebViewClient(client);
+//        mAwContentsClient.setWebViewClient(client);
     }
 
     /**
@@ -1245,7 +1252,7 @@ public class WebView extends FrameLayout {
      * @param listener an implementation of DownloadListener
      */
     public void setDownloadListener(DownloadListener listener) {
-        mAwContentsClient.setDownloadListener(listener);
+//        mAwContentsClient.setDownloadListener(listener);
     }
 
     /**
@@ -1256,7 +1263,7 @@ public class WebView extends FrameLayout {
      * @param client an implementation of WebChromeClient
      */
     public void setWebChromeClient(WebChromeClient client) {
-        mAwContentsClient.setWebChromeClient(client);
+//        mAwContentsClient.setWebChromeClient(client);
     }
 
     /**
@@ -1304,8 +1311,8 @@ public class WebView extends FrameLayout {
      * @param name the name used to expose the object in JavaScript
      */
     public void addJavascriptInterface(Object object, String name) {
-        mAwContents.addPossiblyUnsafeJavascriptInterface(object, name,
-                JavascriptInterface.class);
+//        mAwContents.addPossiblyUnsafeJavascriptInterface(object, name,
+//                JavascriptInterface.class);
     }
 
     /**
@@ -1316,7 +1323,7 @@ public class WebView extends FrameLayout {
      * @param name the name used to expose the object in JavaScript
      */
     public void removeJavascriptInterface(String name) {
-        mAwContents.removeJavascriptInterface(name);
+//        mAwContents.removeJavascriptInterface(name);
     }
 
     /**
@@ -1327,7 +1334,8 @@ public class WebView extends FrameLayout {
      *         settings
      */
     public WebSettings getSettings() {
-        return new ChromeSettingsProxy(mAwContents);
+//        return new ChromeSettingsProxy(mAwContents);
+        return null;
     }
 
     public void flingScroll(int vx, int vy) {
@@ -1340,7 +1348,8 @@ public class WebView extends FrameLayout {
      * @return true if zoom in succeeds, false if no zoom changes
      */
     public boolean zoomIn() {
-        return mAwContents.zoomIn();
+//        return mAwContents.zoomIn();
+        return false;
     }
 
     /**
@@ -1349,7 +1358,8 @@ public class WebView extends FrameLayout {
      * @return true if zoom out succeeds, false if no zoom changes
      */
     public boolean zoomOut() {
-        return mAwContents.zoomOut();
+//        return mAwContents.zoomOut();
+        return false;
     }
 
     ////Methods outside android.webkit.WebView.
@@ -1360,175 +1370,88 @@ public class WebView extends FrameLayout {
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        mAwContents.onConfigurationChanged(newConfig);
+//        mAwContents.onConfigurationChanged(newConfig);
     }
 
     @Override
     public void onAttachedToWindow() {
         super.onAttachedToWindow();
-        mAwContents.onAttachedToWindow();
+//        mAwContents.onAttachedToWindow();
     }
 
     @Override
     public void onDetachedFromWindow() {
         super.onDetachedFromWindow();
-        mAwContents.onDetachedFromWindow();
+//        mAwContents.onDetachedFromWindow();
 
-        if (mGLFunctor != null) {
-            mGLFunctor.detach();
-        }
     }
 
     @Override
     public void onFocusChanged(boolean focused, int direction, Rect previouslyFocusedRect) {
         super.onFocusChanged(focused, direction, previouslyFocusedRect);
-        mAwContents.onFocusChanged(focused, direction, previouslyFocusedRect);
+//        mAwContents.onFocusChanged(focused, direction, previouslyFocusedRect);
     }
 
     @Override
     public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
-        return mAwContents.onCreateInputConnection(outAttrs);
+        return null;//return mAwContents.onCreateInputConnection(outAttrs);
     }
 
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
-        return mAwContents.onKeyUp(keyCode, event);
+        return false;//return mAwContents.onKeyUp(keyCode, event);
     }
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
-        return mAwContents.dispatchKeyEvent(event);
+        return false;//return mAwContents.dispatchKeyEvent(event);
     }
 
     @Override
     public void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        mAwContents.onMeasure(widthMeasureSpec, heightMeasureSpec);
+//        mAwContents.onMeasure(widthMeasureSpec, heightMeasureSpec);
     }
 
     @Override
     public void onSizeChanged(int w, int h, int ow, int oh) {
         super.onSizeChanged(w, h, ow, oh);
-        mAwContents.onSizeChanged(w, h, ow, oh);
+//        mAwContents.onSizeChanged(w, h, ow, oh);
     }
 
     @Override
     public void onOverScrolled(int scrollX, int scrollY, boolean clampedX, boolean clampedY) {
-        mAwContents.onContainerViewOverScrolled(scrollX, scrollY, clampedX, clampedY);
+//        mAwContents.onContainerViewOverScrolled(scrollX, scrollY, clampedX, clampedY);
     }
 
     @Override
     public void onScrollChanged(int l, int t, int oldl, int oldt) {
         super.onScrollChanged(l, t, oldl, oldt);
-        if (mAwContents != null) {
-            mAwContents.onContainerViewScrollChanged(l, t, oldl, oldt);
-        }
+//        if (mAwContents != null) {
+//            mAwContents.onContainerViewScrollChanged(l, t, oldl, oldt);
+//        }
     }
 
     @Override
     public void onVisibilityChanged(View changedView, int visibility) {
         super.onVisibilityChanged(changedView, visibility);
-        mAwContents.onVisibilityChanged(changedView, visibility);
+//        mAwContents.onVisibilityChanged(changedView, visibility);
     }
 
     @Override
     public void onWindowVisibilityChanged(int visibility) {
         super.onWindowVisibilityChanged(visibility);
-        mAwContents.onWindowVisibilityChanged(visibility);
+//        mAwContents.onWindowVisibilityChanged(visibility);
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent ev) {
         super.onTouchEvent(ev);
-        return mAwContents.onTouchEvent(ev);
+        return false;//return mAwContents.onTouchEvent(ev);
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
-        mAwContents.onDraw(canvas);
+//        mAwContents.onDraw(canvas);
         super.onDraw(canvas);
-    }
-
-    /** Glue that passes calls from the Chromium view to its container (us). */
-    private class ChromeInternalAcccessAdapter implements AwContents.InternalAccessDelegate {
-      //// Lifted from chromium/src/android_webview/test/shell/src/org/chromium/android_webview/test/AwTestContainerView
-      @Override
-      public boolean drawChild(Canvas canvas, View child, long drawingTime) {
-        return WebView.this.drawChild(canvas, child, drawingTime);
-      }
-
-      @Override
-      public boolean super_onKeyUp(int keyCode, KeyEvent event) {
-        return WebView.super.onKeyUp(keyCode, event);
-      }
-
-      @Override
-      public boolean super_dispatchKeyEventPreIme(KeyEvent event) {
-        return WebView.super.dispatchKeyEventPreIme(event);
-      }
-
-      @Override
-      public boolean super_dispatchKeyEvent(KeyEvent event) {
-        return WebView.super.dispatchKeyEvent(event);
-      }
-
-      @Override
-      public boolean super_onGenericMotionEvent(MotionEvent event) {
-        return WebView.super.onGenericMotionEvent(event);
-      }
-
-      @Override
-      public void super_onConfigurationChanged(Configuration newConfig) {
-          WebView.super.onConfigurationChanged(newConfig);
-      }
-
-      @Override
-      public void super_scrollTo(int scrollX, int scrollY) {
-          // We're intentionally not calling super.scrollTo here to make testing easier.
-          WebView.this.scrollTo(scrollX, scrollY);
-      }
-
-      @Override
-      public void overScrollBy(int deltaX, int deltaY,
-              int scrollX, int scrollY,
-              int scrollRangeX, int scrollRangeY,
-              int maxOverScrollX, int maxOverScrollY,
-              boolean isTouchEvent) {
-          // We're intentionally not calling super.scrollTo here to make testing easier.
-          WebView.this.overScrollBy(deltaX, deltaY, scrollX, scrollY,
-                   scrollRangeX, scrollRangeY, maxOverScrollX, maxOverScrollY, isTouchEvent);
-      }
-
-      @Override
-      public void onScrollChanged(int lPix, int tPix, int oldlPix, int oldtPix) {
-          WebView.this.onScrollChanged(lPix, tPix, oldlPix, oldtPix);
-      }
-
-      @Override
-      public boolean awakenScrollBars() {
-        return WebView.this.awakenScrollBars();
-      }
-
-      @Override
-      public boolean super_awakenScrollBars(int startDelay, boolean invalidate) {
-        return WebView.super.awakenScrollBars(startDelay, invalidate);
-      }
-
-      @Override
-      public void setMeasuredDimension(int measuredWidth, int measuredHeight) {
-          WebView.this.setMeasuredDimension(measuredWidth, measuredHeight);
-      }
-
-      @Override
-      public int super_getScrollBarStyle() {
-          return WebView.super.getScrollBarStyle();
-      }
-
-      @Override
-      public boolean requestDrawGL(Canvas canvas) {
-          if (mGLFunctor == null) {
-              mGLFunctor = new DrawGLFunctor(mAwContents.getAwDrawGLViewContext());
-          }
-          return mGLFunctor.requestDrawGL(canvas);
-      }
     }
 }
