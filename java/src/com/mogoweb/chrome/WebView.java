@@ -27,7 +27,6 @@ import org.chromium.content.browser.ContentView;
 import org.chromium.content.browser.ContentViewCore;
 import org.chromium.content.browser.ContentViewRenderView;
 import org.chromium.content.browser.LoadUrlParams;
-import org.chromium.content.browser.NavigationHistory;
 
 import android.app.Activity;
 import android.content.Context;
@@ -52,9 +51,8 @@ import android.webkit.WebStorage;
 import android.webkit.WebViewDatabase;
 import android.widget.FrameLayout;
 
-//import com.mogoweb.chrome.impl.ChromeAwContentsClientProxy;
-import com.mogoweb.chrome.impl.ChromeSettingsProxy;
-import com.mogoweb.chrome.impl.WebBackForwardListImpl;
+import com.mogoweb.chrome.impl.ChromeInitializerImpl;
+import com.mogoweb.chrome.impl.ChromeViewTab;
 
 /**
  * <p>A View that displays web pages. This class is the basis upon which you
@@ -396,6 +394,8 @@ public class WebView extends FrameLayout {
     // The target for content rendering.
     private ContentViewRenderView mContentViewRenderView;
 
+    private LoadUrlParams mLoadUrlParams = null;
+
     /**
      * Constructs a new WebView with a Context object.
      *
@@ -464,7 +464,7 @@ public class WebView extends FrameLayout {
         mContentViewRenderView = new ContentViewRenderView(context) {
             @Override
             protected void onReadyToRender() {
-
+                createChromeView();
             }
         };
 
@@ -472,12 +472,6 @@ public class WebView extends FrameLayout {
                 new FrameLayout.LayoutParams(
                         FrameLayout.LayoutParams.MATCH_PARENT,
                         FrameLayout.LayoutParams.MATCH_PARENT));
-
-        mContentView = ContentView.newInstance(context, ContentViewUtil.createNativeWebContents(privateBrowsing), null);
-        addView(mContentView);
-        mContentViewRenderView.setCurrentContentView(mContentView);
-
-        mContentViewCore = mContentView.getContentViewCore();
     }
 
     //// Methods from android.webkit.WebView
@@ -645,9 +639,10 @@ public class WebView extends FrameLayout {
      *            values may be overriden by this WebView's defaults.
      */
     public void loadUrl(String url, Map<String, String> additionalHttpHeaders) {
-        LoadUrlParams loadUrlParams = new LoadUrlParams(url);
-        loadUrlParams.setExtraHeaders(additionalHttpHeaders);
-        mContentView.loadUrl(loadUrlParams);
+        mLoadUrlParams = new LoadUrlParams(url);
+        mLoadUrlParams.setExtraHeaders(additionalHttpHeaders);
+        if (mContentView != null)
+            mContentView.loadUrl(mLoadUrlParams);
     }
 
     /**
@@ -656,7 +651,9 @@ public class WebView extends FrameLayout {
      * @param url the URL of the resource to load
      */
     public void loadUrl(String url) {
-        mContentView.loadUrl(new LoadUrlParams(url));
+        mLoadUrlParams = new LoadUrlParams(url);
+        if (mContentView != null)
+            mContentView.loadUrl(mLoadUrlParams);
     }
 
     /**
@@ -668,7 +665,9 @@ public class WebView extends FrameLayout {
      * @param postData the data will be passed to "POST" request
      */
     public void postUrl(String url, byte[] postData) {
-        mContentView.loadUrl(LoadUrlParams.createLoadHttpPostParams(url, postData));
+        mLoadUrlParams = LoadUrlParams.createLoadHttpPostParams(url, postData);
+        if (mContentView != null)
+            mContentView.loadUrl(mLoadUrlParams);
     }
 
     /**
@@ -701,9 +700,10 @@ public class WebView extends FrameLayout {
      * @param encoding the encoding of the data
      */
     public void loadData(String data, String mimeType, String encoding) {
-        LoadUrlParams loadUrlParams = LoadUrlParams.createLoadDataParams(data,
+        mLoadUrlParams = LoadUrlParams.createLoadDataParams(data,
                 mimeType, encoding.equals("base64"));
-        mContentView.loadUrl(loadUrlParams);
+        if (mContentView != null)
+            mContentView.loadUrl(mLoadUrlParams);
     }
 
     /**
@@ -731,10 +731,11 @@ public class WebView extends FrameLayout {
      */
     public void loadDataWithBaseURL(String baseUrl, String data,
             String mimeType, String encoding, String historyUrl) {
-        LoadUrlParams loadUrlParams =
+        mLoadUrlParams =
                 LoadUrlParams.createLoadDataParamsWithBaseUrl(data, mimeType,
                         encoding.equals("base64"), baseUrl, historyUrl);
-        mContentView.loadUrl(loadUrlParams);
+        if (mContentView != null)
+            mContentView.loadUrl(mLoadUrlParams);
     }
 
     /**
@@ -1408,11 +1409,6 @@ public class WebView extends FrameLayout {
     }
 
     @Override
-    public void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-//        mAwContents.onMeasure(widthMeasureSpec, heightMeasureSpec);
-    }
-
-    @Override
     public void onSizeChanged(int w, int h, int ow, int oh) {
         super.onSizeChanged(w, h, ow, oh);
 //        mAwContents.onSizeChanged(w, h, ow, oh);
@@ -1453,5 +1449,24 @@ public class WebView extends FrameLayout {
     protected void onDraw(Canvas canvas) {
 //        mAwContents.onDraw(canvas);
         super.onDraw(canvas);
+    }
+
+    /**
+     * Creates a {@link ChromeViewTab}.
+     */
+    public void createChromeView() {
+        if (!isContentViewRenderViewInitialized()) return;
+
+        Activity activity = (Activity)getContext();
+        ChromeViewTab tab = new ChromeViewTab(getContext(), ChromeInitializerImpl.getWindowAndroid(activity));
+        mContentView = tab.getContentView();
+        addView(mContentView);
+        mContentViewRenderView.setCurrentContentView(mContentView);
+        if (mLoadUrlParams != null)
+            mContentView.loadUrl(mLoadUrlParams);
+    }
+
+    private boolean isContentViewRenderViewInitialized() {
+        return mContentViewRenderView != null && mContentViewRenderView.isInitialized();
     }
 }

@@ -7,11 +7,12 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_registrar.h"
 #include "chrome/browser/search_engines/template_url_prepopulate_data.h"
+#include "chromeview/native/chromeview_tab.h"
 
 static const char kDefaultCountryCode[] = "US";
 
 static base::android::RegistrationMethod kRegistrationMethods[] = {
-//     { "TestShellTab", TestShellTab::RegisterTestShellTab },
+    { "ChromeViewTab", ChromeViewTab::RegisterChromeViewTab },
 };
 
 ChromeMainDelegateAndroid* ChromeMainDelegateAndroid::Create() {
@@ -31,8 +32,8 @@ bool ChromeViewMainDelegate::BasicStartupComplete(int* exit_code) {
 
 bool ChromeViewMainDelegate::RegisterApplicationNativeMethods(
     JNIEnv* env) {
-  return ChromeMainDelegateAndroid::RegisterApplicationNativeMethods(env) /*&&
+  return ChromeMainDelegateAndroid::RegisterApplicationNativeMethods(env) &&
       base::android::RegisterNativeMethods(env,
                                            kRegistrationMethods,
-                                           arraysize(kRegistrationMethods))*/;
+                                           arraysize(kRegistrationMethods));
 }

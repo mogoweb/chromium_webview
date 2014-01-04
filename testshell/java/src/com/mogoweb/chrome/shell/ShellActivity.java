@@ -70,7 +70,7 @@ public class ShellActivity extends Activity {
         mToolbar = (LinearLayout)findViewById(R.id.toolbar);
         mProgressDrawable = (ClipDrawable) mToolbar.getBackground();
 
-        mWebView.getSettings().setJavaScriptEnabled(true);
+//        mWebView.getSettings().setJavaScriptEnabled(true);
 
         LinearLayout contentContainer = (LinearLayout) findViewById(R.id.content_container);
         mWebView.setLayoutParams(new LinearLayout.LayoutParams(

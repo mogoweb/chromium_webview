@@ -23,6 +23,7 @@
         '../chrome/chrome.gyp:browser_ui',
         '../chrome/chrome.gyp:chrome_android_core',
         '../content/content.gyp:content_app_browser',
+        'chromeview_jni_headers'
       ],
       'sources': [
         '../chrome/android/testshell/testshell_stubs.cc',
@@ -33,6 +34,8 @@
         'native/chromeview_google_location_settings_helper.h',
         'native/chromeview_main_delegate.cc',
         'native/chromeview_main_delegate.h',
+        'native/chromeview_tab.cc',
+        'native/chromeview_tab.h',
       ],
       'include_dirs': [
         '<(SHARED_INTERMEDIATE_DIR)/chromeview',
@@ -51,6 +54,17 @@
             '../base/allocator/allocator.gyp:allocator', ],
         }],
       ],
+    },
+    {
+      'target_name': 'chromeview_jni_headers',
+      'type': 'none',
+      'sources': [
+        'java/src/com/mogoweb/chrome/impl/ChromeViewTab.java',
+      ],
+      'variables': {
+        'jni_gen_package': 'chromeview',
+      },
+      'includes': [ '../build/jni_generator.gypi' ],
     },
   ],
 }

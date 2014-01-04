@@ -63,7 +63,10 @@ EOF
 fi
 
 # chromeview
-rsync -avz ${CHROMIUM_SRC}/out/assets/chromium_testshell/*.pak ${CHROMIUMVIEW_PROJECT_ROOT}/assets
+rsync -avz ${CHROMIUM_SRC}/out/assets/chromium_testshell/chrome_100_percent.pak ${CHROMIUMVIEW_PROJECT_ROOT}/assets
+rsync -avz ${CHROMIUM_SRC}/out/assets/chromium_testshell/en-US.pak ${CHROMIUMVIEW_PROJECT_ROOT}/assets
+rsync -avz ${CHROMIUM_SRC}/out/assets/chromium_testshell/resources.pak ${CHROMIUMVIEW_PROJECT_ROOT}/assets
+rsync -avz ${CHROMIUM_SRC}/out/assets/chromium_testshell/zh-CN.pak ${CHROMIUMVIEW_PROJECT_ROOT}/assets
 arm-linux-androideabi-strip --strip-unneeded -o ${CHROMIUMVIEW_PROJECT_ROOT}/libs/armeabi-v7a/libchromeview.so ${CHROMIUM_SRC}/out/${BUILDTYPE}/lib/libchromeview.so
 
 # Resources.
@@ -108,6 +111,9 @@ rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/lib.java/cacheinvalidation_javalib.j
 rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/lib.java/cacheinvalidation_proto_java.jar ${CHROMIUMVIEW_PROJECT_ROOT}/libs/
 rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/lib.java/eyesfree_java.jar ${CHROMIUMVIEW_PROJECT_ROOT}/libs/
 rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/lib.java/protobuf_lite_javalib.jar ${CHROMIUMVIEW_PROJECT_ROOT}/libs/
+
+# sync NativeLibraries.java
+rsync -avz ${CHROMIUM_SRC}/chromeview/generated_src/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
 
 # sync test class
 rsync -avz ${CHROMIUM_SRC}/base/test/android/javatests/src/ ${SHELLVIEW_TEST_PROJECT_ROOT}/src/
