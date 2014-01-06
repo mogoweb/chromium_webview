@@ -42,7 +42,7 @@ public class ChromeViewTab extends TabBase {
         super.initialize();
 
         mNativeChromeViewTab = nativeInit();
-        mCleanupReference = new CleanupReference(this, new DestroyRunnable(mNativeChromeViewTab));
+//        mCleanupReference = new CleanupReference(this, new DestroyRunnable(mNativeChromeViewTab));
     }
 
     @Override
