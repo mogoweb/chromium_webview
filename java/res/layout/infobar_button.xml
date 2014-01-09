@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2013 The Chromium Authors. All rights reserved.
+     Use of this source code is governed by a BSD-style license that can be
+     found in the LICENSE file.
+-->
+
+<Button xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:minWidth="60dp"
+    android:minHeight="@dimen/infobar_touch_target_height"
+    android:textSize="@dimen/infobar_button_text_size"
+    android:textColor="@drawable/infobar_button_text"
+    android:shadowColor="#FFF"
+    android:shadowDx="1.0"
+    android:shadowDy="1.0"
+    android:shadowRadius="1.0"
+    android:background="@drawable/infobar_button_normal_floating"
+    android:paddingStart="@dimen/infobar_button_horizontal_padding"
+    android:paddingEnd="@dimen/infobar_button_horizontal_padding"
+    android:paddingTop="5dp"
+    android:paddingBottom="5dp" />

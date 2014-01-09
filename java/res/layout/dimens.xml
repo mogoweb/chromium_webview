@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright 2013 The Chromium Authors. All rights reserved.
+
+     Use of this source code is governed by a BSD-style license that can be
+     found in the LICENSE file.
+-->
+
+<resources>
+    <!-- Tab Strip Dimensions -->
+    <dimen name="tab_strip_height">0dp</dimen>
+    <dimen name="model_selector_button_margin_left">4dp</dimen>
+    <dimen name="model_selector_button_margin_top">10dp</dimen>
+    <dimen name="model_selector_button_margin_right">4dp</dimen>
+    <dimen name="model_selector_button_margin_bottom">3dp</dimen>
+    <dimen name="new_tab_button_margin_left">5dp</dimen>
+    <dimen name="new_tab_button_margin_top">8dp</dimen>
+    <dimen name="new_tab_button_margin_right">3dp</dimen>
+    <dimen name="new_tab_button_margin_bottom">3dp</dimen>
+
+    <!-- Full Screen Dimensions -->
+    <!-- Should match toolbar_height_no_shadow -->
+    <dimen name="control_container_height">48dp</dimen>
+
+    <!-- The combined height of the tab strip and toolbar. -->
+    <dimen name="tab_strip_and_toolbar_height">48dp</dimen>
+
+    <!-- TabSwitcher - Slop value for allowing slight misses on the close button. -->
+    <dimen name="close_button_slop">10dp</dimen>
+    <!-- TabSwitcher - Size of the shift applied to tabs when stacked. -->
+    <dimen name="stacked_tab_visible_size">4dp</dimen>
+    <!-- TabSwitcher - Buffer space above the stack. -->
+    <dimen name="stack_buffer_height">5dp</dimen>
+    <!-- TabSwitcher - Buffer space on the side of the stack. -->
+    <dimen name="stack_buffer_width">5dp</dimen>
+    <!-- TabSwitcher - Minimum spacing between tabs. -->
+    <dimen name="min_spacing">120dp</dimen>
+    <!-- TabSwitcher - Maximum over scroll. -->
+    <dimen name="over_scroll">75dp</dimen>
+    <!-- TabSwitcher - Minimum scrolling distance to even out all the tabs. -->
+    <dimen name="even_out_scrolling">400dp</dimen>
+    <!-- TabSwitcher - The minimum distance from the edge to commit a side swap. -->
+    <dimen name="swipe_commit_distance">120dp</dimen>
+    <!-- TabSwitcher - The space between tabs in the toolbar swiping transition. -->
+    <dimen name="toolbar_swipe_space_between_tabs">30dp</dimen>
+    <!-- TabSwitcher - The minimum distance from the edge to commit a toolbar side swap. -->
+    <dimen name="toolbar_swipe_commit_distance">90dp</dimen>
+    <!-- TabSwitcher - Max speed of the scroll from tilt events in dp/second. -->
+    <dimen name="max_tilt_scroll_speed">1000dp</dimen>
+    <!-- The maximum distance the user can initiate a side swipe in -->
+    <dimen name="swipe_region">30dp</dimen>
+    <!-- The distance that always initiate a side swipe -->
+    <dimen name="gutter_distance">6.4dp</dimen>
+    <!-- The distance that an scroll event has to cover in Y to be marked as trustworthy -->
+    <dimen name="side_swipe_accumulate_threshold">12dp</dimen>
+    <!-- The divider constant for the exponential function used for side swipe -->
+    <dimen name="side_swipe_constant">30dp</dimen>
+    <!-- TabSwitcher - Maximum amount to slide the tabs down or right in over scroll. -->
+    <dimen name="over_scroll_slide">10dp</dimen>
+
+    <!-- TabSwitcher - Border texture segmentations, as measured in border_top_right.png.
+    See GLTabBorder.java for an extensive description of all the values.
+    -->
+    <dimen name="border_texture_title_left">4.5dp</dimen>                   <!-- 12px hdpi -->
+    <dimen name="border_texture_title_top">4.5dp</dimen>                    <!-- 3px hdpi -->
+    <dimen name="border_texture_title_right">8dp</dimen>                    <!-- 16px xhdpi -->
+    <dimen name="border_texture_title_bottom">28.5dp</dimen>                <!-- 46px hdpi -->
+    <dimen name="border_texture_title_fade">24dp</dimen>                    <!-- 40px hdpi -->
+    <dimen name="tab_title_bar_shadow_x_offset">0.6667dp</dimen>            <!-- 1px hdpi -->
+    <dimen name="tab_title_bar_shadow_y_offset">0.6667dp</dimen>            <!-- 1px hdpi -->
+    <dimen name="tab_title_bar_shadow_x_offset_incognito">-0.6667dp</dimen> <!-- -1px hdpi -->
+    <dimen name="tab_title_bar_shadow_y_offset_incognito">-0.6667dp</dimen> <!-- -1px hdpi -->
+    <!-- The size of the text for tab titles in the switcher view. -->
+    <dimen name="tab_title_text_size">13dp</dimen>
+    <!-- The padding to the left of the tab title text (to the right of the favicon) in the
+         switcher. -->
+    <dimen name="tab_title_text_start_padding">5dp</dimen>
+    <!-- The size of the boudning box for favicons in the tab switcher. -->
+    <dimen name="tab_title_favicon_size">16dp</dimen>
+    <!-- The visible margin of the shadow around the tab content. -->
+    <dimen name="tab_shadow_margin_left">30dp</dimen>
+    <dimen name="tab_shadow_margin_top">30dp</dimen>
+    <dimen name="tab_shadow_margin_right">30dp</dimen>
+    <dimen name="tab_shadow_margin_bottom">30dp</dimen>
+
+    <!-- Tab Shadow is a nodpi resource, so only defined here -->
+    <dimen name="tab_shadow_aperture_left">30dp</dimen>
+    <dimen name="tab_shadow_aperture_top">30dp</dimen>
+    <dimen name="tab_shadow_aperture_right">36dp</dimen>
+    <dimen name="tab_shadow_aperture_bottom">36dp</dimen>
+
+    <dimen name="border_frame_a_left">7.5dp</dimen>                     <!-- 15px xhdpi -->
+    <dimen name="border_frame_a_top">8dp</dimen>                        <!-- 16px xhdpi -->
+    <dimen name="border_frame_a_right">25dp</dimen>                     <!-- 50px xhdpi -->
+    <dimen name="border_frame_a_bottom">35dp</dimen>                    <!-- 70px xhdpi -->
+    <dimen name="border_frame_b_left">7.5dp</dimen>                     <!-- 17px xhdpi -->
+    <dimen name="border_frame_b_top">0dp</dimen>                        <!-- 0px xhdpi -->
+    <dimen name="border_frame_b_right">25dp</dimen>                     <!-- 50px xhdpi -->
+    <dimen name="border_frame_b_bottom">35dp</dimen>                    <!-- 70px xhdpi -->
+    <dimen name="border_frame_margin_left">4.5dp</dimen>                <!-- 9px xhdpi -->
+    <dimen name="border_frame_margin_top">4.5dp</dimen>                 <!-- 9px xhdpi -->
+    <dimen name="border_frame_margin_right">4.5dp</dimen>               <!-- 9px xhdpi -->
+    <dimen name="border_frame_margin_bottom">4.5dp</dimen>              <!-- 9px xhdpi -->
+
+    <dimen name="border_close_button_margin_left">5dp</dimen>           <!-- 10px xhdpi -->
+    <dimen name="border_close_button_margin_top">6dp</dimen>            <!-- 12px xhdpi -->
+    <dimen name="border_close_button_margin_right">5dp</dimen>          <!-- 10px xhdpi -->
+    <dimen name="border_close_button_margin_bottom">5dp</dimen>         <!-- 10px xhdpi -->
+
+    <!-- Accessibility tab switcher -->
+    <dimen name="accessibility_tab_height">65dp</dimen>
+
+    <!-- SelectBookmarkFolder - Default indent for bookmark folders in the selection dialog. -->
+    <dimen name="select_bookmark_folder_item_left">6dp</dimen>
+    <!-- SelectBookmarkFolder - Incremental indentation for nested bookmark folders in the
+         selection dialog. -->
+    <dimen name="select_bookmark_folder_item_inc_left">10dp</dimen>
+
+    <!-- Find in Page dimensions -->
+    <dimen name="find_result_bar_touch_width">68dp</dimen>
+    <dimen name="find_result_bar_draw_width">45dp</dimen>
+    <dimen name="find_result_bar_result_min_height">8px</dimen>
+    <dimen name="find_result_bar_active_min_height">16px</dimen>
+    <dimen name="find_result_bar_vertical_padding">8px</dimen>
+    <dimen name="find_result_bar_min_gap_between_stacks">3px</dimen>
+    <dimen name="find_result_bar_stacked_result_height">3px</dimen>
+    <dimen name="find_in_page_text_size">15sp</dimen>
+    <dimen name="find_in_page_separator_width">1dp</dimen>
+    <!-- These are here to keep the layout inflater from getting angry about missing values.
+        They are used by tablet only -->
+    <dimen name="find_in_page_height">0dp</dimen>
+    <dimen name="find_in_page_right_margin">0dp</dimen>
+    <dimen name="find_in_page_width">0dp</dimen>
+
+    <!-- Toolbar dimensions -->
+    <dimen name="toolbar_tab_count_text_size_1_digit">7dp</dimen>
+    <dimen name="toolbar_tab_count_text_size_2_digit">6dp</dimen>
+    <dimen name="toolbar_height_no_shadow">48dp</dimen>
+    <dimen name="toolbar_height">50dp</dimen>
+    <dimen name="toolbar_shadow_height">2dp</dimen>
+
+    <dimen name="location_bar_margin_top">5dp</dimen>
+    <dimen name="location_bar_margin_bottom">6dp</dimen>
+
+    <dimen name="toolbar_url_expanded_padding">8dp</dimen>
+    <!-- The right padding baked into the new tab drawable. -->
+    <dimen name="toolbar_new_tab_image_right_padding">5.333dp</dimen>
+    <!-- The preferred left padding between the new tab drawable and the new tab text. -->
+    <dimen name="toolbar_new_tab_text_left_padding">4.6667dp</dimen>
+    <dimen name="location_bar_url_text_size">15sp</dimen>
+    <dimen name="omnibox_suggestion_height">60dp</dimen>
+    <dimen name="location_bar_icon_width">32dp</dimen>
+    <!-- Used for tablet only. -->
+
+    <!-- Custom Menu dimensions -->
+    <dimen name="menu_item_divider_width">1px</dimen>
+    <dimen name="menu_width">257dp</dimen>
+    <dimen name="menu_vertical_offset">0px</dimen>
+    <!-- The amount to fade the edges of the menu to indicate more content is available
+         via scrolling. -->
+    <dimen name="menu_vertical_fade_distance">15dp</dimen>
+
+    <!-- NTP dimensions -->
+    <!-- Tooltip min distance from the edge of the screen. -->
+    <dimen name="tooltip_min_edge_margin">3dp</dimen>
+    <!-- Tooltip margin above click target. -->
+    <dimen name="tooltip_top_margin">2dp</dimen>
+    <!-- Tooltip border width around the main content bubble. -->
+    <dimen name="tooltip_border_width">1dp</dimen>
+
+    <!-- First Run Experience and Welcome Page dimensions -->
+    <!-- Margin for first run experience. -->
+    <dimen name="fre_margin">12dp</dimen>
+    <dimen name="fre_margin_tablet">36dp</dimen>
+    <dimen name="fre_small_margin_tablet">24dp</dimen>
+    <!-- Button padding for first run experience. -->
+    <dimen name="fre_button_padding">12dp</dimen>
+    <!-- Text size for buttons in first run experience. -->
+    <dimen name="fre_button_text_size">20sp</dimen>
+    <dimen name="fre_button_text_size_tablet">24sp</dimen>
+    <!-- Large text size for first run experience. -->
+    <dimen name="fre_large_text_size">15sp</dimen>
+    <dimen name="fre_large_text_size_tablet">18sp</dimen>
+    <!-- Normal text size for first run experience. -->
+    <dimen name="fre_normal_text_size">13sp</dimen>
+    <!-- Layout width for welcome page bubbles -->
+    <dimen name="bubble_width">130dp</dimen>
+    <!-- Padding for Welcome Page Bubbles -->
+    <dimen name="welcome_page_padding">5dp</dimen>
+    <!-- Top and Bottom Padding for Welcome Page Bubbles -->
+    <dimen name="welcome_page_ver_padding">10dp</dimen>
+    <!-- Animation bounce distance for welcome page bubbles -->
+    <dimen name="bubble_anim_dist">6dp</dimen>
+    <!-- Tooltip Y Margin for Welcome Page Search Bubble -->
+    <dimen name="search_bubble_margin">4dp</dimen>
+    <!-- Tooltip Y Margin for Welcome Page Tabs Bubble -->
+    <dimen name="tabs_bubble_margin">9dp</dimen>
+    <!-- Tooltip X Margin for Welcome Page Bubbles -->
+    <dimen name="bubble_tip_margin">8dp</dimen>
+
+    <!-- Infobar dimensions -->
+    <!-- Text size of the InfoBar message. -->
+    <dimen name="infobar_text_size">16sp</dimen>
+    <!-- Text size of text inside InfoBar buttons. -->
+    <dimen name="infobar_button_text_size">16sp</dimen>
+    <!-- Minimum dimension (height or width) of the upper row of an InfoBar. -->
+    <dimen name="infobar_min_size">60dp</dimen>
+    <!-- Margin between items in an InfoBar. -->
+    <dimen name="infobar_margin">10dp</dimen>
+    <!-- Left/right padding for infobar button text. -->
+    <dimen name="infobar_button_horizontal_padding">30dp</dimen>
+    <!-- Minimum height for a touch target. -->
+    <dimen name="infobar_touch_target_height">40dp</dimen>
+    <!-- Dimension (height or width) of the InfoBar icon. -->
+    <dimen name="infobar_icon_size">31dp</dimen>
+
+    <!-- Padding for autofill/password switches. -->
+    <dimen name="action_bar_switch_padding">16dp</dimen>
+
+    <!--
+        Padding needed to offset Android's default icon spacing.
+        (should match internal framework value of preference_icon_minWidth + preference_item_padding_side)
+    -->
+    <dimen name="preference_item_padding">8dp</dimen>
+
+    <!-- Bookmarks widget dimensions -->
+    <dimen name="widget_thumbnail_height">94dp</dimen>
+    <dimen name="widget_horizontal_spacing">6dp</dimen>
+    <dimen name="widget_vertical_spacing">6dp</dimen>
+    <dimen name="widget_column_width">80dp</dimen>
+    <dimen name="widget_favicon_size">16dp</dimen>
+
+    <!-- Data usage chart dimensions -->
+    <dimen name="data_usage_chart_optimalWidth">440dp</dimen>
+    <dimen name="data_usage_chart_height">252dp</dimen>
+
+    <!-- Data reduction promo screen -->
+    <dimen name="data_reduction_promo_screen_width">320dp</dimen>
+    <dimen name="data_reduction_promo_screen_height">-1dp</dimen>
+
+    <!-- Video Fling related constants -->
+    <dimen name="remote_notification_logo_max_width">@android:dimen/notification_large_icon_width</dimen>
+    <dimen name="remote_notification_logo_max_height">64dp</dimen>
+
+    <!-- Menu button dragging related dimensions -->
+    <dimen name="auto_scroll_full_velocity">500dp</dimen>
+    <dimen name="edge_swipe_in_slop">25dp</dimen>
+    <dimen name="edge_swipe_in_additional_slop">50dp</dimen>
+    <dimen name="edge_swipe_out_slop">18dp</dimen>
+
+</resources>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2013 The Chromium Authors. All rights reserved.
+
+     Use of this source code is governed by a BSD-style license that can be
+     found in the LICENSE file.
+-->
+<resources>
+
+    <!--
+         14.5 = Seekbar thumb width - border width, but it depends on the width
+	     of the seek bar icon.
+    -->
+    <dimen name="color_picker_gradient_margin">14.5dp</dimen>
+
+    <!-- Infobar dimensions -->
+    <!-- Text size of the InfoBar message. -->
+    <dimen name="infobar_text_size">16sp</dimen>
+    <!-- Text size of text inside InfoBar buttons. -->
+    <dimen name="infobar_button_text_size">16sp</dimen>
+    <!-- Minimum dimension (height or width) of the upper row of an InfoBar. -->
+    <dimen name="infobar_min_size">60dp</dimen>
+    <!-- Margin between items in an InfoBar. -->
+    <dimen name="infobar_margin">10dp</dimen>
+    <!-- Left/right padding for infobar button text. -->
+    <dimen name="infobar_button_horizontal_padding">30dp</dimen>
+    <!-- Minimum height for a touch target. -->
+    <dimen name="infobar_touch_target_height">40dp</dimen>
+    <!-- Dimension (height or width) of the InfoBar icon. -->
+    <dimen name="infobar_icon_size">31dp</dimen>
+
+</resources>

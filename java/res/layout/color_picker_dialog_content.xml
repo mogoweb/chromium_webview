@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright 2013 The Chromium Authors. All rights reserved.
+     Use of this source code is governed by a BSD-style license that can be
+     found in the LICENSE file.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="15dp">
+
+        <org.chromium.ui.ColorPickerAdvanced
+            android:id="@+id/color_picker_advanced"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <FrameLayout
+            android:id="@+id/color_picker_simple_border"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/color_picker_border"
+            android:paddingStart="1px"
+            android:paddingEnd="1px"
+            android:paddingTop="1px">
+
+            <org.chromium.ui.ColorPickerSimple
+                android:id="@+id/color_picker_simple"
+                android:layout_width="match_parent"
+                android:layout_height="100dp"/>
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/more_colors_button_border"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/color_picker_simple_border"
+            android:background="@drawable/color_picker_border"
+            android:padding="1px">
+
+            <org.chromium.ui.ColorPickerMoreButton
+                android:id="@+id/more_colors_button"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:textAppearance="?android:attr/textAppearanceSmall"
+                android:text="@string/color_picker_button_more" />
+        </FrameLayout>
+
+    </RelativeLayout>
+</ScrollView>
