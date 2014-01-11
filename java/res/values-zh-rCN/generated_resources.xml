@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+<string name="cancel">"取消"</string>
+<string name="http_post_warning">"您所查找的网页要使用已输入的信息。返回此页可能需要重复已进行的所有操作。是否要继续操作？"</string>
+<string name="http_post_warning_resend">"继续"</string>
+<string name="firstrun_signed_in_title">"现在，您已登录 Chrome。"</string>
+<string name="firstrun_signed_in_description">"系统正在将您打开的标签页、保存的书签、历史记录等信息同步到您的 Google 帐户。"</string>
+<string name="sad_tab_title">"喔唷，崩溃啦！"</string>
+<string name="sad_tab_message">"显示此网页时出现了错误。要继续浏览，请重新加载或转到其他网页。"</string>
+<string name="sad_tab_help_message">"如果您频繁遇到此问题，请尝试这些$1。"</string>
+<string name="sad_tab_help_link">"建议"</string>
+<string name="sad_tab_reload_label">"重新加载"</string>
+<string name="options_startup_pages_placeholder">"输入网址..."</string>
+</resources>

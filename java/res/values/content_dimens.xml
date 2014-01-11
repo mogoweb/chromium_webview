@@ -6,6 +6,6 @@
 -->
 
 <resources>
-    <!-- Certificate Viewer Dimensions -->
-    <dimen name="certificate_viewer_padding">20dp</dimen>
+    <!-- Link Preview dimensions -->
+    <dimen name="link_preview_overlay_radius">7dp</dimen>
 </resources>

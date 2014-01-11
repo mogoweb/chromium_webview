@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+<string name="cancel">"Cancel"</string>
+<string name="http_post_warning">"The page that you\'re looking for used information that you entered. Returning to that page might cause any action you took to be repeated. Do you want to continue?"</string>
+<string name="http_post_warning_resend">"Continue"</string>
+<string name="firstrun_signed_in_title">"You\'re now signed in to Chrome."</string>
+<string name="firstrun_signed_in_description">"Your open tabs, bookmarks, history, and more are being synced with your Google Account."</string>
+<string name="sad_tab_title">"Aw, Snap!"</string>
+<string name="sad_tab_message">"Something went wrong while displaying this webpage. To continue, reload or go to another page."</string>
+<string name="sad_tab_help_message">"If you\'re seeing this frequently, try these $1."</string>
+<string name="sad_tab_help_link">"suggestions"</string>
+<string name="sad_tab_reload_label">"Reload"</string>
+<string name="options_startup_pages_placeholder">"Enter URL..."</string>
+</resources>

@@ -70,8 +70,19 @@ rsync -avz ${CHROMIUM_SRC}/out/assets/chromium_testshell/zh-CN.pak ${CHROMIUMVIE
 arm-linux-androideabi-strip --strip-unneeded -o ${CHROMIUMVIEW_PROJECT_ROOT}/libs/armeabi-v7a/libchromeview.so ${CHROMIUM_SRC}/out/${BUILDTYPE}/lib/libchromeview.so
 
 # Resources.
-rsync -avz ${CHROMIUM_SRC}/content/public/android/java/resource_map/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
-rsync -avz ${CHROMIUM_SRC}/ui/android/java/resource_map/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
+#rsync -avz ${CHROMIUM_SRC}/content/public/android/java/resource_map/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
+#rsync -avz ${CHROMIUM_SRC}/ui/android/java/resource_map/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
+rsync -avz ${CHROMIUM_SRC}/chrome/android/java/res/ ${CHROMIUMVIEW_PROJECT_ROOT}/res/
+rsync -avz ${CHROMIUM_SRC}/content/public/android/java/res/ ${CHROMIUMVIEW_PROJECT_ROOT}/res/
+rsync -avz ${CHROMIUM_SRC}/ui/android/java/res/ ${CHROMIUMVIEW_PROJECT_ROOT}/res/
+rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/gen/content_java/res_grit/values/ ${CHROMIUMVIEW_PROJECT_ROOT}/res/values/
+rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/gen/content_java/res_grit/values-zh-rCN/ ${CHROMIUMVIEW_PROJECT_ROOT}/res/values-zh-rCN/
+rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/gen/ui_java/res_grit/values/ ${CHROMIUMVIEW_PROJECT_ROOT}/res/values/
+rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/gen/ui_java/res_grit/values-zh-rCN/ ${CHROMIUMVIEW_PROJECT_ROOT}/res/values-zh-rCN/
+rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/gen/chrome_java/res_grit/values/ ${CHROMIUMVIEW_PROJECT_ROOT}/res/values/
+rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/gen/chrome_java/res_grit/values-zh-rCN/ ${CHROMIUMVIEW_PROJECT_ROOT}/res/values-zh-rCN/
+rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/gen/chrome/java/res/values/ ${CHROMIUMVIEW_PROJECT_ROOT}/res/values/
+rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/gen/chrome/java/res/values-zh-rCN/ ${CHROMIUMVIEW_PROJECT_ROOT}/res/values-zh-rCN/
 
 # ContentView dependencies.
 rsync -avz ${CHROMIUM_SRC}/base/android/java/src/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
@@ -95,7 +106,7 @@ rsync -avz ${CHROMIUM_SRC}/components/navigation_interception/android/java/src/ 
 rsync -avz ${CHROMIUM_SRC}/components/autofill/core/browser/android/java/src/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
 
 # chrome resources.
-rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/gen/chrome_java/java_R/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/ 
+#rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/gen/chrome_java/java_R/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/ 
 
 # Generated files.
 rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/gen/templates/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/

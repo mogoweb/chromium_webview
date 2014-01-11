@@ -22,7 +22,6 @@ package com.mogoweb.chrome;
 
 import java.util.Map;
 
-import org.chromium.chrome.browser.ContentViewUtil;
 import org.chromium.content.browser.ContentView;
 import org.chromium.content.browser.ContentViewCore;
 import org.chromium.content.browser.ContentViewRenderView;
@@ -821,7 +820,7 @@ public class WebView extends FrameLayout {
      *              history
      */
     public boolean canGoBackOrForward(int steps) {
-        return false;//return mContentView.canGoBackOrForward(steps);
+        return mContentViewCore.canGoToOffset(steps);
     }
 
     /**
@@ -833,7 +832,7 @@ public class WebView extends FrameLayout {
      *              forward list
      */
     public void goBackOrForward(int steps) {
-//        mContentView.goBackOrForward(steps);
+        mContentViewCore.goToOffset(steps);
     }
 
     /**

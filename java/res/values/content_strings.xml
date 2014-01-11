@@ -7,8 +7,8 @@
 
 <!-- DO NOT ADD STRINGS HERE.
 
-    Android chrome strings now live in
-    chrome/android/java/strings/android_chrome_strings.grd
+    Android content strings now live in
+    content/public/android/java/strings/android_content_strings.grd
 
     See http://www.chromium.org/developers/design-documents/ui-localization
 -->

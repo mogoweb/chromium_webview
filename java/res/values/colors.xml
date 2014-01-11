@@ -1,10 +1,87 @@
 <?xml version="1.0" encoding="utf-8"?>
+
 <!-- Copyright 2013 The Chromium Authors. All rights reserved.
 
      Use of this source code is governed by a BSD-style license that can be
      found in the LICENSE file.
 -->
-<resources>
-    <color name="color_picker_border_color">#B0B0B0</color>
-</resources>
 
+<resources>
+    <!-- LocationBar colors -->
+    <color name="locationbar_default_text">#111111</color>
+    <color name="locationbar_start_scheme_default">#a1a1a1</color>
+    <color name="locationbar_start_scheme_security_warning">#808080</color>
+    <color name="locationbar_start_scheme_security_error">#dd4b39</color>
+    <color name="locationbar_start_scheme_ev_secure">#009933</color>
+    <color name="locationbar_start_scheme_secure">#009933</color>
+    <color name="locationbar_scheme_to_domain">#a1a1a1</color>
+    <color name="locationbar_domain_and_registry">#111111</color>
+    <color name="locationbar_trailing_url">#a1a1a1</color>
+    <!-- The color of the divider between omnibox suggestions. -->
+    <color name="omnibox_divider">#cccccc</color>
+
+    <!-- Tab Count Colors -->
+    <color name="toolbar_tab_count_color">#717171</color>
+    <color name="toolbar_incognito_tab_count_color">#f8f8f8</color>
+    <color name="toolbar_switcher_tab_count_color">#f8f8f8</color>
+
+    <!-- Toolbar color -->
+    <color name="toolbar_color">#e0e0e0</color>
+
+    <!-- Find in Page colors -->
+    <color name="find_result_bar_background_color">#bfffffff</color>
+    <color name="find_result_bar_background_border_color">#bf666666</color>
+    <color name="find_result_bar_result_color">#ffde43</color>
+    <color name="find_result_bar_result_border_color">#c9af35</color>
+    <color name="find_result_bar_active_color">#ff9632</color>
+    <color name="find_result_bar_active_border_color">#c37e3b</color>
+    <color name="find_result_bar_no_results_background_color">#ff5f5f</color>
+
+    <!-- Colors were copied from browser/views/infobars/infobars.cc -->
+    <color name="infobar_text">#000000</color>
+    <color name="infobar_info_background_separator">#afafaf</color>
+    <color name="infobar_warning_background_separator">#ccb771</color>
+
+    <!-- Tab Switcher Colors -->
+    <color name="tab_switcher_background">#111111</color>
+    <color name="tab_title_bar_text">#555555</color>
+    <color name="tab_title_bar_text_incognito">#FFFFFFFF</color>
+    <color name="tab_title_bar_shadow">#AAFFFFFF</color>
+    <color name="tab_title_bar_shadow_incognito">#88000000</color>
+    <color name="tab_back">#D9D9D9</color>
+    <color name="tab_back_incognito">#4D5872</color>
+
+    <!-- First Run Experience Colors -->
+    <color name="fre_background_color">#f4f4f4</color>
+    <color name="fre_thin_line_color">#e4e5e7</color>
+    <color name="fre_text_color">#000000</color>
+    <color name="fre_positive_button_color">#FFFFFF</color>
+    <color name="fre_negative_button_color">#000000</color>
+
+    <!-- First Run colors for tablet -->
+    <color name="fre_text_color_tablet">#1e1e1e</color>
+    <color name="fre_light_text_color_tablet">#646464</color>
+    <color name="fre_negative_button_color_tablet">#545454</color>
+
+    <!-- App Launch Colors -->
+    <color name="light_background_color">#FFFFFF</color>
+
+    <!-- Data Reduction Colors -->
+    <color name="data_reduction_percent_color">#717171</color>
+
+    <!-- Button Colors -->
+    <color name="button_pressed">#ff77c5e1</color>
+    <color name="button_focused">#ffa9d0df</color>
+
+    <!-- Disabled Colors -->
+    <color name="disable_pref_activity">#808080</color>
+
+    <!-- Notification Colors -->
+    <drawable name="notification_icon_bg">#3333B5E5</drawable>
+
+    <!-- New Tab Page Colors -->
+    <color name="new_tab_page_bg">#f1f1f1</color>
+
+    <!-- WebappActivity colors -->
+    <color name="webapp_url_bar_scheme">#339922</color>
+</resources>

@@ -9,11 +9,10 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.Picture;
+import android.graphics.PixelFormat;
 import android.graphics.drawable.ClipDrawable;
 import android.os.Bundle;
 import android.text.TextUtils;
-import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -63,31 +62,14 @@ public class ShellActivity extends Activity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        getWindow().setFormat(PixelFormat.TRANSLUCENT);
+
         setContentView(R.layout.testshell_activity);
-
-        mWebView = createWebView();
-
         mToolbar = (LinearLayout)findViewById(R.id.toolbar);
         mProgressDrawable = (ClipDrawable) mToolbar.getBackground();
 
-//        mWebView.getSettings().setJavaScriptEnabled(true);
-
-        LinearLayout contentContainer = (LinearLayout) findViewById(R.id.content_container);
-        mWebView.setLayoutParams(new LinearLayout.LayoutParams(
-                LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT, 1f));
-        contentContainer.addView(mWebView);
-        mWebView.requestFocus();
-
         initializeUrlField();
         initializeNavigationButtons();
-
-        String startupUrl = getUrlFromIntent(getIntent());
-        if (TextUtils.isEmpty(startupUrl)) {
-            startupUrl = INITIAL_URL;
-        }
-
-        mWebView.loadUrl(startupUrl);
-        mUrlTextView.setText(startupUrl);
     }
 
     private WebView createWebView() {
@@ -119,6 +101,26 @@ public class ShellActivity extends Activity {
         webView.setWebViewClient(webViewClient);
         webView.setWebChromeClient(webChromeClient);
         return webView;
+    }
+
+    private void addWebView() {
+        mWebView = createWebView();
+
+//      mWebView.getSettings().setJavaScriptEnabled(true);
+
+        LinearLayout contentContainer = (LinearLayout) findViewById(R.id.content_container);
+        mWebView.setLayoutParams(new LinearLayout.LayoutParams(
+                LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT, 1f));
+        contentContainer.addView(mWebView);
+        mWebView.requestFocus();
+
+        String startupUrl = getUrlFromIntent(getIntent());
+        if (TextUtils.isEmpty(startupUrl)) {
+            startupUrl = INITIAL_URL;
+        }
+
+        mWebView.loadUrl(startupUrl);
+        mUrlTextView.setText(startupUrl);
     }
 
     private static String getUrlFromIntent(Intent intent) {
@@ -156,12 +158,12 @@ public class ShellActivity extends Activity {
         mUrlTextView.setOnFocusChangeListener(new OnFocusChangeListener() {
             @Override
             public void onFocusChange(View v, boolean hasFocus) {
-                setKeyboardVisibilityForUrl(hasFocus);
-                mNextButton.setVisibility(hasFocus ? View.GONE : View.VISIBLE);
-                mPrevButton.setVisibility(hasFocus ? View.GONE : View.VISIBLE);
-                if (!hasFocus) {
-                    mUrlTextView.setText(mWebView.getUrl());
-                }
+//                setKeyboardVisibilityForUrl(hasFocus);
+//                mNextButton.setVisibility(hasFocus ? View.GONE : View.VISIBLE);
+//                mPrevButton.setVisibility(hasFocus ? View.GONE : View.VISIBLE);
+//                if (!hasFocus) {
+//                    mUrlTextView.setText(mWebView.getUrl());
+//                }
             }
         });
     }
@@ -191,10 +193,11 @@ public class ShellActivity extends Activity {
         mCaptureButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                Picture picture = mWebView.capturePicture();
-                if (picture != null) {
-                    Log.d("ShellActivity", "capture success");
-                }
+//                Picture picture = mWebView.capturePicture();
+//                if (picture != null) {
+//                    Log.d("ShellActivity", "capture success");
+//                }
+                addWebView();
             }
         });
     }
