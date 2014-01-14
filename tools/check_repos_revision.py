@@ -102,13 +102,42 @@ class DEPSParser:
         subdir = dep
         if subdir.startswith('src/'):
           subdir = subdir[4:]
-        if subdir.startswith('src'):
+        if subdir.startswith('src') or subdir.startswith('build'):
           # Ignore the information about src.
           continue
         if len(rev) == 40: # Length of a git shasum
           # ignore git sub module
           continue
         submodule = Submodule(subdir, os, rev)
+        submodule.repo = repo
+        # We need to parse the svn branch and revision number.
+        ref = repo
+        # Try to find out the branch.
+        ref_path = repo.split('branches/')
+        if len(ref_path) > 1:
+          ref = ref_path[1]
+
+        if 'trunk' in ref or 'svn' in ref:
+          # Trunk is used, so we can use the remote master.
+          ref = 'master'
+        name_path = subdir.split('/')
+        if len(name_path) > 1:
+          # At this point some svn repository paths still include the repo name
+          # after the actual branch so we have to strip it together with the leading /
+          name = name_path[-1]
+          if ref.endswith(name):
+            branch = ref[:-(len(name) + 1)]
+            ref = 'refs/branch-heads/' + branch
+          if name in ref:
+            # At this point the last partition in the path
+            # is the branch name, so compose the git ref.
+            branch = ref.split('/')[-1]
+            ref = 'refs/branch-heads/' + branch
+        if 'master' not in ref and 'refs/branch-heads' not in ref:
+          # Finally compose the refs that did not mach previous rules.
+          ref = 'refs/branch-heads/' + ref
+        submodule.ref = ref
+
         submodules.append(submodule)
     return submodules
 
@@ -141,16 +170,42 @@ class Submodule:
   def __init__(self, path='', os=[], revision=''):
     self.path = path
     self.os = os
+    self.repo = ''
     self.revision = revision
+    self.ref = ''
+    self.shasum = ''
 
   def CheckRevision(self, chromium_src):
     repo_path = os.path.join(chromium_src, self.path)
     git_svn_rev = FetchGitSVNRevision(repo_path)
     if git_svn_rev is not None and git_svn_rev != self.revision:
-      print "repo %s has wrong revision: expect %s but got %s" % (self.path, self.revision, git_svn_rev)
+      self.FindSha(chromium_src)
+      print "directory %s has wrong revision: expect %s but got %s" % (self.path, self.revision, git_svn_rev)
+      if self.shasum:
+        print "the git sha should be %s" % self.shasum
+      else:
+        print "you should manully process ref: %s" % self.ref
       return False
 
     return True
+
+  def FindSha(self, chromium_src):
+    repo_path = os.path.join(chromium_src, self.path)
+    oldCwd = os.getcwd()
+    os.chdir(repo_path)
+    if self.ref == "master":
+      # find out the correct git SHA from git-svn id
+      subprocess.call(['git', 'checkout', 'master', '--quiet'])
+      subprocess.call(['git','pull', '--quiet'])
+      search_string = ''
+      if self.revision:
+        search_string = '@' + str(self.revision) + ' '
+      if search_string:
+        line = subprocess.check_output(['git', 'log', '-n1', '--pretty=oneline', '--grep=' + search_string])
+        print line
+        if line:
+          self.shasum = line.split(' ')[0]
+    os.chdir(oldCwd)
 
 def main(argv=None):
   if argv is None:
@@ -174,7 +229,7 @@ def main(argv=None):
   else:
     chromium_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
 
-  ok = CheckRepoVersion(deps_file, chromium_dir)
+  CheckRepoVersion(deps_file, chromium_dir)
 
 if __name__ == '__main__':
   sys.exit(main())
