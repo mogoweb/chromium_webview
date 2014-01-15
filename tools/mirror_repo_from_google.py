@@ -64,6 +64,8 @@ repos = [
   'external/pymox',
   'external/v8-i18n',
   'chromium/cdm',
+  # tools for generate .DEPS.git from DEPS
+  'chromium/tools/deps2git',
 ]
 google_repo_root = 'https://chromium.googlesource.com/'
 local_repo_root = '/home/alex/gitroot/chromium'
