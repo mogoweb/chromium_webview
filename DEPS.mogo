@@ -6,8 +6,12 @@
 # Usually it's major.minor.build.patch
 # Use 'Trunk' for trunk.
 # If using trunk, will use '.DEPS.git' for gclient.
-chromium_version = '32.0.1700.58'
+chromium_version = '35.0.1916.17'
+chromium_crosswalk_point = 'cc7e42979a735ea2170dcb64786329f1468e829f'
+blink_crosswalk_point = '1b2c6bf2dfd6aa06e4c97b0581f9fb3e14c5ab5c'
 deps_mogo = {
+    'src': 'https://github.com/mogoweb/chromium-crosswalk.git@%s' % chromium_crosswalk_point,
+    'src/third_party/WebKit': 'https://github.com/mogoweb/blink-crosswalk.git%s' % blink_crosswalk_point,
 }
 vars_mogo = {
 }

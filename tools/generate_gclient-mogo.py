@@ -30,6 +30,9 @@ class GClientFileGenerator(object):
     self._vars = None
     self._chromium_version = None
     self._ParseDepsFile()
+    if not 'src' in self._deps:
+        raise RuntimeError("'src' not specified in deps file(%s)" % options.deps)
+    self._src_dep = self_deps['src']
     
     # self should be at src/chromeview/tools/fetch_deps.py
     # so src is at self/../../../
@@ -130,7 +133,7 @@ class GClientFileGenerator(object):
     self._AddIgnorePathFromEnv()
     solution = {
       'name': 'src',
-      'url': 'file:///home/alex/gitroot/chromium/src.git@refs/remotes/origin/dev_32_0_1700_58',
+      'url': 'http://src.chromium.org/svn/release/%s' % self._chromium_version,
       'custom_deps': self._deps,
     }
     if self._vars:
