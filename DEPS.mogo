@@ -11,7 +11,7 @@ chromium_crosswalk_point = 'c11bfe79ba4e87d3d72ec2d0e690d54f56e7998d'
 blink_crosswalk_point = '7d0f7549ced5f9c6cf372807b193abb10bc2cec6'
 deps_mogo = {
     'src': 'https://github.com/mogoweb/chromium-crosswalk.git@%s' % chromium_crosswalk_point,
-    'src/third_party/WebKit': 'https://github.com/mogoweb/blink-crosswalk.git%s' % blink_crosswalk_point,
+    'src/third_party/WebKit': 'https://github.com/mogoweb/blink-crosswalk.git@%s' % blink_crosswalk_point,
 }
 vars_mogo = {
 }
