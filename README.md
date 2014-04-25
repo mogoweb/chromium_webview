@@ -72,31 +72,37 @@ in the test folder. It is only a shell program that can navigate website.
 ### Download the source
 
 1. Create a source directory:
-
-```
-cd <home directory>
-mkdir chromium-src
-cd chromium-src
-```
+ 
+ ```
+ cd <home directory>
+ mkdir chromium-src
+ cd chromium-src
+ ```
 2. Auto-generate gclient's configuration file (.gclient):
-`
-gclient config --name=src/xwalk \
-  git://github.com/crosswalk-project/crosswalk.git
-```
-You can replace git:// with ssh://git@ to use your GitHub credentials when checking out the code.
+ 
+ ```
+ gclient config --name=src/chromeview git://github.com/mogoweb/chromium_webview.git
+ ```
+ You can replace git:// with ssh://git@ to use your GitHub credentials when checking out the code.
 3. From the same directory containing the .gclient file, fetch the source with:
-```
-gclient sync
-```
+ 
+ ```
+ gclient sync
+ ```
 
 ### Building libchromium_webview
 
 1. Setup build environment
-cd chromium-src
-source ./build/android/envsetup.sh
-
+ 
+ ```
+ cd chromium-src
+ source ./build/android/envsetup.sh
+ ```
 2. build android_webview_apk
-ninja -C out/Debug android_webview_apk -j8
+ 
+ ```
+ ninja -C out/Debug android_webview_apk -j8
+ ```
 
 ## Copyright and License
 
