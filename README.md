@@ -57,7 +57,48 @@ package name.
 There is a sample project to illustrate the usage of ChromiumWebView
 in the test folder. It is only a shell program that can navigate website.
 
-### Copyright and License
+## How to build libchromium_webview
+
+### Environment
+
+1. Please set up your build environment by following the instructions on the Chromium wiki:
+ * [Building on Linux](http://code.google.com/p/chromium/wiki/LinuxBuildInstructionsPrerequisites)
+2. You need to install extra pre-requisites to build for Android, covered in [building Chrome for Android](http://code.google.com/p/chromium/wiki/AndroidBuildInstructions#Install_prerequisites).
+3. [depot_tools](http://www.chromium.org/developers/how-tos/install-depot-tools) contains the following tools, used to manage and build Crosswalk from source:
+
+ * gclient manages code and dependencies.
+ * ninja is the recommended tool for building Crosswalk on most platforms. Its [website](http://code.google.com/p/chromium/wiki/NinjaBuild) contains detailed usage instructions.
+
+### Download the source
+
+1. Create a source directory:
+
+```
+cd <home directory>
+mkdir chromium-src
+cd chromium-src
+```
+2. Auto-generate gclient's configuration file (.gclient):
+`
+gclient config --name=src/xwalk \
+  git://github.com/crosswalk-project/crosswalk.git
+```
+You can replace git:// with ssh://git@ to use your GitHub credentials when checking out the code.
+3. From the same directory containing the .gclient file, fetch the source with:
+```
+gclient sync
+```
+
+### Building libchromium_webview
+
+1. Setup build environment
+cd chromium-src
+source ./build/android/envsetup.sh
+
+2. build android_webview_apk
+ninja -C out/Debug android_webview_apk -j8
+
+## Copyright and License
 
 The directories below contain code from the
 [The Chromium Project](http://www.chromium.org/), which is subject to the
