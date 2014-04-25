@@ -122,6 +122,8 @@ class GClientFileGenerator(object):
                  'src/third_party/yasm/source/patched-yasm',
                  'src/third_party/xdg-utils',
                  'src/third_party/scons-2.0.1',
+                 'src/third_party/WebKit/LayoutTests/w3c/web-platform-tests',
+                 'src/third_party/WebKit/LayoutTests/w3c/csswg-test'
                 ]
     else:
       ignores_str = ignores_str.replace(':', ';')
