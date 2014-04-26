@@ -28,7 +28,7 @@ class GClientFileGenerator(object):
       self._deps_file = os.path.join(self._mogo_dir, 'DEPS.mogo')
     self._deps = None
     self._vars = None
-    self._chromium_version = None
+    self._chromium_branch = None
     self._ParseDepsFile()
     if not 'src' in self._deps:
         raise RuntimeError("'src' not specified in deps file(%s)" % options.deps)
@@ -49,7 +49,7 @@ class GClientFileGenerator(object):
     execfile(self._deps_file, exec_globals)
     self._deps = exec_globals['deps_mogo']
     self._vars = exec_globals['vars_mogo']
-    self._chromium_version = exec_globals['chromium_version']
+    self._chromium_branch = exec_globals['chromium_branch']
 
   def _AddIgnorePathFromEnv(self):
     """Read paths from environ MOGO_SYNC_IGNORE.
@@ -114,11 +114,9 @@ class GClientFileGenerator(object):
                  'src/third_party/webpagereplay',
                  'src/third_party/webgl_conformance',
                  'src/third_party/webdriver/pylib',
-                 'src/third_party/usrsctp/usrsctplib',
                  'src/third_party/speex',
                  'src/third_party/safe_browsing/testing',
                  'src/tools/page_cycler/acid3',
-                 'src/tools/deps2git',
                  'src/third_party/yasm/source/patched-yasm',
                  'src/third_party/xdg-utils',
                  'src/third_party/scons-2.0.1',
@@ -135,7 +133,7 @@ class GClientFileGenerator(object):
     self._AddIgnorePathFromEnv()
     solution = {
       'name': 'src',
-      'url': 'http://src.chromium.org/svn/release/%s' % self._chromium_version,
+      'url': 'svn://svn.chromium.org/chrome/branches/%s/src' % self._chromium_branch,
       'custom_deps': self._deps,
     }
     if self._vars:
