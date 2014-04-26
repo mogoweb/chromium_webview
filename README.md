@@ -57,17 +57,17 @@ package name.
 There is a sample project to illustrate the usage of ChromiumWebView
 in the test folder. It is only a shell program that can navigate website.
 
-## How to build libchromium_webview
+## How to build libchromeview
 
 ### Environment
 
 1. Please set up your build environment by following the instructions on the Chromium wiki:
  * [Building on Linux](http://code.google.com/p/chromium/wiki/LinuxBuildInstructionsPrerequisites)
 2. You need to install extra pre-requisites to build for Android, covered in [building Chrome for Android](http://code.google.com/p/chromium/wiki/AndroidBuildInstructions#Install_prerequisites).
-3. [depot_tools](http://www.chromium.org/developers/how-tos/install-depot-tools) contains the following tools, used to manage and build Crosswalk from source:
+3. [depot_tools](http://www.chromium.org/developers/how-tos/install-depot-tools) contains the following tools, used to manage and build libchromeview from source:
 
- * gclient manages code and dependencies.
- * ninja is the recommended tool for building Crosswalk on most platforms. Its [website](http://code.google.com/p/chromium/wiki/NinjaBuild) contains detailed usage instructions.
+ * *gclient* manages code and dependencies.
+ * *ninja* is the recommended tool for building libchromeview on Android. Its [website](http://code.google.com/p/chromium/wiki/NinjaBuild) contains detailed usage instructions.
 
 ### Download the source
 
@@ -96,12 +96,13 @@ in the test folder. It is only a shell program that can navigate website.
  
  ```
  cd chromium-src
- source ./build/android/envsetup.sh
+ source ./chromeview/build/envsetup.sh
+ mogo_gyp
  ```
-2. build android_webview_apk
+2. build libchromeview
  
  ```
- ninja -C out/Debug android_webview_apk -j8
+ ninja -C out/Debug libchromeview -j8
  ```
 
 ## Copyright and License

@@ -6,7 +6,8 @@
     # A hook that can be overridden in other repositories to add additional
     # compilation targets to 'All'
     'android_app_targets%': [],
-  },
+    'chromium_code': 1,
+  }, 
   'targets': [
     {
       'target_name': 'All',
@@ -18,53 +19,13 @@
     {
       'target_name': 'libchromeview',
       'type': 'shared_library',
+      'android_unmangled_name': 1,
       'dependencies': [
-        '../base/base.gyp:base',
-        '../chrome/chrome.gyp:browser_ui',
-        '../chrome/chrome.gyp:chrome_android_core',
-        '../content/content.gyp:content_app_browser',
-        'chromeview_jni_headers'
+        '../android_webview/android_webview.gyp:android_webview_common',
       ],
       'sources': [
-        '../chrome/android/testshell/testshell_stubs.cc',
-        # This file must always be included in the shared_library step to ensure
-        # JNI_OnLoad is exported.
-        '../chrome/app/android/chrome_jni_onload.cc',
-        'native/chromeview_google_location_settings_helper.cc',
-        'native/chromeview_google_location_settings_helper.h',
-        'native/chromeview_main_delegate.cc',
-        'native/chromeview_main_delegate.h',
-        'native/chromeview_tab.cc',
-        'native/chromeview_tab.h',
+        '../android_webview/lib/main/webview_entry_point.cc',
       ],
-      'include_dirs': [
-        '<(SHARED_INTERMEDIATE_DIR)/chromeview',
-        '../skia/config',
-      ],
-      'conditions': [
-        [ 'order_profiling!=0', {
-          'conditions': [
-            [ 'OS=="android"', {
-              'dependencies': [ '../tools/cygprofile/cygprofile.gyp:cygprofile', ],
-            }],
-          ],
-        }],
-        [ 'android_use_tcmalloc==1', {
-          'dependencies': [
-            '../base/allocator/allocator.gyp:allocator', ],
-        }],
-      ],
-    },
-    {
-      'target_name': 'chromeview_jni_headers',
-      'type': 'none',
-      'sources': [
-        'java/src/com/mogoweb/chrome/impl/ChromeViewTab.java',
-      ],
-      'variables': {
-        'jni_gen_package': 'chromeview',
-      },
-      'includes': [ '../build/jni_generator.gypi' ],
     },
   ],
 }
