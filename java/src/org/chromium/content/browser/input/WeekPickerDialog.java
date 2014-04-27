@@ -19,7 +19,7 @@ public class WeekPickerDialog extends TwoFieldDatePickerDialog {
     public WeekPickerDialog(Context context,
              OnValueSetListener callBack,
             int year, int weekOfYear,
-            long minValue, long maxValue) {
+            double minValue, double maxValue) {
         this(context, 0, callBack, year, weekOfYear, minValue, maxValue);
     }
 
@@ -35,23 +35,14 @@ public class WeekPickerDialog extends TwoFieldDatePickerDialog {
              OnValueSetListener callBack,
             int year,
             int weekOfYear,
-            long minValue, long maxValue) {
+            double minValue, double maxValue) {
         super(context, theme, callBack, year, weekOfYear, minValue, maxValue);
         setTitle(R.string.week_picker_dialog_title);
     }
 
     @Override
-    protected TwoFieldDatePicker createPicker(Context context, long minValue, long maxValue) {
+    protected TwoFieldDatePicker createPicker(Context context, double minValue, double maxValue) {
         return new WeekPicker(context, minValue, maxValue);
-    }
-
-    @Override
-    protected void tryNotifyDateSet() {
-        if (mCallBack != null) {
-            WeekPicker picker = getWeekPicker();
-            picker.clearFocus();
-            mCallBack.onValueSet(picker.getYear(), picker.getWeek());
-        }
     }
 
     /**

@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -55,11 +55,16 @@ class MediaResourceGetter {
     }
 
     @CalledByNative
-    private static MediaMetadata extractMediaMetadata(Context context, String url, String cookies) {
+    private static MediaMetadata extractMediaMetadata(Context context, String url, String cookies,
+            String userAgent) {
         int durationInMilliseconds = 0;
         int width = 0;
         int height = 0;
         boolean success = false;
+        if ("GT-I9100".contentEquals(android.os.Build.MODEL)
+                && android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.JELLY_BEAN) {
+            return new MediaMetadata(0, 0, 0, success);
+        }
         // TODO(qinmin): use ConnectionTypeObserver to listen to the network type change.
         ConnectivityManager mConnectivityManager =
                 (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -94,16 +99,19 @@ class MediaResourceGetter {
                 String path = file.getAbsolutePath();
                 if (file.exists() && (path.startsWith("/mnt/sdcard/") ||
                         path.startsWith("/sdcard/") ||
-                        path.startsWith(PathUtils.getExternalStorageDirectory()))) {
+                        path.startsWith(PathUtils.getExternalStorageDirectory()) ||
+                        path.startsWith(context.getCacheDir().getAbsolutePath()))) {
                     retriever.setDataSource(path);
                 } else {
-                    Log.e(TAG, "Unable to read file: " + url);
                     return new MediaMetadata(durationInMilliseconds, width, height, success);
                 }
             } else {
                 HashMap<String, String> headersMap = new HashMap<String, String>();
                 if (!TextUtils.isEmpty(cookies)) {
                     headersMap.put("Cookie", cookies);
+                }
+                if (!TextUtils.isEmpty(userAgent)) {
+                    headersMap.put("User-Agent", userAgent);
                 }
                 retriever.setDataSource(url, headersMap);
             }

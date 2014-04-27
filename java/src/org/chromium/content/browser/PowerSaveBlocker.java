@@ -5,7 +5,7 @@
 package org.chromium.content.browser;
 
 import org.chromium.base.CalledByNative;
-import org.chromium.ui.ViewAndroid;
+import org.chromium.ui.base.ViewAndroid;
 
 class PowerSaveBlocker {
     @CalledByNative

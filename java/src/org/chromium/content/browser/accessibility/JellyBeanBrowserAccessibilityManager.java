@@ -5,7 +5,6 @@
 package org.chromium.content.browser.accessibility;
 
 import android.os.Bundle;
-import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityNodeProvider;
 
@@ -22,7 +21,7 @@ import java.util.List;
 public class JellyBeanBrowserAccessibilityManager extends BrowserAccessibilityManager {
     private AccessibilityNodeProvider mAccessibilityNodeProvider;
 
-    JellyBeanBrowserAccessibilityManager(int nativeBrowserAccessibilityManagerAndroid,
+    JellyBeanBrowserAccessibilityManager(long nativeBrowserAccessibilityManagerAndroid,
             ContentViewCore contentViewCore) {
         super(nativeBrowserAccessibilityManagerAndroid, contentViewCore);
 

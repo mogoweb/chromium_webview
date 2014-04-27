@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,6 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Vibrator;
-import android.provider.Settings;
 import android.speech.tts.TextToSpeech;
 import android.util.Log;
 import android.view.View;
@@ -22,14 +21,14 @@ import com.googlecode.eyesfree.braille.selfbraille.WriteData;
 
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
+import org.chromium.base.CommandLine;
 import org.chromium.content.browser.ContentViewCore;
 import org.chromium.content.browser.JavascriptInterface;
 import org.chromium.content.browser.WebContentsObserverAndroid;
-import org.chromium.content.common.CommandLine;
+import org.chromium.content.common.ContentSwitches;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
@@ -112,7 +111,8 @@ public class AccessibilityInjector extends WebContentsObserverAndroid {
         mContentViewCore = view;
 
         mAccessibilityScreenReaderUrl = CommandLine.getInstance().getSwitchValue(
-                CommandLine.ACCESSIBILITY_JAVASCRIPT_URL, DEFAULT_ACCESSIBILITY_SCREEN_READER_URL);
+                ContentSwitches.ACCESSIBILITY_JAVASCRIPT_URL,
+                DEFAULT_ACCESSIBILITY_SCREEN_READER_URL);
 
         mHasVibratePermission = mContentViewCore.getContext().checkCallingOrSelfPermission(
                 android.Manifest.permission.VIBRATE) == PackageManager.PERMISSION_GRANTED;
@@ -397,7 +397,7 @@ public class AccessibilityInjector extends WebContentsObserverAndroid {
             mView = view;
             mTextToSpeech = new TextToSpeech(context, null, null);
             mSelfBrailleClient = new SelfBrailleClient(context, CommandLine.getInstance().hasSwitch(
-                    CommandLine.ACCESSIBILITY_DEBUG_BRAILLE_SERVICE));
+                    ContentSwitches.ACCESSIBILITY_DEBUG_BRAILLE_SERVICE));
         }
 
         @JavascriptInterface

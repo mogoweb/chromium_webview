@@ -9,7 +9,6 @@ import android.app.SearchManager;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.database.ContentObserver;
@@ -23,13 +22,12 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.ResultReceiver;
+import android.os.SystemClock;
 import android.provider.Browser;
 import android.provider.Settings;
-import android.provider.Settings.Secure;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.util.Log;
-import android.util.Pair;
 import android.view.ActionMode;
 import android.view.HapticFeedbackConstants;
 import android.view.InputDevice;
@@ -38,7 +36,6 @@ import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.Window;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
@@ -54,7 +51,11 @@ import android.widget.FrameLayout;
 import com.google.common.annotations.VisibleForTesting;
 
 import org.chromium.base.CalledByNative;
+import org.chromium.base.CommandLine;
 import org.chromium.base.JNINamespace;
+import org.chromium.base.ObserverList;
+import org.chromium.base.ObserverList.RewindableIterator;
+import org.chromium.base.TraceEvent;
 import org.chromium.base.WeakContext;
 import org.chromium.content.R;
 import org.chromium.content.browser.ContentViewGestureHandler.MotionEventDelegate;
@@ -67,17 +68,22 @@ import org.chromium.content.browser.input.ImeAdapter.AdapterInputConnectionFacto
 import org.chromium.content.browser.input.InputMethodManagerWrapper;
 import org.chromium.content.browser.input.InsertionHandleController;
 import org.chromium.content.browser.input.SelectPopupDialog;
+import org.chromium.content.browser.input.SelectPopupItem;
 import org.chromium.content.browser.input.SelectionHandleController;
-import org.chromium.content.common.TraceEvent;
-import org.chromium.ui.ViewAndroid;
-import org.chromium.ui.ViewAndroidDelegate;
-import org.chromium.ui.WindowAndroid;
+import org.chromium.content.common.ContentSwitches;
+import org.chromium.content_public.browser.GestureStateListener;
+import org.chromium.content_public.browser.WebContents;
+import org.chromium.ui.base.ViewAndroid;
+import org.chromium.ui.base.ViewAndroidDelegate;
+import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.gfx.DeviceDisplayInfo;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -86,18 +92,8 @@ import java.util.Map;
  * being tied to the view system.
  */
 @JNINamespace("content")
-    public class ContentViewCore implements MotionEventDelegate,
-                                            NavigationClient,
-                                            AccessibilityStateChangeListener {
-    /**
-     * Indicates that input events are batched together and delivered just before vsync.
-     */
-    public static final int INPUT_EVENTS_DELIVERED_AT_VSYNC = 1;
-
-    /**
-     * Opposite of INPUT_EVENTS_DELIVERED_AT_VSYNC.
-     */
-    public static final int INPUT_EVENTS_DELIVERED_IMMEDIATELY = 0;
+public class ContentViewCore
+        implements MotionEventDelegate, NavigationClient, AccessibilityStateChangeListener {
 
     private static final String TAG = "ContentViewCore";
 
@@ -173,6 +169,11 @@ import java.util.Map;
         void super_onConfigurationChanged(Configuration newConfig);
 
         /**
+         * @see View#onScrollChanged(int, int, int, int)
+         */
+        void onScrollChanged(int lPix, int tPix, int oldlPix, int oldtPix);
+
+        /**
          * @see View#awakenScrollBars()
          */
         boolean awakenScrollBars();
@@ -181,37 +182,6 @@ import java.util.Map;
          * @see View#awakenScrollBars(int, boolean)
          */
         boolean super_awakenScrollBars(int startDelay, boolean invalidate);
-    }
-
-    /**
-     * An interface that allows the embedder to be notified when the pinch gesture starts and
-     * stops.
-     */
-    public interface GestureStateListener {
-        /**
-         * Called when the pinch gesture starts.
-         */
-        void onPinchGestureStart();
-
-        /**
-         * Called when the pinch gesture ends.
-         */
-        void onPinchGestureEnd();
-
-        /**
-         * Called when the fling gesture is sent.
-         */
-        void onFlingStartGesture(int vx, int vy);
-
-        /**
-         * Called when the fling cancel gesture is sent.
-         */
-        void onFlingCancelGesture();
-
-        /**
-         * Called when a fling event was not handled by the renderer.
-         */
-        void onUnhandledFlingStartEvent();
     }
 
     /**
@@ -235,20 +205,11 @@ import java.util.Map;
     }
 
     /**
-     * An interface that allows the embedder to be notified of changes to the parameters of the
-     * currently displayed contents.
-     * These notifications are consistent with respect to the UI thread (the size is the size of
-     * the contents currently displayed on screen).
+     * An interface that allows the embedder to be notified when the results of
+     * extractSmartClipData are available.
      */
-    public interface UpdateFrameInfoListener {
-        /**
-         * Called each time any of the parameters are changed.
-         *
-         * @param widthCss The content width in logical (CSS) pixels.
-         * @param heightCss The content height in logical (CSS) pixels.
-         * @param pageScaleFactor The page scale.
-         */
-        void onFrameInfoUpdated(float widthCss, float heightCss, float pageScaleFactor);
+    public interface SmartClipDataListener {
+        public void onSmartClipDataExtracted(String result);
     }
 
     private VSyncManager.Provider mVSyncProvider;
@@ -281,10 +242,9 @@ import java.util.Map;
             public void onVSync(long frameTimeMicros) {
                 animateIfNecessary(frameTimeMicros);
 
-                if (mDidSignalVSyncUsingInputEvent) {
-                    TraceEvent.instant("ContentViewCore::onVSync ignored");
-                    mDidSignalVSyncUsingInputEvent = false;
-                    return;
+                if (mRequestedVSyncForInput) {
+                    mRequestedVSyncForInput = false;
+                    removeVSyncSubscriber();
                 }
                 if (mNativeContentViewCore != 0) {
                     nativeOnVSync(mNativeContentViewCore, frameTimeMicros);
@@ -293,7 +253,7 @@ import java.util.Map;
         };
 
         if (mVSyncSubscriberCount > 0) {
-            // setVSyncNotificationEnabled(true) is called before getVSyncListener.
+            // addVSyncSubscriber() is called before getVSyncListener.
             vsyncProvider.registerVSyncListener(mVSyncListener);
             mVSyncListenerRegistered = true;
         }
@@ -302,27 +262,31 @@ import java.util.Map;
     }
 
     @CalledByNative
-    void setVSyncNotificationEnabled(boolean enabled) {
-        if (!isVSyncNotificationEnabled() && enabled) {
+    void addVSyncSubscriber() {
+        if (!isVSyncNotificationEnabled()) {
             mDidSignalVSyncUsingInputEvent = false;
         }
-        if (mVSyncProvider != null) {
-            if (!mVSyncListenerRegistered && enabled) {
-                mVSyncProvider.registerVSyncListener(mVSyncListener);
-                mVSyncListenerRegistered = true;
-            } else if (mVSyncSubscriberCount == 1 && !enabled) {
-                assert mVSyncListenerRegistered;
-                mVSyncProvider.unregisterVSyncListener(mVSyncListener);
-                mVSyncListenerRegistered = false;
-            }
+        if (mVSyncProvider != null && !mVSyncListenerRegistered) {
+            mVSyncProvider.registerVSyncListener(mVSyncListener);
+            mVSyncListenerRegistered = true;
         }
-        mVSyncSubscriberCount += enabled ? 1 : -1;
+        mVSyncSubscriberCount++;
+    }
+
+    @CalledByNative
+    void removeVSyncSubscriber() {
+        if (mVSyncProvider != null && mVSyncSubscriberCount == 1) {
+            assert mVSyncListenerRegistered;
+            mVSyncProvider.unregisterVSyncListener(mVSyncListener);
+            mVSyncListenerRegistered = false;
+        }
+        mVSyncSubscriberCount--;
         assert mVSyncSubscriberCount >= 0;
     }
 
     @CalledByNative
     private void resetVSyncNotification() {
-        while (isVSyncNotificationEnabled()) setVSyncNotificationEnabled(false);
+        while (isVSyncNotificationEnabled()) removeVSyncSubscriber();
         mVSyncSubscriberCount = 0;
         mVSyncListenerRegistered = false;
         mNeedAnimate = false;
@@ -336,13 +300,14 @@ import java.util.Map;
     private void setNeedsAnimate() {
         if (!mNeedAnimate) {
             mNeedAnimate = true;
-            setVSyncNotificationEnabled(true);
+            addVSyncSubscriber();
         }
     }
 
     private final Context mContext;
     private ViewGroup mContainerView;
     private InternalAccessDelegate mContainerViewInternals;
+    private WebContents mWebContents;
     private WebContentsObserverAndroid mWebContentsObserver;
 
     private ContentViewClient mContentViewClient;
@@ -350,17 +315,13 @@ import java.util.Map;
     private ContentSettings mContentSettings;
 
     // Native pointer to C++ ContentViewCoreImpl object which will be set by nativeInit().
-    private int mNativeContentViewCore = 0;
+    private long mNativeContentViewCore = 0;
 
-    private boolean mAttachedToWindow = false;
-
-    // Pid of the renderer process backing this ContentViewCore.
-    private int mPid = 0;
+    private boolean mInForeground = false;
 
     private ContentViewGestureHandler mContentViewGestureHandler;
-    private GestureStateListener mGestureStateListener;
-    private UpdateFrameInfoListener mUpdateFrameInfoListener;
-    private ZoomManager mZoomManager;
+    private final ObserverList<GestureStateListener> mGestureStateListeners;
+    private final RewindableIterator<GestureStateListener> mGestureStateListenersIterator;
     private ZoomControlsDelegate mZoomControlsDelegate;
 
     private PopupZoomer mPopupZoomer;
@@ -377,6 +338,9 @@ import java.util.Map;
 
     private Runnable mDeferredHandleFadeInRunnable;
 
+    private PositionObserver mPositionObserver;
+    private PositionObserver.Listener mPositionListener;
+
     // Size of the viewport in physical pixels as set from onSizeChanged.
     private int mViewportWidthPix;
     private int mViewportHeightPix;
@@ -385,6 +349,8 @@ import java.util.Map;
     private int mOverdrawBottomHeightPix;
     private int mViewportSizeOffsetWidthPix;
     private int mViewportSizeOffsetHeightPix;
+    private int mLocationInWindowX;
+    private int mLocationInWindowY;
 
     // Cached copy of all positions and scales as reported by the renderer.
     private final RenderCoordinates mRenderCoordinates;
@@ -427,13 +393,8 @@ import java.util.Map;
     private boolean mUnfocusOnNextSizeChanged = false;
     private final Rect mFocusPreOSKViewportRect = new Rect();
 
-    private boolean mNeedUpdateOrientationChanged;
-
     // Used to keep track of whether we should try to undo the last zoom-to-textfield operation.
     private boolean mScrolledAndZoomedFocusedEditableNode = false;
-
-    // Whether we use hardware-accelerated drawing.
-    private boolean mHardwareAccelerated = false;
 
     // Whether we received a new frame since consumePendingRendererFrame() was last called.
     private boolean mPendingRendererFrame = false;
@@ -441,8 +402,45 @@ import java.util.Map;
     // Whether we should animate at the next vsync tick.
     private boolean mNeedAnimate = false;
 
+    // Whether we requested a proactive vsync event in response to touch input.
+    // This reduces the latency of responding to input by ensuring the renderer
+    // is sent a BeginFrame for every touch event we receive. Otherwise the
+    // renderer's SetNeedsBeginFrame message would get serviced at the next
+    // vsync.
+    private boolean mRequestedVSyncForInput = false;
+
+    // Used for tracking UMA ActionAfterDoubleTap to tell user's immediate
+    // action after a double tap.
+    private long mLastDoubleTapTimeMs;
+
+    // On single tap this will store the x, y coordinates of the touch.
+    private int mSingleTapX;
+    private int mSingleTapY;
+
     private ViewAndroid mViewAndroid;
 
+    private SmartClipDataListener mSmartClipDataListener = null;
+
+    /** ActionAfterDoubleTap defined in tools/metrics/histograms/histograms.xml. */
+    private static class UMAActionAfterDoubleTap {
+        public static final int NAVIGATE_BACK = 0;
+        public static final int NAVIGATE_STOP = 1;
+        public static final int NO_ACTION = 2;
+        public static final int COUNT = 3;
+    }
+
+    /** TapDelayType defined in tools/metrics/histograms/histograms.xml. */
+    private static class UMASingleTapType {
+        public static final int DELAYED_TAP = 0;
+        public static final int UNDELAYED_TAP = 1;
+        public static final int COUNT = 2;
+    }
+
+    /**
+     * Used by UMA stat for tracking accidental double tap navigations. Specifies the amount of
+     * time after a double tap within which actions will be recorded to the UMA stat.
+     */
+    private static final long ACTION_AFTER_DOUBLE_TAP_WINDOW_MS = 5000;
 
     /**
      * Constructs a new ContentViewCore. Embedders must call initialize() after constructing
@@ -465,6 +463,8 @@ import java.util.Map;
         mInsertionHandlePoint = mRenderCoordinates.createNormalizedPoint();
         mAccessibilityManager = (AccessibilityManager)
                 getContext().getSystemService(Context.ACCESSIBILITY_SERVICE);
+        mGestureStateListeners = new ObserverList<GestureStateListener>();
+        mGestureStateListenersIterator = mGestureStateListeners.rewindableIterator();
     }
 
     /**
@@ -480,6 +480,13 @@ import java.util.Map;
      */
     public ViewGroup getContainerView() {
         return mContainerView;
+    }
+
+    /**
+     * @return The WebContents currently being rendered.
+     */
+    public WebContents getWebContents() {
+        return mWebContents;
     }
 
     /**
@@ -522,7 +529,7 @@ import java.util.Map;
             @SuppressWarnings("deprecation")  // AbsoluteLayout.LayoutParams
             public void setAnchorViewPosition(
                     View view, float x, float y, float width, float height) {
-                assert(view.getParent() == mContainerView);
+                assert view.getParent() == mContainerView;
 
                 float scale = (float) DeviceDisplayInfo.create(getContext()).getDIPScale();
 
@@ -551,7 +558,7 @@ import java.util.Map;
 
                     android.widget.AbsoluteLayout.LayoutParams lp =
                             new android.widget.AbsoluteLayout.LayoutParams(
-                                scaledWidth, (int)(height * scale), leftMargin, topMargin);
+                                scaledWidth, (int) (height * scale), leftMargin, topMargin);
                     view.setLayoutParams(lp);
                 } else {
                     Log.e(TAG, "Unknown layout " + mContainerView.getClass().getName());
@@ -563,6 +570,11 @@ import java.util.Map;
                 mContainerView.removeView(anchorView);
             }
         };
+    }
+
+    @VisibleForTesting
+    public void setImeAdapterForTest(ImeAdapter imeAdapter) {
+        mImeAdapter = imeAdapter;
     }
 
     @VisibleForTesting
@@ -619,6 +631,8 @@ import java.util.Map;
                                     // If OSK is newly shown, delay the form focus until
                                     // the onSizeChanged (in order to adjust relative to the
                                     // new size).
+                                    // TODO(jdduke): We should not assume that onSizeChanged will
+                                    // always be called, crbug.com/294908.
                                     getContainerView().getWindowVisibleDisplayFrame(
                                             mFocusPreOSKViewportRect);
                                 } else if (resultCode ==
@@ -633,50 +647,6 @@ import java.util.Map;
                     }
                 }
         );
-    }
-
-    /**
-     * Returns true if the given Activity has hardware acceleration enabled
-     * in its manifest, or in its foreground window.
-     *
-     * TODO(husky): Remove when initialize() is refactored (see TODO there)
-     * TODO(dtrainor) This is still used by other classes.  Make sure to pull some version of this
-     * out before removing it.
-     */
-    public static boolean hasHardwareAcceleration(Activity activity) {
-        // Has HW acceleration been enabled manually in the current window?
-        Window window = activity.getWindow();
-        if (window != null) {
-            if ((window.getAttributes().flags
-                    & WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED) != 0) {
-                return true;
-            }
-        }
-
-        // Has HW acceleration been enabled in the manifest?
-        try {
-            ActivityInfo info = activity.getPackageManager().getActivityInfo(
-                    activity.getComponentName(), 0);
-            if ((info.flags & ActivityInfo.FLAG_HARDWARE_ACCELERATED) != 0) {
-                return true;
-            }
-        } catch (PackageManager.NameNotFoundException e) {
-            Log.e("Chrome", "getActivityInfo(self) should not fail");
-        }
-
-        return false;
-    }
-
-    /**
-     * Returns true if the given Context is a HW-accelerated Activity.
-     *
-     * TODO(husky): Remove when initialize() is refactored (see TODO there)
-     */
-    private static boolean hasHardwareAcceleration(Context context) {
-        if (context instanceof Activity) {
-            return hasHardwareAcceleration((Activity) context);
-        }
-        return false;
     }
 
     /**
@@ -697,37 +667,43 @@ import java.util.Map;
     // Note that the caller remains the owner of the nativeWebContents and is responsible for
     // deleting it after destroying the ContentViewCore.
     public void initialize(ViewGroup containerView, InternalAccessDelegate internalDispatcher,
-            int nativeWebContents, WindowAndroid windowAndroid,
-            int inputEventDeliveryMode) {
-        // Check whether to use hardware acceleration. This is a bit hacky, and
-        // only works if the Context is actually an Activity (as it is in the
-        // Chrome application).
-        //
-        // What we're doing here is checking whether the app has *requested*
-        // hardware acceleration by setting the appropriate flags. This does not
-        // necessarily mean we're going to *get* hardware acceleration -- that's
-        // up to the Android framework.
-        //
-        // TODO(husky): Once the native code has been updated so that the
-        // HW acceleration flag can be set dynamically (Grace is doing this),
-        // move this check into onAttachedToWindow(), where we can test for
-        // HW support directly.
-        mHardwareAccelerated = hasHardwareAcceleration(mContext);
-
+            long nativeWebContents, WindowAndroid windowAndroid) {
         mContainerView = containerView;
+        mPositionObserver = new ViewPositionObserver(mContainerView);
+        mPositionListener = new PositionObserver.Listener() {
+            @Override
+            public void onPositionChanged(int x, int y) {
+                if (isSelectionHandleShowing() || isInsertionHandleShowing()) {
+                    temporarilyHideTextHandles();
+                }
+            }
+        };
 
-        int windowNativePointer = windowAndroid != null ? windowAndroid.getNativePointer() : 0;
+        long windowNativePointer = windowAndroid != null ? windowAndroid.getNativePointer() : 0;
 
-        int viewAndroidNativePointer = 0;
+        long viewAndroidNativePointer = 0;
         if (windowNativePointer != 0) {
             mViewAndroid = new ViewAndroid(windowAndroid, getViewAndroidDelegate());
             viewAndroidNativePointer = mViewAndroid.getNativePointer();
         }
 
-        mNativeContentViewCore = nativeInit(mHardwareAccelerated,
+        // Note ContentViewGestureHandler initialization must occur before nativeInit
+        // because nativeInit may callback into hasTouchEventHandlers.
+        mContentViewGestureHandler = new ContentViewGestureHandler(mContext, this);
+        mZoomControlsDelegate = new ZoomControlsDelegate() {
+            @Override
+            public void invokeZoomPicker() {}
+            @Override
+            public void dismissZoomPicker() {}
+            @Override
+            public void updateZoomControls() {}
+        };
+
+        mNativeContentViewCore = nativeInit(
                 nativeWebContents, viewAndroidNativePointer, windowNativePointer);
+        mWebContents = nativeGetWebContentsAndroid(mNativeContentViewCore);
         mContentSettings = new ContentSettings(this, mNativeContentViewCore);
-        initializeContainerView(internalDispatcher, inputEventDeliveryMode);
+        initializeContainerView(internalDispatcher);
 
         mAccessibilityInjector = AccessibilityInjector.newInstance(this);
 
@@ -747,13 +723,22 @@ import java.util.Map;
             }
         };
 
-        mPid = nativeGetCurrentRenderProcessId(mNativeContentViewCore);
+        sendOrientationChangeEvent();
     }
 
     @CalledByNative
-    void onNativeContentViewCoreDestroyed(int nativeContentViewCore) {
+    void onNativeContentViewCoreDestroyed(long nativeContentViewCore) {
         assert nativeContentViewCore == mNativeContentViewCore;
         mNativeContentViewCore = 0;
+    }
+
+    /**
+     * Set the Container view Internals.
+     * @param internalDispatcher Handles dispatching all hidden or super methods to the
+     *                           containerView.
+     */
+    public void setContainerViewInternals(InternalAccessDelegate internalDispatcher) {
+        mContainerViewInternals = internalDispatcher;
     }
 
     /**
@@ -762,34 +747,22 @@ import java.util.Map;
      * @param internalDispatcher Handles dispatching all hidden or super methods to the
      *                           containerView.
      */
-    private void initializeContainerView(InternalAccessDelegate internalDispatcher,
-            int inputEventDeliveryMode) {
+    private void initializeContainerView(InternalAccessDelegate internalDispatcher) {
         TraceEvent.begin();
         mContainerViewInternals = internalDispatcher;
 
         mContainerView.setWillNotDraw(false);
         mContainerView.setClickable(true);
 
-        mZoomManager = new ZoomManager(mContext, this);
-        mContentViewGestureHandler = new ContentViewGestureHandler(mContext, this, mZoomManager,
-                inputEventDeliveryMode);
-        mZoomControlsDelegate = new ZoomControlsDelegate() {
-            @Override
-            public void invokeZoomPicker() {}
-            @Override
-            public void dismissZoomPicker() {}
-            @Override
-            public void updateZoomControls() {}
-        };
-
         mRenderCoordinates.reset();
+        onRenderCoordinatesUpdated();
 
         initPopupZoomer(mContext);
         mImeAdapter = createImeAdapter(mContext);
         TraceEvent.end();
     }
 
-    private void initPopupZoomer(Context context){
+    private void initPopupZoomer(Context context) {
         mPopupZoomer = new PopupZoomer(context);
         mPopupZoomer.setOnVisibilityChangedListener(new PopupZoomer.OnVisibilityChangedListener() {
             @Override
@@ -856,6 +829,7 @@ import java.util.Map;
         if (mNativeContentViewCore != 0) {
             nativeOnJavaContentViewCoreDestroyed(mNativeContentViewCore);
         }
+        mWebContents = null;
         resetVSyncNotification();
         mVSyncProvider = null;
         if (mViewAndroid != null) mViewAndroid.destroy();
@@ -864,6 +838,7 @@ import java.util.Map;
         mJavaScriptInterfaces.clear();
         mRetainedJavaScriptObjects.clear();
         unregisterAccessibilityContentObserver();
+        mGestureStateListeners.clear();
     }
 
     private void unregisterAccessibilityContentObserver() {
@@ -888,19 +863,8 @@ import java.util.Map;
      * @return native ContentViewCore pointer.
      */
     @CalledByNative
-    public int getNativeContentViewCore() {
+    public long getNativeContentViewCore() {
         return mNativeContentViewCore;
-    }
-
-    /**
-     * For internal use. Throws IllegalStateException if mNativeContentView is 0.
-     * Use this to ensure we get a useful Java stack trace, rather than a native
-     * crash dump, from use-after-destroy bugs in Java code.
-     */
-    void checkIsAlive() throws IllegalStateException {
-        if (!isAlive()) {
-            throw new IllegalStateException("ContentView used after destroy() was called");
-        }
     }
 
     public void setContentViewClient(ContentViewClient client) {
@@ -961,6 +925,7 @@ import java.util.Map;
      * Stops loading the current web contents.
      */
     public void stopLoading() {
+        reportActionAfterDoubleTapUMA(UMAActionAfterDoubleTap.NAVIGATE_STOP);
         if (mNativeContentViewCore != 0) nativeStopLoading(mNativeContentViewCore);
     }
 
@@ -1072,70 +1037,20 @@ import java.util.Map;
         return mRenderCoordinates.getContentWidthCss();
     }
 
-    public Bitmap getBitmap() {
-        return getBitmap(getViewportWidthPix(), getViewportHeightPix());
-    }
-
-    public Bitmap getBitmap(int width, int height) {
-        if (width == 0 || height == 0
-                || getViewportWidthPix() == 0 || getViewportHeightPix() == 0) {
-            return null;
-        }
-
-        Bitmap b = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-
-        if (mNativeContentViewCore != 0 &&
-                nativePopulateBitmapFromCompositor(mNativeContentViewCore, b)) {
-            // If we successfully grabbed a bitmap, check if we have to draw the Android overlay
-            // components as well.
-            if (mContainerView.getChildCount() > 0) {
-                Canvas c = new Canvas(b);
-                c.scale(width / (float) getViewportWidthPix(),
-                        height / (float) getViewportHeightPix());
-                mContainerView.draw(c);
-            }
-            return b;
-        }
-
-        return null;
-    }
-
-    /**
-     * Generates a bitmap of the content that is performance optimized based on capture time.
-     *
-     * <p>
-     * To have a consistent capture time across devices, we will scale down the captured bitmap
-     * where necessary to reduce the time to generate the bitmap.
-     *
-     * @param width The width of the content to be captured.
-     * @param height The height of the content to be captured.
-     * @return A pair of the generated bitmap, and the scale that needs to be applied to return the
-     *         bitmap to it's original size (i.e. if the bitmap is scaled down 50%, this
-     *         will be 2).
-     */
-    public Pair<Bitmap, Float> getScaledPerformanceOptimizedBitmap(int width, int height) {
-        float scale = 1f;
-        // On tablets, always scale down to MDPI for performance reasons.
-        if (DeviceUtils.isTablet(getContext())) {
-            scale = getContext().getResources().getDisplayMetrics().density;
-        }
-        return Pair.create(
-                getBitmap((int) (width / scale), (int) (height / scale)),
-                scale);
-    }
-
+    // TODO(teddchoc): Remove all these navigation controller methods from here and have the
+    //                 embedders manage it.
     /**
      * @return Whether the current WebContents has a previous navigation entry.
      */
     public boolean canGoBack() {
-        return mNativeContentViewCore != 0 && nativeCanGoBack(mNativeContentViewCore);
+        return mWebContents != null && mWebContents.getNavigationController().canGoBack();
     }
 
     /**
      * @return Whether the current WebContents has a navigation entry after the current one.
      */
     public boolean canGoForward() {
-        return mNativeContentViewCore != 0 && nativeCanGoForward(mNativeContentViewCore);
+        return mWebContents != null && mWebContents.getNavigationController().canGoForward();
     }
 
     /**
@@ -1143,7 +1058,8 @@ import java.util.Map;
      * @return Whether we can move in history by given offset
      */
     public boolean canGoToOffset(int offset) {
-        return mNativeContentViewCore != 0 && nativeCanGoToOffset(mNativeContentViewCore, offset);
+        return mWebContents != null &&
+                mWebContents.getNavigationController().canGoToOffset(offset);
     }
 
     /**
@@ -1152,34 +1068,62 @@ import java.util.Map;
      * @param offset The offset into the navigation history.
      */
     public void goToOffset(int offset) {
-        if (mNativeContentViewCore != 0) nativeGoToOffset(mNativeContentViewCore, offset);
+        if (mWebContents != null) mWebContents.getNavigationController().goToOffset(offset);
     }
 
     @Override
     public void goToNavigationIndex(int index) {
-        if (mNativeContentViewCore != 0) nativeGoToNavigationIndex(mNativeContentViewCore, index);
+        if (mWebContents != null) {
+            mWebContents.getNavigationController().goToNavigationIndex(index);
+        }
     }
 
     /**
      * Goes to the navigation entry before the current one.
      */
     public void goBack() {
-        if (mNativeContentViewCore != 0) nativeGoBack(mNativeContentViewCore);
+        if (mWebContents != null) mWebContents.getNavigationController().goBack();
     }
 
     /**
      * Goes to the navigation entry following the current one.
      */
     public void goForward() {
-        if (mNativeContentViewCore != 0) nativeGoForward(mNativeContentViewCore);
+        if (mWebContents != null) mWebContents.getNavigationController().goForward();
+    }
+
+    /**
+     * Loads the current navigation if there is a pending lazy load (after tab restore).
+     */
+    public void loadIfNecessary() {
+        if (mNativeContentViewCore != 0) nativeLoadIfNecessary(mNativeContentViewCore);
+    }
+
+    /**
+     * Requests the current navigation to be loaded upon the next call to loadIfNecessary().
+     */
+    public void requestRestoreLoad() {
+        if (mNativeContentViewCore != 0) nativeRequestRestoreLoad(mNativeContentViewCore);
     }
 
     /**
      * Reload the current page.
      */
-    public void reload() {
+    public void reload(boolean checkForRepost) {
         mAccessibilityInjector.addOrRemoveAccessibilityApisIfNecessary();
-        if (mNativeContentViewCore != 0) nativeReload(mNativeContentViewCore);
+        if (mNativeContentViewCore != 0) {
+            nativeReload(mNativeContentViewCore, checkForRepost);
+        }
+    }
+
+    /**
+     * Reload the current page, ignoring the contents of the cache.
+     */
+    public void reloadIgnoringCache(boolean checkForRepost) {
+        mAccessibilityInjector.addOrRemoveAccessibilityApisIfNecessary();
+        if (mNativeContentViewCore != 0) {
+            nativeReloadIgnoringCache(mNativeContentViewCore, checkForRepost);
+        }
     }
 
     /**
@@ -1225,104 +1169,183 @@ import java.util.Map;
      */
     public boolean onTouchEvent(MotionEvent event) {
         undoScrollFocusedEditableNodeIntoViewIfNeeded(false);
+        if (!mRequestedVSyncForInput) {
+            mRequestedVSyncForInput = true;
+            addVSyncSubscriber();
+        }
         return mContentViewGestureHandler.onTouchEvent(event);
     }
 
-    /**
-     * @return ContentViewGestureHandler for all MotionEvent and gesture related calls.
-     */
-    ContentViewGestureHandler getContentViewGestureHandler() {
-        return mContentViewGestureHandler;
+    /** @see ContentViewGestureHandler#setIgnoreRemainingTouchEvents */
+    public void setIgnoreRemainingTouchEvents() {
+        mContentViewGestureHandler.setIgnoreRemainingTouchEvents();
     }
 
-    @Override
-    public boolean sendTouchEvent(long timeMs, int action, TouchPoint[] pts) {
-        if (mNativeContentViewCore != 0) {
-            return nativeSendTouchEvent(mNativeContentViewCore, timeMs, action, pts);
+    @SuppressWarnings("unused")
+    @CalledByNative
+    private void onFlingStartEventConsumed(int vx, int vy) {
+        temporarilyHideTextHandles();
+        for (mGestureStateListenersIterator.rewind();
+                    mGestureStateListenersIterator.hasNext();) {
+            mGestureStateListenersIterator.next().onFlingStartGesture(
+                    vx, vy, computeVerticalScrollOffset(), computeVerticalScrollExtent());
         }
+    }
+
+    @SuppressWarnings("unused")
+    @CalledByNative
+    private void onFlingStartEventHadNoConsumer(int vx, int vy) {
+        for (mGestureStateListenersIterator.rewind();
+                    mGestureStateListenersIterator.hasNext();) {
+            mGestureStateListenersIterator.next().onUnhandledFlingStartEvent(vx, vy);
+        }
+    }
+
+    @SuppressWarnings("unused")
+    @CalledByNative
+    private void onFlingCancelEventAck() {
+        updateGestureStateListener(GestureEventType.FLING_CANCEL);
+    }
+
+    @SuppressWarnings("unused")
+    @CalledByNative
+    private void onScrollBeginEventAck() {
+        temporarilyHideTextHandles();
+        mZoomControlsDelegate.invokeZoomPicker();
+        updateGestureStateListener(GestureEventType.SCROLL_START);
+    }
+
+    @SuppressWarnings("unused")
+    @CalledByNative
+    private void onScrollUpdateGestureConsumed() {
+        mZoomControlsDelegate.invokeZoomPicker();
+        for (mGestureStateListenersIterator.rewind();
+                mGestureStateListenersIterator.hasNext();) {
+            mGestureStateListenersIterator.next().onScrollUpdateGestureConsumed();
+        }
+    }
+
+    @SuppressWarnings("unused")
+    @CalledByNative
+    private void onScrollEndEventAck() {
+        updateGestureStateListener(GestureEventType.SCROLL_END);
+    }
+
+    @SuppressWarnings("unused")
+    @CalledByNative
+    private void onPinchBeginEventAck() {
+        temporarilyHideTextHandles();
+        updateGestureStateListener(GestureEventType.PINCH_BEGIN);
+    }
+
+    @SuppressWarnings("unused")
+    @CalledByNative
+    private void onPinchEndEventAck() {
+        updateGestureStateListener(GestureEventType.PINCH_END);
+    }
+
+    @SuppressWarnings("unused")
+    @CalledByNative
+    private void onDoubleTapEventAck() {
+        temporarilyHideTextHandles();
+    }
+
+    /**
+     * Called just prior to a tap or press gesture being forwarded to the renderer.
+     */
+    @SuppressWarnings("unused")
+    @CalledByNative
+    private boolean filterTapOrPressEvent(int type, int x, int y) {
+        if (type == GestureEventType.LONG_PRESS && offerLongPressToEmbedder()) {
+            return true;
+        }
+        updateForTapOrPress(type, x, y);
+        updateForDoubleTapUMA(type);
         return false;
     }
 
-    @SuppressWarnings("unused")
-    @CalledByNative
-    private void hasTouchEventHandlers(boolean hasTouchHandlers) {
-        mContentViewGestureHandler.hasTouchEventHandlers(hasTouchHandlers);
-    }
-
-    @SuppressWarnings("unused")
-    @CalledByNative
-    private void confirmTouchEvent(int ackResult) {
-        mContentViewGestureHandler.confirmTouchEvent(ackResult);
-    }
-
-    @SuppressWarnings("unused")
-    @CalledByNative
-    private void unhandledFlingStartEvent() {
-        if (mGestureStateListener != null) {
-            mGestureStateListener.onUnhandledFlingStartEvent();
-        }
+    @Override
+    public void onTouchEventHandlingBegin(MotionEvent event) {
+        if (mNativeContentViewCore == 0) return;
+        nativeOnTouchEventHandlingBegin(mNativeContentViewCore,event);
     }
 
     @Override
-    public boolean sendGesture(int type, long timeMs, int x, int y, Bundle b) {
-        if (offerGestureToEmbedder(type)) return false;
+    public void onTouchEventHandlingEnd() {
+        if (mNativeContentViewCore == 0) return;
+        nativeOnTouchEventHandlingEnd(mNativeContentViewCore);
+    }
+
+    /**
+     * Note: These events may or may not actually be forwarded to the renderer,
+     * depending on ack disposition of the underlying touch events.  All listening
+     * for sent gestures should take place in {@link #filterGestureEvent(int, int, int)}.
+     */
+    @Override
+    public boolean onGestureEventCreated(int type, long timeMs, int x, int y, Bundle b) {
         if (mNativeContentViewCore == 0) return false;
-        updateTextHandlesForGesture(type);
-        updateGestureStateListener(type, b);
         switch (type) {
-            case ContentViewGestureHandler.GESTURE_SHOW_PRESSED_STATE:
-                nativeShowPressState(mNativeContentViewCore, timeMs, x, y);
+            case GestureEventType.SHOW_PRESS:
+                nativeShowPress(mNativeContentViewCore, timeMs, x, y);
                 return true;
-            case ContentViewGestureHandler.GESTURE_SHOW_PRESS_CANCEL:
-                nativeShowPressCancel(mNativeContentViewCore, timeMs, x, y);
+            case GestureEventType.TAP_CANCEL:
+                nativeTapCancel(mNativeContentViewCore, timeMs, x, y);
                 return true;
-            case ContentViewGestureHandler.GESTURE_DOUBLE_TAP:
+            case GestureEventType.TAP_DOWN:
+                nativeTapDown(mNativeContentViewCore, timeMs, x, y);
+                return true;
+            case GestureEventType.DOUBLE_TAP:
                 nativeDoubleTap(mNativeContentViewCore, timeMs, x, y);
                 return true;
-            case ContentViewGestureHandler.GESTURE_SINGLE_TAP_UP:
+            case GestureEventType.SINGLE_TAP_UP:
                 nativeSingleTap(mNativeContentViewCore, timeMs, x, y, false);
                 return true;
-            case ContentViewGestureHandler.GESTURE_SINGLE_TAP_CONFIRMED:
-                handleTapOrPress(timeMs, x, y, 0,
-                        b.getBoolean(ContentViewGestureHandler.SHOW_PRESS, false));
+            case GestureEventType.SINGLE_TAP_CONFIRMED:
+                if (!b.getBoolean(ContentViewGestureHandler.SHOW_PRESS, false)) {
+                    nativeShowPress(mNativeContentViewCore, timeMs, x, y);
+                }
+                nativeSingleTap(mNativeContentViewCore, timeMs, x, y, false);
                 return true;
-            case ContentViewGestureHandler.GESTURE_SINGLE_TAP_UNCONFIRMED:
+            case GestureEventType.SINGLE_TAP_UNCONFIRMED:
                 nativeSingleTapUnconfirmed(mNativeContentViewCore, timeMs, x, y);
                 return true;
-            case ContentViewGestureHandler.GESTURE_LONG_PRESS:
-                handleTapOrPress(timeMs, x, y, IS_LONG_PRESS, false);
+            case GestureEventType.LONG_PRESS:
+                nativeLongPress(mNativeContentViewCore, timeMs, x, y, false);
                 return true;
-            case ContentViewGestureHandler.GESTURE_LONG_TAP:
-                handleTapOrPress(timeMs, x, y, IS_LONG_TAP, false);
+            case GestureEventType.LONG_TAP:
+                nativeLongTap(mNativeContentViewCore, timeMs, x, y, false);
                 return true;
-            case ContentViewGestureHandler.GESTURE_SCROLL_START:
-                nativeScrollBegin(mNativeContentViewCore, timeMs, x, y);
+            case GestureEventType.SCROLL_START: {
+                int dx = b.getInt(ContentViewGestureHandler.DELTA_HINT_X);
+                int dy = b.getInt(ContentViewGestureHandler.DELTA_HINT_Y);
+                nativeScrollBegin(mNativeContentViewCore, timeMs, x, y, dx, dy);
                 return true;
-            case ContentViewGestureHandler.GESTURE_SCROLL_BY: {
+            }
+            case GestureEventType.SCROLL_BY: {
                 int dx = b.getInt(ContentViewGestureHandler.DISTANCE_X);
                 int dy = b.getInt(ContentViewGestureHandler.DISTANCE_Y);
                 nativeScrollBy(mNativeContentViewCore, timeMs, x, y, dx, dy);
                 return true;
             }
-            case ContentViewGestureHandler.GESTURE_SCROLL_END:
+            case GestureEventType.SCROLL_END:
                 nativeScrollEnd(mNativeContentViewCore, timeMs);
                 return true;
-            case ContentViewGestureHandler.GESTURE_FLING_START:
+            case GestureEventType.FLING_START:
                 nativeFlingStart(mNativeContentViewCore, timeMs, x, y,
                         b.getInt(ContentViewGestureHandler.VELOCITY_X, 0),
                         b.getInt(ContentViewGestureHandler.VELOCITY_Y, 0));
                 return true;
-            case ContentViewGestureHandler.GESTURE_FLING_CANCEL:
+            case GestureEventType.FLING_CANCEL:
                 nativeFlingCancel(mNativeContentViewCore, timeMs);
                 return true;
-            case ContentViewGestureHandler.GESTURE_PINCH_BEGIN:
+            case GestureEventType.PINCH_BEGIN:
                 nativePinchBegin(mNativeContentViewCore, timeMs, x, y);
                 return true;
-            case ContentViewGestureHandler.GESTURE_PINCH_BY:
+            case GestureEventType.PINCH_BY:
                 nativePinchBy(mNativeContentViewCore, timeMs, x, y,
                         b.getFloat(ContentViewGestureHandler.DELTA, 0));
                 return true;
-            case ContentViewGestureHandler.GESTURE_PINCH_END:
+            case GestureEventType.PINCH_END:
                 nativePinchEnd(mNativeContentViewCore, timeMs);
                 return true;
             default:
@@ -1330,43 +1353,72 @@ import java.util.Map;
         }
     }
 
-    @Override
-    public void onSentLastGestureForVSync(long eventTimeMs) {
-        if (isVSyncNotificationEnabled()) {
-            mDidSignalVSyncUsingInputEvent = true;
-        }
-        if (mNativeContentViewCore != 0) {
-            nativeOnVSync(mNativeContentViewCore, eventTimeMs * 1000);
+    @VisibleForTesting
+    public void sendDoubleTapForTest(long timeMs, int x, int y) {
+        if (mNativeContentViewCore == 0) return;
+        nativeDoubleTap(mNativeContentViewCore, timeMs, x, y);
+    }
+
+    @VisibleForTesting
+    public void flingForTest(long timeMs, int x, int y, int velocityX, int velocityY) {
+        if (mNativeContentViewCore == 0) return;
+        nativeFlingCancel(mNativeContentViewCore, timeMs);
+        nativeScrollBegin(mNativeContentViewCore, timeMs, x, y, velocityX, velocityY);
+        nativeFlingStart(mNativeContentViewCore, timeMs, x, y, velocityX, velocityY);
+    }
+
+    /**
+     * Add a listener that gets alerted on gesture state changes.
+     * @param listener Listener to add.
+     */
+    public void addGestureStateListener(GestureStateListener listener) {
+        mGestureStateListeners.addObserver(listener);
+    }
+
+    /**
+     * Removes a listener that was added to watch for gesture state changes.
+     * @param listener Listener to remove.
+     */
+    public void removeGestureStateListener(GestureStateListener listener) {
+        mGestureStateListeners.removeObserver(listener);
+    }
+
+    void updateGestureStateListener(int gestureType) {
+        for (mGestureStateListenersIterator.rewind();
+                mGestureStateListenersIterator.hasNext();) {
+            GestureStateListener listener = mGestureStateListenersIterator.next();
+            switch (gestureType) {
+                case GestureEventType.PINCH_BEGIN:
+                    listener.onPinchStarted();
+                    break;
+                case GestureEventType.PINCH_END:
+                    listener.onPinchEnded();
+                    break;
+                case GestureEventType.FLING_END:
+                    listener.onFlingEndGesture(
+                            computeVerticalScrollOffset(),
+                            computeVerticalScrollExtent());
+                    break;
+                case GestureEventType.FLING_CANCEL:
+                    listener.onFlingCancelGesture();
+                    break;
+                case GestureEventType.SCROLL_START:
+                    listener.onScrollStarted(
+                            computeVerticalScrollOffset(),
+                            computeVerticalScrollExtent());
+                    break;
+                case GestureEventType.SCROLL_END:
+                    listener.onScrollEnded(
+                            computeVerticalScrollOffset(),
+                            computeVerticalScrollExtent());
+                    break;
+                default:
+                    break;
+            }
         }
     }
 
-    public void setGestureStateListener(GestureStateListener pinchGestureStateListener) {
-        mGestureStateListener = pinchGestureStateListener;
-    }
-
-    void updateGestureStateListener(int gestureType, Bundle b) {
-        if (mGestureStateListener == null) return;
-
-        switch (gestureType) {
-            case ContentViewGestureHandler.GESTURE_PINCH_BEGIN:
-                mGestureStateListener.onPinchGestureStart();
-                break;
-            case ContentViewGestureHandler.GESTURE_PINCH_END:
-                mGestureStateListener.onPinchGestureEnd();
-                break;
-            case ContentViewGestureHandler.GESTURE_FLING_START:
-                mGestureStateListener.onFlingStartGesture(
-                        b.getInt(ContentViewGestureHandler.VELOCITY_X, 0),
-                        b.getInt(ContentViewGestureHandler.VELOCITY_Y, 0));
-                break;
-            case ContentViewGestureHandler.GESTURE_FLING_CANCEL:
-                mGestureStateListener.onFlingCancelGesture();
-                break;
-            default:
-                break;
-        }
-    }
-
+    /** Callback interface for evaluateJavaScript(). */
     public interface JavaScriptCallback {
         void handleJavaScriptResult(String jsonResult);
     }
@@ -1399,27 +1451,15 @@ import java.util.Map;
     }
 
     /**
-     * This method should be called when the containing activity is paused.
-     */
-    public void onActivityPause() {
-        TraceEvent.begin();
-        hidePopupDialog();
-        nativeOnHide(mNativeContentViewCore);
-        TraceEvent.end();
-    }
-
-    /**
-     * This method should be called when the containing activity is resumed.
-     */
-    public void onActivityResume() {
-        nativeOnShow(mNativeContentViewCore);
-        setAccessibilityState(mAccessibilityManager.isEnabled());
-    }
-
-    /**
      * To be called when the ContentView is shown.
      */
     public void onShow() {
+        assert mNativeContentViewCore != 0;
+        if (!mInForeground) {
+            int pid = nativeGetCurrentRenderProcessId(mNativeContentViewCore);
+            ChildProcessLauncher.getBindingManager().setInForeground(pid, true);
+        }
+        mInForeground = true;
         nativeOnShow(mNativeContentViewCore);
         setAccessibilityState(mAccessibilityManager.isEnabled());
     }
@@ -1428,6 +1468,12 @@ import java.util.Map;
      * To be called when the ContentView is hidden.
      */
     public void onHide() {
+        assert mNativeContentViewCore != 0;
+        if (mInForeground) {
+            int pid = nativeGetCurrentRenderProcessId(mNativeContentViewCore);
+            ChildProcessLauncher.getBindingManager().setInForeground(pid, false);
+        }
+        mInForeground = false;
         hidePopupDialog();
         setInjectedAccessibility(false);
         nativeOnHide(mNativeContentViewCore);
@@ -1443,15 +1489,16 @@ import java.util.Map;
         return mContentSettings;
     }
 
-    @Override
-    public boolean didUIStealScroll(float x, float y) {
-        return getContentViewClient().shouldOverrideScroll(
-                x, y, computeHorizontalScrollOffset(), computeVerticalScrollOffset());
-    }
+    private void onRenderCoordinatesUpdated() {
+        if (mContentViewGestureHandler == null) return;
 
-    @Override
-    public boolean hasFixedPageScale() {
-        return mRenderCoordinates.hasFixedPageScale();
+        // We disable double tap zoom for pages that have a width=device-width
+        // or narrower viewport (indicating that this is a mobile-optimized or
+        // responsive web design, so text will be legible without zooming).
+        // We also disable it for pages that disallow the user from zooming in
+        // or out (even if they don't have a device-width or narrower viewport).
+        mContentViewGestureHandler.updateShouldDisableDoubleTap(
+                mRenderCoordinates.hasMobileViewport() || mRenderCoordinates.hasFixedPageScale());
     }
 
     private void hidePopupDialog() {
@@ -1480,16 +1527,6 @@ import java.util.Map;
      */
     @SuppressWarnings("javadoc")
     public void onAttachedToWindow() {
-        mAttachedToWindow = true;
-        if (mNativeContentViewCore != 0) {
-            assert mPid == nativeGetCurrentRenderProcessId(mNativeContentViewCore);
-            ChildProcessLauncher.getBindingManager().bindAsHighPriority(mPid);
-            // Normally the initial binding is removed in onRenderProcessSwap(), but it is possible
-            // to construct WebContents and spawn the renderer before passing it to ContentViewCore.
-            // In this case there will be no onRenderProcessSwap() call and the initial binding will
-            // be removed here.
-            ChildProcessLauncher.getBindingManager().removeInitialBinding(mPid);
-        }
         setAccessibilityState(mAccessibilityManager.isEnabled());
     }
 
@@ -1498,11 +1535,6 @@ import java.util.Map;
      */
     @SuppressWarnings("javadoc")
     public void onDetachedFromWindow() {
-        mAttachedToWindow = false;
-        if (mNativeContentViewCore != 0) {
-            assert mPid == nativeGetCurrentRenderProcessId(mNativeContentViewCore);
-            ChildProcessLauncher.getBindingManager().unbindAsHighPriority(mPid);
-        }
         setInjectedAccessibility(false);
         hidePopupDialog();
         mZoomControlsDelegate.dismissZoomPicker();
@@ -1561,7 +1593,18 @@ import java.util.Map;
             manager.restartInput(mContainerView);
         }
         mContainerViewInternals.super_onConfigurationChanged(newConfig);
-        mNeedUpdateOrientationChanged = true;
+        // Make sure the size is up to date in JavaScript's window.onorientationchanged.
+        mContainerView.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            @Override
+            public void onLayoutChange(View v, int left, int top, int right, int bottom,
+                    int oldLeft, int oldTop, int oldRight, int oldBottom) {
+                mContainerView.removeOnLayoutChangeListener(this);
+                sendOrientationChangeEvent();
+            }
+        });
+        // To request layout has side effect, but it seems OK as it only happen in
+        // onConfigurationChange and layout has to be changed in most case.
+        mContainerView.requestLayout();
         TraceEvent.end();
     }
 
@@ -1579,6 +1622,15 @@ import java.util.Map;
         }
 
         updateAfterSizeChanged();
+    }
+
+    /**
+     * Called when the ContentView's position in the activity window changed. This information is
+     * used for cropping screenshots.
+     */
+    public void onLocationInWindowChanged(int x, int y) {
+        mLocationInWindowX = x;
+        mLocationInWindowY = y;
     }
 
     /**
@@ -1619,17 +1671,15 @@ import java.util.Map;
             Rect rect = new Rect();
             getContainerView().getWindowVisibleDisplayFrame(rect);
             if (!rect.equals(mFocusPreOSKViewportRect)) {
-                scrollFocusedEditableNodeIntoView();
+                // Only assume the OSK triggered the onSizeChanged if width was preserved.
+                if (rect.width() == mFocusPreOSKViewportRect.width()) {
+                    scrollFocusedEditableNodeIntoView();
+                }
                 mFocusPreOSKViewportRect.setEmpty();
             }
         } else if (mUnfocusOnNextSizeChanged) {
             undoScrollFocusedEditableNodeIntoViewIfNeeded(true);
             mUnfocusOnNextSizeChanged = false;
-        }
-
-        if (mNeedUpdateOrientationChanged) {
-            sendOrientationChangeEvent();
-            mNeedUpdateOrientationChanged = false;
         }
     }
 
@@ -1727,6 +1777,17 @@ import java.util.Map;
             return mContainerViewInternals.super_dispatchKeyEvent(event);
         }
 
+        if (event.getKeyCode() == KeyEvent.KEYCODE_DPAD_CENTER) {
+            showImeIfNeeded();
+            // Event is not consumed here, because ImeAdapter might interpret
+            // it as "Enter".
+            // showImeIfNeeded respects the policy of
+            // InputMethodService.onEvaluateInputViewShown. So IME will not be
+            // shown if you have QWERTY physical keyboard attached.
+            // Also, IME will not be shown if the focus is not on the input
+            // field. See ImeAdapter.attachAndShowIfNeeded
+        }
+
         if (mImeAdapter.dispatchKeyEvent(event)) return true;
 
         return mContainerViewInternals.super_dispatchKeyEvent(event);
@@ -1768,10 +1829,10 @@ import java.util.Map;
                     // up hovering over the right position after the scroll.
                     final MotionEvent eventFakeMouseMove = MotionEvent.obtain(event);
                     mFakeMouseMoveRunnable = new Runnable() {
-                          @Override
-                          public void run() {
-                              onHoverEvent(eventFakeMouseMove);
-                          }
+                        @Override
+                        public void run() {
+                            onHoverEvent(eventFakeMouseMove);
+                        }
                     };
                     mContainerView.postDelayed(mFakeMouseMoveRunnable, 250);
                     return true;
@@ -1805,7 +1866,8 @@ import java.util.Map;
         final float dyPix = yPix - yCurrentPix;
         if (dxPix != 0 || dyPix != 0) {
             long time = System.currentTimeMillis();
-            nativeScrollBegin(mNativeContentViewCore, time, xCurrentPix, yCurrentPix);
+            nativeScrollBegin(mNativeContentViewCore, time,
+                    xCurrentPix, yCurrentPix, -dxPix, -dyPix);
             nativeScrollBy(mNativeContentViewCore,
                     time, xCurrentPix, yCurrentPix, dxPix, dyPix);
             nativeScrollEnd(mNativeContentViewCore, time);
@@ -1889,17 +1951,14 @@ import java.util.Map;
         }
     }
 
-    @SuppressWarnings("unused")
-    @CalledByNative
-    private void onTabCrash() {
-        assert mPid != 0;
-        getContentViewClient().onRendererCrash(
-                ChildProcessLauncher.getBindingManager().isOomProtected(mPid));
-        mPid = 0;
-    }
+    private void updateForTapOrPress(int type, float xPix, float yPix) {
+        if (type != GestureEventType.SINGLE_TAP_CONFIRMED
+                && type != GestureEventType.SINGLE_TAP_UP
+                && type != GestureEventType.LONG_PRESS
+                && type != GestureEventType.LONG_TAP) {
+            return;
+        }
 
-    private void handleTapOrPress(
-            long timeMs, float xPix, float yPix, int isLongPressOrTap, boolean showPress) {
         if (mContainerView.isFocusable() && mContainerView.isFocusableInTouchMode()
                 && !mContainerView.isFocused())  {
             mContainerView.requestFocus();
@@ -1907,27 +1966,93 @@ import java.util.Map;
 
         if (!mPopupZoomer.isShowing()) mPopupZoomer.setLastTouch(xPix, yPix);
 
-        if (isLongPressOrTap == IS_LONG_PRESS) {
+        if (type == GestureEventType.LONG_PRESS
+                || type == GestureEventType.LONG_TAP) {
             getInsertionHandleController().allowAutomaticShowing();
             getSelectionHandleController().allowAutomaticShowing();
-            if (mNativeContentViewCore != 0) {
-                nativeLongPress(mNativeContentViewCore, timeMs, xPix, yPix, false);
-            }
-        } else if (isLongPressOrTap == IS_LONG_TAP) {
-            getInsertionHandleController().allowAutomaticShowing();
-            getSelectionHandleController().allowAutomaticShowing();
-            if (mNativeContentViewCore != 0) {
-                nativeLongTap(mNativeContentViewCore, timeMs, xPix, yPix, false);
-            }
         } else {
-            if (!showPress && mNativeContentViewCore != 0) {
-                nativeShowPressState(mNativeContentViewCore, timeMs, xPix, yPix);
-            }
+            setClickXAndY((int) xPix, (int) yPix);
             if (mSelectionEditable) getInsertionHandleController().allowAutomaticShowing();
-            if (mNativeContentViewCore != 0) {
-                nativeSingleTap(mNativeContentViewCore, timeMs, xPix, yPix, false);
-            }
         }
+    }
+
+    private void setClickXAndY(int x, int y) {
+        mSingleTapX = x;
+        mSingleTapY = y;
+    }
+
+    /**
+     * @return The x coordinate for the last point that a singleTap gesture was initiated from.
+     */
+    public int getSingleTapX()  {
+        return mSingleTapX;
+    }
+
+    /**
+     * @return The y coordinate for the last point that a singleTap gesture was initiated from.
+     */
+    public int getSingleTapY()  {
+        return mSingleTapY;
+    }
+
+    // Watch for the UMA "action after double tap" timer expiring and reset
+    // the timer if necessary.
+    private void updateDoubleTapUmaTimer() {
+        if (mLastDoubleTapTimeMs == 0) return;
+
+        long nowMs = SystemClock.uptimeMillis();
+        if ((nowMs - mLastDoubleTapTimeMs) >= ACTION_AFTER_DOUBLE_TAP_WINDOW_MS) {
+            // Time expired, user took no action (that we care about).
+            sendActionAfterDoubleTapUMA(UMAActionAfterDoubleTap.NO_ACTION);
+            mLastDoubleTapTimeMs = 0;
+        }
+    }
+
+    private void updateForDoubleTapUMA(int type) {
+        updateDoubleTapUmaTimer();
+
+        if (type == GestureEventType.SINGLE_TAP_UP
+                || type == GestureEventType.SINGLE_TAP_CONFIRMED) {
+            sendSingleTapUMA(mContentViewGestureHandler.isDoubleTapDisabled() ?
+                    UMASingleTapType.UNDELAYED_TAP : UMASingleTapType.DELAYED_TAP);
+        } else if (type == GestureEventType.DOUBLE_TAP) {
+            // Make sure repeated double taps don't get silently dropped from
+            // the statistics.
+            if (mLastDoubleTapTimeMs > 0) {
+                sendActionAfterDoubleTapUMA(UMAActionAfterDoubleTap.NO_ACTION);
+            }
+
+            mLastDoubleTapTimeMs = SystemClock.uptimeMillis();
+        }
+    }
+
+    private void reportActionAfterDoubleTapUMA(int type) {
+        updateDoubleTapUmaTimer();
+
+        if (mLastDoubleTapTimeMs == 0) return;
+
+        long nowMs = SystemClock.uptimeMillis();
+        if ((nowMs - mLastDoubleTapTimeMs) < ACTION_AFTER_DOUBLE_TAP_WINDOW_MS) {
+            sendActionAfterDoubleTapUMA(type);
+            mLastDoubleTapTimeMs = 0;
+        }
+    }
+
+    private void sendSingleTapUMA(int type) {
+        if (mNativeContentViewCore == 0) return;
+        nativeSendSingleTapUma(
+                mNativeContentViewCore,
+                type,
+                UMASingleTapType.COUNT);
+    }
+
+    private void sendActionAfterDoubleTapUMA(int type) {
+        if (mNativeContentViewCore == 0) return;
+        nativeSendActionAfterDoubleTapUma(
+                mNativeContentViewCore,
+                type,
+                !mContentViewGestureHandler.isClickDelayDisabled(),
+                UMAActionAfterDoubleTap.COUNT);
     }
 
     public void setZoomControlsDelegate(ZoomControlsDelegate zoomControlsDelegate) {
@@ -1935,11 +2060,11 @@ import java.util.Map;
     }
 
     public void updateMultiTouchZoomSupport(boolean supportsMultiTouchZoom) {
-        mZoomManager.updateMultiTouchSupport(supportsMultiTouchZoom);
+        mContentViewGestureHandler.updateMultiTouchSupport(supportsMultiTouchZoom);
     }
 
-    public void updateDoubleTapDragSupport(boolean supportsDoubleTapDrag) {
-        mContentViewGestureHandler.updateDoubleTapDragSupport(supportsDoubleTapDrag);
+    public void updateDoubleTapSupport(boolean supportsDoubleTap) {
+        mContentViewGestureHandler.updateDoubleTapSupport(supportsDoubleTap);
     }
 
     public void selectPopupMenuItems(int[] indices) {
@@ -1952,12 +2077,6 @@ import java.util.Map;
      * Get the screen orientation from the OS and push it to WebKit.
      *
      * TODO(husky): Add a hook for mock orientations.
-     *
-     * TODO(husky): Currently each new tab starts with an orientation of 0 until you actually
-     * rotate the device. This is wrong if you actually started in landscape mode. To fix this, we
-     * need to push the correct orientation, but only after WebKit's Frame object has been fully
-     * initialized. Need to find a good time to do that. onPageFinished() would probably work but
-     * it isn't implemented yet.
      */
     private void sendOrientationChangeEvent() {
         if (mNativeContentViewCore == 0) return;
@@ -2000,7 +2119,8 @@ import java.util.Map;
 
     private SelectionHandleController getSelectionHandleController() {
         if (mSelectionHandleController == null) {
-            mSelectionHandleController = new SelectionHandleController(getContainerView()) {
+            mSelectionHandleController = new SelectionHandleController(
+                    getContainerView(), mPositionObserver) {
                 @Override
                 public void selectBetweenCoordinates(int x1, int y1, int x2, int y2) {
                     if (mNativeContentViewCore != 0 && !(x1 == x2 && y1 == y2)) {
@@ -2026,7 +2146,8 @@ import java.util.Map;
 
     private InsertionHandleController getInsertionHandleController() {
         if (mInsertionHandleController == null) {
-            mInsertionHandleController = new InsertionHandleController(getContainerView()) {
+            mInsertionHandleController = new InsertionHandleController(
+                    getContainerView(), mPositionObserver) {
                 private static final int AVERAGE_LINE_HEIGHT = 14;
 
                 @Override
@@ -2092,6 +2213,7 @@ import java.util.Map;
         if (mInsertionHandleController != null) {
             mInsertionHandleController.hideAndDisallowAutomaticShowing();
         }
+        mPositionObserver.removeListener(mPositionListener);
     }
 
     private void showSelectActionBar() {
@@ -2233,14 +2355,6 @@ import java.util.Map;
         nativeClearSslPreferences(mNativeContentViewCore);
     }
 
-    /**
-     * @return Whether the native ContentView has crashed.
-     */
-    public boolean isCrashed() {
-        if (mNativeContentViewCore == 0) return false;
-        return nativeCrashed(mNativeContentViewCore);
-    }
-
     private boolean isSelectionHandleShowing() {
         return mSelectionHandleController != null && mSelectionHandleController.isShowing();
     }
@@ -2249,27 +2363,13 @@ import java.util.Map;
         return mInsertionHandleController != null && mInsertionHandleController.isShowing();
     }
 
-    private void updateTextHandlesForGesture(int type) {
-        switch(type) {
-            case ContentViewGestureHandler.GESTURE_DOUBLE_TAP:
-            case ContentViewGestureHandler.GESTURE_SCROLL_START:
-            case ContentViewGestureHandler.GESTURE_FLING_START:
-            case ContentViewGestureHandler.GESTURE_PINCH_BEGIN:
-                temporarilyHideTextHandles();
-                break;
-
-            default:
-                break;
-        }
-    }
-
     // Makes the insertion/selection handles invisible. They will fade back in shortly after the
     // last call to scheduleTextHandleFadeIn (or temporarilyHideTextHandles).
     private void temporarilyHideTextHandles() {
-        if (isSelectionHandleShowing()) {
+        if (isSelectionHandleShowing() && !mSelectionHandleController.isDragging()) {
             mSelectionHandleController.setHandleVisibility(HandleView.INVISIBLE);
         }
-        if (isInsertionHandleShowing()) {
+        if (isInsertionHandleShowing() && !mInsertionHandleController.isDragging()) {
             mInsertionHandleController.setHandleVisibility(HandleView.INVISIBLE);
         }
         scheduleTextHandleFadeIn();
@@ -2320,10 +2420,6 @@ import java.util.Map;
         if (mNativeContentViewCore != 0) nativeShowImeIfNeeded(mNativeContentViewCore);
     }
 
-    public void setUpdateFrameInfoListener(UpdateFrameInfoListener updateFrameInfoListener) {
-        mUpdateFrameInfoListener = updateFrameInfoListener;
-    }
-
     @SuppressWarnings("unused")
     @CalledByNative
     private void updateFrameInfo(
@@ -2364,12 +2460,12 @@ import java.util.Map;
 
         if (needHidePopupZoomer) mPopupZoomer.hide(true);
 
-        if (pageScaleChanged) {
-            // This function should be called back from native as soon
-            // as the scroll is applied to the backbuffer.  We should only
-            // update mNativeScrollX/Y here for consistency.
-            getContentViewClient().onScaleChanged(
-                    mRenderCoordinates.getPageScaleFactor(), pageScaleFactor);
+        if (scrollChanged) {
+            mContainerViewInternals.onScrollChanged(
+                    (int) mRenderCoordinates.fromLocalCssToPix(scrollOffsetX),
+                    (int) mRenderCoordinates.fromLocalCssToPix(scrollOffsetY),
+                    (int) mRenderCoordinates.getScrollXPix(),
+                    (int) mRenderCoordinates.getScrollYPix());
         }
 
         mRenderCoordinates.updateFrameInfo(
@@ -2378,10 +2474,15 @@ import java.util.Map;
                 viewportWidth, viewportHeight,
                 pageScaleFactor, minPageScaleFactor, maxPageScaleFactor,
                 contentOffsetYPix);
+        onRenderCoordinatesUpdated();
 
-        if ((contentSizeChanged || pageScaleChanged) && mUpdateFrameInfoListener != null) {
-            mUpdateFrameInfoListener.onFrameInfoUpdated(
-                    contentWidth, contentHeight, pageScaleFactor);
+        if (scrollChanged || contentOffsetChanged) {
+            for (mGestureStateListenersIterator.rewind();
+                    mGestureStateListenersIterator.hasNext();) {
+                mGestureStateListenersIterator.next().onScrollOffsetOrExtentChanged(
+                        computeVerticalScrollOffset(),
+                        computeVerticalScrollExtent());
+            }
         }
 
         if (needTemporarilyHideHandles) temporarilyHideTextHandles();
@@ -2404,11 +2505,10 @@ import java.util.Map;
         getContentViewClient().onGeometryChanged(-1, null);
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative
     private void updateImeAdapter(int nativeImeAdapterAndroid, int textInputType,
             String text, int selectionStart, int selectionEnd,
-            int compositionStart, int compositionEnd, boolean showImeIfNeeded) {
+            int compositionStart, int compositionEnd, boolean showImeIfNeeded, boolean requireAck) {
         TraceEvent.begin();
         mSelectionEditable = (textInputType != ImeAdapter.getTextInputTypeNone());
 
@@ -2418,17 +2518,10 @@ import java.util.Map;
                 selectionStart, selectionEnd, showImeIfNeeded);
 
         if (mInputConnection != null) {
-            mInputConnection.setEditableText(text, selectionStart, selectionEnd,
-                    compositionStart, compositionEnd);
+            mInputConnection.updateState(text, selectionStart, selectionEnd, compositionStart,
+                    compositionEnd, requireAck);
         }
         TraceEvent.end();
-    }
-
-    @SuppressWarnings("unused")
-    @CalledByNative
-    private void processImeBatchStateAck(boolean isBegin) {
-        if (mInputConnection == null) return;
-        mInputConnection.setIgnoreTextInputStateUpdates(isBegin);
     }
 
     @SuppressWarnings("unused")
@@ -2448,7 +2541,12 @@ import java.util.Map;
     @CalledByNative
     private void showSelectPopup(String[] items, int[] enabled, boolean multiple,
             int[] selectedIndices) {
-        SelectPopupDialog.show(this, items, enabled, multiple, selectedIndices);
+        assert items.length == enabled.length;
+        List<SelectPopupItem> popupItems = new ArrayList<SelectPopupItem>();
+        for (int i = 0; i < items.length; i++) {
+            popupItems.add(new SelectPopupItem(items[i], enabled[i]));
+        }
+        SelectPopupDialog.show(this, popupItems, multiple, selectedIndices);
     }
 
     @SuppressWarnings("unused")
@@ -2461,18 +2559,8 @@ import java.util.Map;
 
     @SuppressWarnings("unused")
     @CalledByNative
-    private GenericTouchGesture createOnePointTouchGesture(int startX,
-            int startY, int deltaX, int deltaY) {
-        return new GenericTouchGesture(this, startX, startY, deltaX, deltaY);
-    }
-
-    @SuppressWarnings("unused")
-    @CalledByNative
-    private GenericTouchGesture createTwoPointTouchGesture(
-            int startX0, int startY0, int deltaX0, int deltaY0,
-            int startX1, int startY1, int deltaX1, int deltaY1) {
-        return new GenericTouchGesture(this, startX0, startY0, deltaX0, deltaY0,
-                startX1, startY1, deltaX1, deltaY1);
+    private TouchEventSynthesizer createTouchEventSynthesizer() {
+        return new TouchEventSynthesizer(this);
     }
 
     @SuppressWarnings("unused")
@@ -2504,15 +2592,18 @@ import java.util.Map;
                 mEndHandlePoint.setLocalDip(x1, y1);
             }
 
-            if (!getSelectionHandleController().isShowing()) {
+            boolean wereSelectionHandlesShowing = getSelectionHandleController().isShowing();
+
+            getSelectionHandleController().onSelectionChanged(anchorDir, focusDir);
+            updateHandleScreenPositions();
+            mHasSelection = true;
+
+            if (!wereSelectionHandlesShowing && getSelectionHandleController().isShowing()) {
                 // TODO(cjhopman): Remove this when there is a better signal that long press caused
                 // a selection. See http://crbug.com/150151.
                 mContainerView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
             }
 
-            getSelectionHandleController().onSelectionChanged(anchorDir, focusDir);
-            updateHandleScreenPositions();
-            mHasSelection = true;
         } else {
             mUnselectAllOnActionModeDismiss = false;
             hideSelectActionBar();
@@ -2543,6 +2634,9 @@ import java.util.Map;
             }
             mHasSelection = false;
         }
+        if (isSelectionHandleShowing() || isInsertionHandleShowing()) {
+            mPositionObserver.addListener(mPositionListener);
+        }
     }
 
     @SuppressWarnings("unused")
@@ -2564,40 +2658,29 @@ import java.util.Map;
     @SuppressWarnings("unused")
     @CalledByNative
     private void onRenderProcessSwap(int oldPid, int newPid) {
-        assert mPid == oldPid || mPid == newPid;
-        if (mAttachedToWindow && oldPid != newPid) {
-            ChildProcessLauncher.getBindingManager().unbindAsHighPriority(oldPid);
-            ChildProcessLauncher.getBindingManager().bindAsHighPriority(newPid);
+        if (!mInForeground) {
+            ChildProcessLauncher.getBindingManager().setInForeground(newPid, false);
+        } else if (oldPid != newPid) {
+            ChildProcessLauncher.getBindingManager().setInForeground(oldPid, false);
+            ChildProcessLauncher.getBindingManager().setInForeground(newPid, true);
         }
 
-        // We want to remove the initial binding even if the ContentView is not attached, so that
-        // renderers for ContentViews loading in background do not retain the high priority.
-        ChildProcessLauncher.getBindingManager().removeInitialBinding(newPid);
-        mPid = newPid;
+        attachImeAdapter();
     }
 
     @SuppressWarnings("unused")
     @CalledByNative
     private void onWebContentsConnected() {
-        if (mImeAdapter != null &&
-                !mImeAdapter.isNativeImeAdapterAttached() && mNativeContentViewCore != 0) {
-            mImeAdapter.attach(nativeGetNativeImeAdapter(mNativeContentViewCore));
-        }
-    }
-
-    @SuppressWarnings("unused")
-    @CalledByNative
-    private void onWebContentsSwapped() {
-        if (mImeAdapter != null && mNativeContentViewCore != 0) {
-            mImeAdapter.attach(nativeGetNativeImeAdapter(mNativeContentViewCore));
-        }
+        attachImeAdapter();
     }
 
     /**
-     * @return Whether a reload happens when this ContentView is activated.
+     * Attaches the native ImeAdapter object to the java ImeAdapter to allow communication via JNI.
      */
-    public boolean needsReload() {
-        return mNativeContentViewCore != 0 && nativeNeedsReload(mNativeContentViewCore);
+    public void attachImeAdapter() {
+        if (mImeAdapter != null && mNativeContentViewCore != 0) {
+            mImeAdapter.attach(nativeGetNativeImeAdapter(mNativeContentViewCore));
+        }
     }
 
     /**
@@ -2646,7 +2729,7 @@ import java.util.Map;
         if (!canZoomIn()) {
             return false;
         }
-        return zoomByDelta(1.25f);
+        return pinchByDelta(1.25f);
     }
 
     /**
@@ -2661,7 +2744,7 @@ import java.util.Map;
         if (!canZoomOut()) {
             return false;
         }
-        return zoomByDelta(0.8f);
+        return pinchByDelta(0.8f);
     }
 
     /**
@@ -2675,23 +2758,27 @@ import java.util.Map;
         // The page scale factor is initialized to mNativeMinimumScale when
         // the page finishes loading. Thus sets it back to mNativeMinimumScale.
         if (!canZoomOut()) return false;
-        return zoomByDelta(
+        return pinchByDelta(
                 mRenderCoordinates.getMinPageScaleFactor()
                         / mRenderCoordinates.getPageScaleFactor());
     }
 
-    private boolean zoomByDelta(float delta) {
-        if (mNativeContentViewCore == 0) {
-            return false;
-        }
+    /**
+     * Simulate a pinch zoom gesture.
+     *
+     * @param delta the factor by which the current page scale should be multiplied by.
+     * @return whether the gesture was sent.
+     */
+    public boolean pinchByDelta(float delta) {
+        if (mNativeContentViewCore == 0) return false;
 
         long timeMs = System.currentTimeMillis();
         int xPix = getViewportWidthPix() / 2;
         int yPix = getViewportHeightPix() / 2;
 
-        getContentViewGestureHandler().pinchBegin(timeMs, xPix, yPix);
-        getContentViewGestureHandler().pinchBy(timeMs, xPix, yPix, delta);
-        getContentViewGestureHandler().pinchEnd(timeMs);
+        nativePinchBegin(mNativeContentViewCore, timeMs, xPix, yPix);
+        nativePinchBy(mNativeContentViewCore, timeMs, xPix, yPix, delta);
+        nativePinchEnd(mNativeContentViewCore, timeMs);
 
         return true;
     }
@@ -2699,7 +2786,6 @@ import java.util.Map;
     /**
      * Invokes the graphical zoom picker widget for this ContentView.
      */
-    @Override
     public void invokeZoomPicker() {
         mZoomControlsDelegate.invokeZoomPicker();
     }
@@ -2794,6 +2880,7 @@ import java.util.Map;
      * once the texture is actually ready.
      */
     public boolean isReady() {
+        if (mNativeContentViewCore == 0) return false;
         return nativeIsRenderWidgetHostViewReady(mNativeContentViewCore);
     }
 
@@ -2915,6 +3002,11 @@ import java.util.Map;
      */
     public boolean isDeviceAccessibilityScriptInjectionEnabled() {
         try {
+            if (CommandLine.getInstance().hasSwitch(
+                    ContentSwitches.DISABLE_ACCESSIBILITY_SCRIPT_INJECTION)) {
+                return false;
+            }
+
             if (!mContentSettings.getJavaScriptEnabled()) {
                 return false;
             }
@@ -2932,6 +3024,7 @@ import java.util.Map;
 
             if (mAccessibilityScriptInjectionObserver == null) {
                 ContentObserver contentObserver = new ContentObserver(new Handler()) {
+                    @Override
                     public void onChange(boolean selfChange, Uri uri) {
                         setAccessibilityState(mAccessibilityManager.isEnabled());
                     }
@@ -2945,7 +3038,9 @@ import java.util.Map;
 
             return Settings.Secure.getInt(contentResolver, accessibilityScriptInjection, 0) == 1;
         } catch (NoSuchFieldException e) {
+            // Do nothing, default to false.
         } catch (IllegalAccessException e) {
+            // Do nothing, default to false.
         }
         return false;
     }
@@ -2966,15 +3061,12 @@ import java.util.Map;
     public void setAccessibilityState(boolean state) {
         if (!state) {
             setInjectedAccessibility(false);
-            return;
+            mNativeAccessibilityAllowed = false;
+        } else {
+            boolean useScriptInjection = isDeviceAccessibilityScriptInjectionEnabled();
+            setInjectedAccessibility(useScriptInjection);
+            mNativeAccessibilityAllowed = !useScriptInjection;
         }
-
-        if (isDeviceAccessibilityScriptInjectionEnabled()) {
-            setInjectedAccessibility(true);
-            return;
-        }
-
-        mNativeAccessibilityAllowed = true;
     }
 
     /**
@@ -2996,7 +3088,7 @@ import java.util.Map;
      * Inform WebKit that Fullscreen mode has been exited by the user.
      */
     public void exitFullscreen() {
-        nativeExitFullscreen(mNativeContentViewCore);
+        if (mNativeContentViewCore != 0) nativeExitFullscreen(mNativeContentViewCore);
     }
 
     /**
@@ -3008,7 +3100,10 @@ import java.util.Map;
      */
     public void updateTopControlsState(boolean enableHiding, boolean enableShowing,
             boolean animate) {
-        nativeUpdateTopControlsState(mNativeContentViewCore, enableHiding, enableShowing, animate);
+        if (mNativeContentViewCore != 0) {
+            nativeUpdateTopControlsState(
+                    mNativeContentViewCore, enableHiding, enableShowing, animate);
+        }
     }
 
     /**
@@ -3027,15 +3122,20 @@ import java.util.Map;
      */
     public NavigationHistory getNavigationHistory() {
         NavigationHistory history = new NavigationHistory();
-        int currentIndex = nativeGetNavigationHistory(mNativeContentViewCore, history);
-        history.setCurrentEntryIndex(currentIndex);
+        if (mNativeContentViewCore != 0) {
+            int currentIndex = nativeGetNavigationHistory(mNativeContentViewCore, history);
+            history.setCurrentEntryIndex(currentIndex);
+        }
         return history;
     }
 
     @Override
     public NavigationHistory getDirectedNavigationHistory(boolean isForward, int itemLimit) {
         NavigationHistory history = new NavigationHistory();
-        nativeGetDirectedNavigationHistory(mNativeContentViewCore, history, isForward, itemLimit);
+        if (mNativeContentViewCore != 0) {
+            nativeGetDirectedNavigationHistory(
+                mNativeContentViewCore, history, isForward, itemLimit);
+        }
         return history;
     }
 
@@ -3044,7 +3144,10 @@ import java.util.Map;
      *         current entry.
      */
     public String getOriginalUrlForActiveNavigationEntry() {
-        return nativeGetOriginalUrlForActiveNavigationEntry(mNativeContentViewCore);
+        if (mNativeContentViewCore != 0) {
+            return nativeGetOriginalUrlForActiveNavigationEntry(mNativeContentViewCore);
+        }
+        return "";
     }
 
     /**
@@ -3052,6 +3155,16 @@ import java.util.Map;
      */
     public RenderCoordinates getRenderCoordinates() {
         return mRenderCoordinates;
+    }
+
+    @CalledByNative
+    private int getLocationInWindowX() {
+        return mLocationInWindowX;
+    }
+
+    @CalledByNative
+    private int getLocationInWindowY() {
+        return mLocationInWindowY;
     }
 
     @CalledByNative
@@ -3079,7 +3192,7 @@ import java.util.Map;
     private void animateIfNecessary(long frameTimeMicros) {
         if (mNeedAnimate) {
             mNeedAnimate = onAnimate(frameTimeMicros);
-            if (!mNeedAnimate) setVSyncNotificationEnabled(false);
+            if (!mNeedAnimate) removeVSyncSubscriber();
         }
     }
 
@@ -3090,33 +3203,56 @@ import java.util.Map;
         getContentViewClient().onGeometryChanged(playerId, new RectF(x, y, x + width, y + height));
     }
 
+    public void extractSmartClipData(int x, int y, int width, int height) {
+        if (mNativeContentViewCore != 0) {
+            nativeExtractSmartClipData(mNativeContentViewCore, x, y, width, height);
+        }
+    }
+
+    @CalledByNative
+    private void onSmartClipDataExtracted(String result) {
+        if (mSmartClipDataListener != null ) {
+            mSmartClipDataListener.onSmartClipDataExtracted(result);
+        }
+    }
+
+    public void setSmartClipDataListener(SmartClipDataListener listener) {
+        mSmartClipDataListener = listener;
+    }
+
     /**
-     * Offer a subset of gesture events to the embedding View,
-     * primarily for WebView compatibility.
-     *
-     * @param type The type of the event.
+     * Offer a long press gesture to the embedding View, primarily for WebView compatibility.
      *
      * @return true if the embedder handled the event.
      */
-    private boolean offerGestureToEmbedder(int type) {
-        if (type == ContentViewGestureHandler.GESTURE_LONG_PRESS) {
-            return mContainerView.performLongClick();
-        }
-        return false;
+    private boolean offerLongPressToEmbedder() {
+        return mContainerView.performLongClick();
     }
 
-    private native int nativeInit(boolean hardwareAccelerated, int webContentsPtr,
-            int viewAndroidPtr, int windowAndroidPtr);
+    private native long nativeInit(long webContentsPtr,
+            long viewAndroidPtr, long windowAndroidPtr);
 
     @CalledByNative
     private ContentVideoViewClient getContentVideoViewClient() {
-        return mContentViewClient.getContentVideoViewClient();
+        return getContentViewClient().getContentVideoViewClient();
     }
 
-    private native void nativeOnJavaContentViewCoreDestroyed(int nativeContentViewCoreImpl);
+    @CalledByNative
+    private boolean shouldBlockMediaRequest(String url) {
+        return getContentViewClient().shouldBlockMediaRequest(url);
+    }
+
+    @CalledByNative
+    private void onNativeFlingStopped() {
+        updateGestureStateListener(GestureEventType.FLING_END);
+    }
+
+    private native WebContents nativeGetWebContentsAndroid(long nativeContentViewCoreImpl);
+
+    private native void nativeOnJavaContentViewCoreDestroyed(long nativeContentViewCoreImpl);
 
     private native void nativeLoadUrl(
-            int nativeContentViewCoreImpl,
+            long nativeContentViewCoreImpl,
             String url,
             int loadUrlType,
             int transitionType,
@@ -3127,161 +3263,167 @@ import java.util.Map;
             String virtualUrlForDataUrl,
             boolean canLoadLocalResources);
 
-    private native String nativeGetURL(int nativeContentViewCoreImpl);
+    private native String nativeGetURL(long nativeContentViewCoreImpl);
 
-    private native String nativeGetTitle(int nativeContentViewCoreImpl);
+    private native String nativeGetTitle(long nativeContentViewCoreImpl);
 
     private native void nativeShowInterstitialPage(
-            int nativeContentViewCoreImpl, String url, int nativeInterstitialPageDelegateAndroid);
-    private native boolean nativeIsShowingInterstitialPage(int nativeContentViewCoreImpl);
+            long nativeContentViewCoreImpl, String url, long nativeInterstitialPageDelegateAndroid);
+    private native boolean nativeIsShowingInterstitialPage(long nativeContentViewCoreImpl);
 
-    private native boolean nativeIsIncognito(int nativeContentViewCoreImpl);
+    private native boolean nativeIsIncognito(long nativeContentViewCoreImpl);
 
-    // Returns true if the native side crashed so that java side can draw a sad tab.
-    private native boolean nativeCrashed(int nativeContentViewCoreImpl);
-
-    private native void nativeSetFocus(int nativeContentViewCoreImpl, boolean focused);
+    private native void nativeSetFocus(long nativeContentViewCoreImpl, boolean focused);
 
     private native void nativeSendOrientationChangeEvent(
-            int nativeContentViewCoreImpl, int orientation);
+            long nativeContentViewCoreImpl, int orientation);
 
     // All touch events (including flings, scrolls etc) accept coordinates in physical pixels.
-    private native boolean nativeSendTouchEvent(
-            int nativeContentViewCoreImpl, long timeMs, int action, TouchPoint[] pts);
+    private native void nativeOnTouchEventHandlingBegin(
+            long nativeContentViewCoreImpl, MotionEvent event);
+
+    private native void nativeOnTouchEventHandlingEnd(long nativeContentViewCoreImpl);
 
     private native int nativeSendMouseMoveEvent(
-            int nativeContentViewCoreImpl, long timeMs, float x, float y);
+            long nativeContentViewCoreImpl, long timeMs, float x, float y);
 
     private native int nativeSendMouseWheelEvent(
-            int nativeContentViewCoreImpl, long timeMs, float x, float y, float verticalAxis);
+            long nativeContentViewCoreImpl, long timeMs, float x, float y, float verticalAxis);
 
     private native void nativeScrollBegin(
-            int nativeContentViewCoreImpl, long timeMs, float x, float y);
+            long nativeContentViewCoreImpl, long timeMs, float x, float y, float hintX,
+            float hintY);
 
-    private native void nativeScrollEnd(int nativeContentViewCoreImpl, long timeMs);
+    private native void nativeScrollEnd(long nativeContentViewCoreImpl, long timeMs);
 
     private native void nativeScrollBy(
-            int nativeContentViewCoreImpl, long timeMs, float x, float y,
+            long nativeContentViewCoreImpl, long timeMs, float x, float y,
             float deltaX, float deltaY);
 
     private native void nativeFlingStart(
-            int nativeContentViewCoreImpl, long timeMs, float x, float y, float vx, float vy);
+            long nativeContentViewCoreImpl, long timeMs, float x, float y, float vx, float vy);
 
-    private native void nativeFlingCancel(int nativeContentViewCoreImpl, long timeMs);
+    private native void nativeFlingCancel(long nativeContentViewCoreImpl, long timeMs);
 
     private native void nativeSingleTap(
-            int nativeContentViewCoreImpl, long timeMs, float x, float y, boolean linkPreviewTap);
+            long nativeContentViewCoreImpl, long timeMs, float x, float y, boolean linkPreviewTap);
 
     private native void nativeSingleTapUnconfirmed(
-            int nativeContentViewCoreImpl, long timeMs, float x, float y);
+            long nativeContentViewCoreImpl, long timeMs, float x, float y);
 
-    private native void nativeShowPressState(
-            int nativeContentViewCoreImpl, long timeMs, float x, float y);
+    private native void nativeShowPress(
+            long nativeContentViewCoreImpl, long timeMs, float x, float y);
 
-    private native void nativeShowPressCancel(
-            int nativeContentViewCoreImpl, long timeMs, float x, float y);
+    private native void nativeTapCancel(
+            long nativeContentViewCoreImpl, long timeMs, float x, float y);
+
+    private native void nativeTapDown(
+            long nativeContentViewCoreImpl, long timeMs, float x, float y);
 
     private native void nativeDoubleTap(
-            int nativeContentViewCoreImpl, long timeMs, float x, float y);
+            long nativeContentViewCoreImpl, long timeMs, float x, float y);
 
     private native void nativeLongPress(
-            int nativeContentViewCoreImpl, long timeMs, float x, float y, boolean linkPreviewTap);
+            long nativeContentViewCoreImpl, long timeMs, float x, float y, boolean linkPreviewTap);
 
     private native void nativeLongTap(
-            int nativeContentViewCoreImpl, long timeMs, float x, float y, boolean linkPreviewTap);
+            long nativeContentViewCoreImpl, long timeMs, float x, float y, boolean linkPreviewTap);
 
     private native void nativePinchBegin(
-            int nativeContentViewCoreImpl, long timeMs, float x, float y);
+            long nativeContentViewCoreImpl, long timeMs, float x, float y);
 
-    private native void nativePinchEnd(int nativeContentViewCoreImpl, long timeMs);
+    private native void nativePinchEnd(long nativeContentViewCoreImpl, long timeMs);
 
-    private native void nativePinchBy(int nativeContentViewCoreImpl, long timeMs,
+    private native void nativePinchBy(long nativeContentViewCoreImpl, long timeMs,
             float anchorX, float anchorY, float deltaScale);
 
     private native void nativeSelectBetweenCoordinates(
-            int nativeContentViewCoreImpl, float x1, float y1, float x2, float y2);
+            long nativeContentViewCoreImpl, float x1, float y1, float x2, float y2);
 
-    private native void nativeMoveCaret(int nativeContentViewCoreImpl, float x, float y);
+    private native void nativeMoveCaret(long nativeContentViewCoreImpl, float x, float y);
 
-    private native boolean nativeCanGoBack(int nativeContentViewCoreImpl);
-    private native boolean nativeCanGoForward(int nativeContentViewCoreImpl);
-    private native boolean nativeCanGoToOffset(int nativeContentViewCoreImpl, int offset);
-    private native void nativeGoBack(int nativeContentViewCoreImpl);
-    private native void nativeGoForward(int nativeContentViewCoreImpl);
-    private native void nativeGoToOffset(int nativeContentViewCoreImpl, int offset);
-    private native void nativeGoToNavigationIndex(int nativeContentViewCoreImpl, int index);
+    private native void nativeLoadIfNecessary(long nativeContentViewCoreImpl);
+    private native void nativeRequestRestoreLoad(long nativeContentViewCoreImpl);
 
-    private native void nativeStopLoading(int nativeContentViewCoreImpl);
+    private native void nativeStopLoading(long nativeContentViewCoreImpl);
 
-    private native void nativeReload(int nativeContentViewCoreImpl);
+    private native void nativeReload(long nativeContentViewCoreImpl, boolean checkForRepost);
+    private native void nativeReloadIgnoringCache(
+            long nativeContentViewCoreImpl, boolean checkForRepost);
 
-    private native void nativeCancelPendingReload(int nativeContentViewCoreImpl);
+    private native void nativeCancelPendingReload(long nativeContentViewCoreImpl);
 
-    private native void nativeContinuePendingReload(int nativeContentViewCoreImpl);
+    private native void nativeContinuePendingReload(long nativeContentViewCoreImpl);
 
-    private native void nativeSelectPopupMenuItems(int nativeContentViewCoreImpl, int[] indices);
+    private native void nativeSelectPopupMenuItems(long nativeContentViewCoreImpl, int[] indices);
 
-    private native void nativeScrollFocusedEditableNodeIntoView(int nativeContentViewCoreImpl);
-    private native void nativeUndoScrollFocusedEditableNodeIntoView(int nativeContentViewCoreImpl);
-    private native boolean nativeNeedsReload(int nativeContentViewCoreImpl);
+    private native void nativeScrollFocusedEditableNodeIntoView(long nativeContentViewCoreImpl);
+    private native void nativeUndoScrollFocusedEditableNodeIntoView(long nativeContentViewCoreImpl);
 
-    private native void nativeClearHistory(int nativeContentViewCoreImpl);
+    private native void nativeClearHistory(long nativeContentViewCoreImpl);
 
-    private native void nativeEvaluateJavaScript(int nativeContentViewCoreImpl,
+    private native void nativeEvaluateJavaScript(long nativeContentViewCoreImpl,
             String script, JavaScriptCallback callback, boolean startRenderer);
 
-    private native int nativeGetNativeImeAdapter(int nativeContentViewCoreImpl);
+    private native int nativeGetNativeImeAdapter(long nativeContentViewCoreImpl);
 
-    private native int nativeGetCurrentRenderProcessId(int nativeContentViewCoreImpl);
+    private native int nativeGetCurrentRenderProcessId(long nativeContentViewCoreImpl);
 
-    private native int nativeGetBackgroundColor(int nativeContentViewCoreImpl);
+    private native int nativeGetBackgroundColor(long nativeContentViewCoreImpl);
 
-    private native void nativeOnShow(int nativeContentViewCoreImpl);
-    private native void nativeOnHide(int nativeContentViewCoreImpl);
+    private native void nativeOnShow(long nativeContentViewCoreImpl);
+    private native void nativeOnHide(long nativeContentViewCoreImpl);
 
-    private native void nativeSetUseDesktopUserAgent(int nativeContentViewCoreImpl,
+    private native void nativeSetUseDesktopUserAgent(long nativeContentViewCoreImpl,
             boolean enabled, boolean reloadOnChange);
-    private native boolean nativeGetUseDesktopUserAgent(int nativeContentViewCoreImpl);
+    private native boolean nativeGetUseDesktopUserAgent(long nativeContentViewCoreImpl);
 
-    private native void nativeClearSslPreferences(int nativeContentViewCoreImpl);
+    private native void nativeClearSslPreferences(long nativeContentViewCoreImpl);
 
-    private native void nativeAddJavascriptInterface(int nativeContentViewCoreImpl, Object object,
+    private native void nativeAddJavascriptInterface(long nativeContentViewCoreImpl, Object object,
             String name, Class requiredAnnotation, HashSet<Object> retainedObjectSet);
 
-    private native void nativeRemoveJavascriptInterface(int nativeContentViewCoreImpl, String name);
+    private native void nativeRemoveJavascriptInterface(long nativeContentViewCoreImpl,
+            String name);
 
-    private native int nativeGetNavigationHistory(int nativeContentViewCoreImpl, Object context);
-    private native void nativeGetDirectedNavigationHistory(int nativeContentViewCoreImpl,
+    private native int nativeGetNavigationHistory(long nativeContentViewCoreImpl, Object context);
+    private native void nativeGetDirectedNavigationHistory(long nativeContentViewCoreImpl,
             Object context, boolean isForward, int maxEntries);
     private native String nativeGetOriginalUrlForActiveNavigationEntry(
-            int nativeContentViewCoreImpl);
+            long nativeContentViewCoreImpl);
 
-    private native void nativeUpdateVSyncParameters(int nativeContentViewCoreImpl,
+    private native void nativeUpdateVSyncParameters(long nativeContentViewCoreImpl,
             long timebaseMicros, long intervalMicros);
 
-    private native void nativeOnVSync(int nativeContentViewCoreImpl, long frameTimeMicros);
+    private native void nativeOnVSync(long nativeContentViewCoreImpl, long frameTimeMicros);
 
-    private native boolean nativeOnAnimate(int nativeContentViewCoreImpl, long frameTimeMicros);
+    private native boolean nativeOnAnimate(long nativeContentViewCoreImpl, long frameTimeMicros);
 
-    private native boolean nativePopulateBitmapFromCompositor(int nativeContentViewCoreImpl,
-            Bitmap bitmap);
+    private native void nativeWasResized(long nativeContentViewCoreImpl);
 
-    private native void nativeWasResized(int nativeContentViewCoreImpl);
+    private native boolean nativeIsRenderWidgetHostViewReady(long nativeContentViewCoreImpl);
 
-    private native boolean nativeIsRenderWidgetHostViewReady(int nativeContentViewCoreImpl);
-
-    private native void nativeExitFullscreen(int nativeContentViewCoreImpl);
-    private native void nativeUpdateTopControlsState(int nativeContentViewCoreImpl,
+    private native void nativeExitFullscreen(long nativeContentViewCoreImpl);
+    private native void nativeUpdateTopControlsState(long nativeContentViewCoreImpl,
             boolean enableHiding, boolean enableShowing, boolean animate);
 
-    private native void nativeShowImeIfNeeded(int nativeContentViewCoreImpl);
+    private native void nativeShowImeIfNeeded(long nativeContentViewCoreImpl);
 
     private native void nativeAttachExternalVideoSurface(
-            int nativeContentViewCoreImpl, int playerId, Surface surface);
+            long nativeContentViewCoreImpl, int playerId, Surface surface);
 
     private native void nativeDetachExternalVideoSurface(
-            int nativeContentViewCoreImpl, int playerId);
+            long nativeContentViewCoreImpl, int playerId);
 
     private native void nativeSetAccessibilityEnabled(
-            int nativeContentViewCoreImpl, boolean enabled);
+            long nativeContentViewCoreImpl, boolean enabled);
+
+    private native void nativeSendSingleTapUma(long nativeContentViewCoreImpl,
+            int type, int count);
+
+    private native void nativeSendActionAfterDoubleTapUma(long nativeContentViewCoreImpl,
+            int type, boolean hasDelay, int count);
+
+    private native void nativeExtractSmartClipData(long nativeContentViewCoreImpl,
+            int x, int y, int w, int h);
 }

@@ -1,18 +1,18 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.base.test.util;
 
-import org.chromium.base.PathUtils;
-
 import junit.framework.Assert;
+
+import org.chromium.base.PathUtils;
 
 /**
  * Collection of URL utilities.
  */
 public class UrlUtils {
-    private final static String DATA_DIR = "/chrome/test/data/";
+    private static final String DATA_DIR = "/chrome/test/data/";
 
     /**
      * Construct the full path of a test data file.

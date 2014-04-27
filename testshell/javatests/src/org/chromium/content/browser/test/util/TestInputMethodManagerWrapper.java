@@ -6,17 +6,18 @@ package org.chromium.content.browser.test.util;
 
 import android.os.IBinder;
 import android.os.ResultReceiver;
+import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
-import android.view.View;
 
 import org.chromium.content.browser.ContentViewCore;
 import org.chromium.content.browser.input.InputMethodManagerWrapper;
 
 public class TestInputMethodManagerWrapper extends InputMethodManagerWrapper {
-    private ContentViewCore mContentViewCore;
+    private final ContentViewCore mContentViewCore;
     private InputConnection mInputConnection;
     private int mShowSoftInputCounter = 0;
+    private int mUpdateSelectionCounter = 0;
     private EditorInfo mEditorInfo;
 
     public TestInputMethodManagerWrapper(ContentViewCore contentViewCore) {
@@ -55,10 +56,15 @@ public class TestInputMethodManagerWrapper extends InputMethodManagerWrapper {
     @Override
     public void updateSelection(View view, int selStart, int selEnd,
             int candidatesStart, int candidatesEnd) {
+        mUpdateSelectionCounter++;
     }
 
     public int getShowSoftInputCounter() {
         return mShowSoftInputCounter;
+    }
+
+    public int getUpdateSelectionCounter() {
+        return mUpdateSelectionCounter;
     }
 
     public EditorInfo getEditorInfo() {

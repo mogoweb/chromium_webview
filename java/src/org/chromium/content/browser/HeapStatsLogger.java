@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,23 +11,26 @@ import android.content.IntentFilter;
 import android.os.Debug;
 import android.util.Log;
 
-import org.chromium.content.common.CommandLine;
+import org.chromium.base.CommandLine;
+import org.chromium.content.common.ContentSwitches;
 
-// Logs Heap stats, such as gc count, alloc count, etc.
-// It's enabled by CommandLine.ENABLE_TEST_INTENTS, and logs whenever broadcast
-// intent ACTION_LOG is received, e.g.:
-// adb shell am broadcast -a com.google.android.apps.chrome.LOG_HEAP_STATS
+/**
+ * Logs Heap stats, such as gc count, alloc count, etc.
+ * It's enabled by CommandLine.ENABLE_TEST_INTENTS, and logs whenever broadcast
+ * intent ACTION_LOG is received, e.g.:
+ * adb shell am broadcast -a com.google.android.apps.chrome.LOG_HEAP_STATS
+ */
 public class HeapStatsLogger {
     private static final String TAG = "HeapStatsLogger";
     private static final String ACTION_LOG = "com.google.android.apps.chrome.LOG_HEAP_STATS";
 
     private static HeapStatsLogger sHeapStats;
 
-    private HeapStatsLoggerReceiver mBroadcastReceiver;
-    private HeapStatsLoggerIntentFilter mIntentFilter;
+    private final HeapStatsLoggerReceiver mBroadcastReceiver;
+    private final HeapStatsLoggerIntentFilter mIntentFilter;
 
     public static void init(Context context) {
-        if (CommandLine.getInstance().hasSwitch(CommandLine.ENABLE_TEST_INTENTS)) {
+        if (CommandLine.getInstance().hasSwitch(ContentSwitches.ENABLE_TEST_INTENTS)) {
             sHeapStats = new HeapStatsLogger(context);
         }
     }

@@ -1,0 +1,11 @@
+// Copyright 2013 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package org.chromium.content.browser.input;
+
+public class PopupItemType {
+#define DEFINE_POPUP_ITEM_TYPE(name, value) public static final int name = value;
+#include "content/browser/android/popup_item_type_list.h"
+#undef DEFINE_POPUP_ITEM_TYPE
+}

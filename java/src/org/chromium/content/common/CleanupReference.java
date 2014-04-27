@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,9 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
+
+import org.chromium.base.ThreadUtils;
+import org.chromium.base.TraceEvent;
 
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
@@ -39,14 +42,15 @@ public class CleanupReference extends WeakReference<Object> {
     private static ReferenceQueue<Object> sGcQueue = new ReferenceQueue<Object>();
     private static Object sCleanupMonitor = new Object();
 
-    static private final Thread sReaperThread = new Thread(TAG) {
+    private static final Thread sReaperThread = new Thread(TAG) {
+        @Override
         public void run() {
             while (true) {
                 try {
                     CleanupReference ref = (CleanupReference) sGcQueue.remove();
                     if (DEBUG) Log.d(TAG, "removed one ref from GC queue");
                     synchronized (sCleanupMonitor) {
-                        Message.obtain(sHandler, REMOVE_REF, ref).sendToTarget();
+                        Message.obtain(LazyHolder.sHandler, REMOVE_REF, ref).sendToTarget();
                         // Give the UI thread chance to run cleanup before looping around and
                         // taking the next item from the queue, to avoid Message bombing it.
                         sCleanupMonitor.wait(500);
@@ -73,37 +77,41 @@ public class CleanupReference extends WeakReference<Object> {
     /**
      * This {@link Handler} polls {@link #sRefs}, looking for cleanup tasks that
      * are ready to run.
+     * This is lazily initialized as ThreadUtils.getUiThreadLooper() may not be
+     * set yet early in startup.
      */
-    private static Handler sHandler = new Handler(Looper.getMainLooper()) {
-        @Override
-        public void handleMessage(Message msg) {
-            TraceEvent.begin();
-            CleanupReference ref = (CleanupReference) msg.obj;
-            switch (msg.what) {
-                case ADD_REF:
-                    sRefs.add(ref);
-                    break;
-                case REMOVE_REF:
-                    ref.runCleanupTaskInternal();
-                    break;
-                default:
-                    Log.e(TAG, "Bad message=" + msg.what);
-                    break;
-            }
-
-            if (DEBUG) Log.d(TAG, "will try and cleanup; max = " + sRefs.size());
-
-            synchronized (sCleanupMonitor) {
-                // Always run the cleanup loop here even when adding or removing refs, to avoid
-                // falling behind on rapid garbage allocation inner loops.
-                while ((ref = (CleanupReference) sGcQueue.poll()) != null) {
-                    ref.runCleanupTaskInternal();
+    private static class LazyHolder {
+        static final Handler sHandler = new Handler(ThreadUtils.getUiThreadLooper()) {
+            @Override
+            public void handleMessage(Message msg) {
+                TraceEvent.begin();
+                CleanupReference ref = (CleanupReference) msg.obj;
+                switch (msg.what) {
+                    case ADD_REF:
+                        sRefs.add(ref);
+                        break;
+                    case REMOVE_REF:
+                        ref.runCleanupTaskInternal();
+                        break;
+                    default:
+                        Log.e(TAG, "Bad message=" + msg.what);
+                        break;
                 }
-                sCleanupMonitor.notifyAll();
+
+                if (DEBUG) Log.d(TAG, "will try and cleanup; max = " + sRefs.size());
+
+                synchronized (sCleanupMonitor) {
+                    // Always run the cleanup loop here even when adding or removing refs, to avoid
+                    // falling behind on rapid garbage allocation inner loops.
+                    while ((ref = (CleanupReference) sGcQueue.poll()) != null) {
+                        ref.runCleanupTaskInternal();
+                    }
+                    sCleanupMonitor.notifyAll();
+                }
+                TraceEvent.end();
             }
-            TraceEvent.end();
-        }
-    };
+        };
+    }
 
     /**
      * Keep a strong reference to {@link CleanupReference} so that it will
@@ -135,9 +143,9 @@ public class CleanupReference extends WeakReference<Object> {
     }
 
     private void handleOnUiThread(int what) {
-        Message msg = Message.obtain(sHandler, what, this);
-        if (Looper.myLooper() == sHandler.getLooper()) {
-            sHandler.handleMessage(msg);
+        Message msg = Message.obtain(LazyHolder.sHandler, what, this);
+        if (Looper.myLooper() == msg.getTarget().getLooper()) {
+            msg.getTarget().handleMessage(msg);
             msg.recycle();
         } else {
             msg.sendToTarget();

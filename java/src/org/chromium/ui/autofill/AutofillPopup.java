@@ -15,10 +15,13 @@ import android.widget.AdapterView;
 import android.widget.ListPopupWindow;
 import android.widget.TextView;
 
-import java.util.ArrayList;
-
 import org.chromium.ui.R;
-import org.chromium.ui.ViewAndroidDelegate;
+import org.chromium.ui.base.ViewAndroidDelegate;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
 
 /**
  * The Autofill suggestion popup that lists relevant suggestions.
@@ -29,11 +32,12 @@ public class AutofillPopup extends ListPopupWindow implements AdapterView.OnItem
      * Constants defining types of Autofill suggestion entries.
      * Has to be kept in sync with enum in WebAutofillClient.h
      *
-     * Not supported: MenuItemIDWarningMessage, MenuItemIDSeparator, MenuItemIDClearForm, and
+     * Not supported: MenuItemIDWarningMessage, MenuItemIDClearForm, and
      * MenuItemIDAutofillOptions.
      */
     private static final int ITEM_ID_AUTOCOMPLETE_ENTRY = 0;
     private static final int ITEM_ID_PASSWORD_ENTRY = -2;
+    private static final int ITEM_ID_SEPARATOR_ENTRY = -3;
     private static final int ITEM_ID_DATA_LIST_ENTRY = -6;
 
     private static final int TEXT_PADDING_DP = 30;
@@ -49,6 +53,21 @@ public class AutofillPopup extends ListPopupWindow implements AdapterView.OnItem
     private Paint mLabelViewPaint;
     private Paint mSublabelViewPaint;
     private OnLayoutChangeListener mLayoutChangeListener;
+    private List<AutofillSuggestion> mSuggestions;
+
+    /**
+     * An interface that can be injected to log field names selected by
+     * the autofill.
+     */
+    public interface AutofillLogger {
+        public void logSuggestionSelected(String fieldName);
+    }
+
+    private static AutofillLogger sAutofillLogger = null;
+
+    public static void setAutofillLogger(AutofillLogger autofillLogger) {
+        sAutofillLogger = autofillLogger;
+    }
 
     /**
      * An interface to handle the touch interaction with an AutofillPopup object.
@@ -76,7 +95,7 @@ public class AutofillPopup extends ListPopupWindow implements AdapterView.OnItem
             AutofillPopupDelegate autofillCallback) {
         super(context, null, 0, R.style.AutofillPopupWindow);
         mContext = context;
-        mViewAndroidDelegate = viewAndroidDelegate ;
+        mViewAndroidDelegate = viewAndroidDelegate;
         mAutofillCallback = autofillCallback;
 
         setOnItemClickListener(this);
@@ -105,6 +124,7 @@ public class AutofillPopup extends ListPopupWindow implements AdapterView.OnItem
         // An ugly hack to keep the popup from expanding on top of the keyboard.
         setInputMethodMode(INPUT_METHOD_NEEDED);
         super.show();
+        getListView().setDividerHeight(0);
     }
 
     /**
@@ -131,16 +151,20 @@ public class AutofillPopup extends ListPopupWindow implements AdapterView.OnItem
      * @param suggestions Autofill suggestion data.
      */
     public void show(AutofillSuggestion[] suggestions) {
+        mSuggestions = new ArrayList<AutofillSuggestion>(Arrays.asList(suggestions));
         // Remove the AutofillSuggestions with IDs that are not supported by Android
         ArrayList<AutofillSuggestion> cleanedData = new ArrayList<AutofillSuggestion>();
+        HashSet<Integer> separators = new HashSet<Integer>();
         for (int i = 0; i < suggestions.length; i++) {
             int itemId = suggestions[i].mUniqueId;
             if (itemId > 0 || itemId == ITEM_ID_AUTOCOMPLETE_ENTRY ||
                     itemId == ITEM_ID_PASSWORD_ENTRY || itemId == ITEM_ID_DATA_LIST_ENTRY) {
                 cleanedData.add(suggestions[i]);
+            } else if (itemId == ITEM_ID_SEPARATOR_ENTRY) {
+                separators.add(cleanedData.size());
             }
         }
-        setAdapter(new AutofillListAdapter(mContext, cleanedData));
+        setAdapter(new AutofillListAdapter(mContext, cleanedData, separators));
         // Once the mAnchorRect is resized and placed correctly, it will show the Autofill popup.
         mAnchorWidth = Math.max(getDesiredWidth(cleanedData), mAnchorWidth);
         mViewAndroidDelegate.setAnchorViewPosition(mAnchorView, mAnchorX, mAnchorY, mAnchorWidth,
@@ -208,7 +232,14 @@ public class AutofillPopup extends ListPopupWindow implements AdapterView.OnItem
 
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-        mAutofillCallback.suggestionSelected(position);
+        AutofillListAdapter adapter = (AutofillListAdapter) parent.getAdapter();
+        AutofillSuggestion selectedSuggestion = adapter.getItem(position);
+        int listIndex = mSuggestions.indexOf(selectedSuggestion);
+        assert listIndex > -1;
+        if (sAutofillLogger != null) {
+            sAutofillLogger.logSuggestionSelected(selectedSuggestion.mLabel);
+        }
+        mAutofillCallback.suggestionSelected(listIndex);
     }
 
 }

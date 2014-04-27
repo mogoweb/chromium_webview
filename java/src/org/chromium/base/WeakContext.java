@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,9 +9,11 @@ import android.content.Context;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.Callable;
 
-// Holds a WeakReference to Context to allow it to be GC'd.
-// Also provides utility functions to getSystemService from the UI or any
-// other thread (may return null, if the Context has been nullified).
+/**
+ * Holds a WeakReference to Context to allow it to be GC'd.
+ * Also provides utility functions to getSystemService from the UI or any
+ * other thread (may return null, if the Context has been nullified).
+ */
 public class WeakContext {
     private static WeakReference<Context> sWeakContext;
 
@@ -36,10 +38,10 @@ public class WeakContext {
             return context.getSystemService(name);
         }
         return ThreadUtils.runOnUiThreadBlockingNoException(new Callable<Object>() {
-          @Override
-          public Object call() {
-            return context.getSystemService(name);
-          }
+            @Override
+            public Object call() {
+                return context.getSystemService(name);
+            }
         });
     }
 }

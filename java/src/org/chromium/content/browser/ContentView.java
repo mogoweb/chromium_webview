@@ -1,13 +1,11 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.content.browser;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.res.Configuration;
-import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.os.Build;
@@ -23,8 +21,8 @@ import android.widget.FrameLayout;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import org.chromium.content.common.TraceEvent;
-import org.chromium.ui.WindowAndroid;
+import org.chromium.base.TraceEvent;
+import org.chromium.ui.base.WindowAndroid;
 
 /**
  * The containing view for {@link ContentViewCore} that exists in the Android UI hierarchy and
@@ -40,6 +38,7 @@ public class ContentView extends FrameLayout
 
     private float mCurrentTouchOffsetX;
     private float mCurrentTouchOffsetY;
+    private final int[] mLocationInWindow = new int[2];
 
     /**
      * Creates an instance of a ContentView.
@@ -49,7 +48,7 @@ public class ContentView extends FrameLayout
      * @param windowAndroid An instance of the WindowAndroid.
      * @return A ContentView instance.
      */
-    public static ContentView newInstance(Context context, int nativeWebContents,
+    public static ContentView newInstance(Context context, long nativeWebContents,
             WindowAndroid windowAndroid) {
         return newInstance(context, nativeWebContents, windowAndroid, null,
                 android.R.attr.webViewStyle);
@@ -64,7 +63,7 @@ public class ContentView extends FrameLayout
      * @param attrs The attributes of the XML tag that is inflating the view.
      * @return A ContentView instance.
      */
-    public static ContentView newInstance(Context context, int nativeWebContents,
+    public static ContentView newInstance(Context context, long nativeWebContents,
             WindowAndroid windowAndroid, AttributeSet attrs) {
         // TODO(klobag): use the WebViewStyle as the default style for now. It enables scrollbar.
         // When ContentView is moved to framework, we can define its own style in the res.
@@ -82,7 +81,7 @@ public class ContentView extends FrameLayout
      * @param defStyle The default style to apply to this view.
      * @return A ContentView instance.
      */
-    public static ContentView newInstance(Context context, int nativeWebContents,
+    public static ContentView newInstance(Context context, long nativeWebContents,
             WindowAndroid windowAndroid, AttributeSet attrs, int defStyle) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) {
             return new ContentView(context, nativeWebContents, windowAndroid, attrs, defStyle);
@@ -92,7 +91,7 @@ public class ContentView extends FrameLayout
         }
     }
 
-    protected ContentView(Context context, int nativeWebContents, WindowAndroid windowAndroid,
+    protected ContentView(Context context, long nativeWebContents, WindowAndroid windowAndroid,
             AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
 
@@ -105,37 +104,21 @@ public class ContentView extends FrameLayout
         setFocusableInTouchMode(true);
 
         mContentViewCore = new ContentViewCore(context);
-        mContentViewCore.initialize(this, this, nativeWebContents, windowAndroid,
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN ?
-                ContentViewCore.INPUT_EVENTS_DELIVERED_AT_VSYNC :
-                ContentViewCore.INPUT_EVENTS_DELIVERED_IMMEDIATELY);
+        mContentViewCore.initialize(this, this, nativeWebContents, windowAndroid);
+    }
+
+    /**
+     * @return The URL of the page.
+     */
+    public String getUrl() {
+        return mContentViewCore.getUrl();
     }
 
     // PageInfo implementation.
 
     @Override
-    public String getUrl() {
-        return mContentViewCore.getUrl();
-    }
-
-    @Override
     public String getTitle() {
         return mContentViewCore.getTitle();
-    }
-
-    @Override
-    public boolean isReadyForSnapshot() {
-        return !isCrashed() && isReady();
-    }
-
-    @Override
-    public Bitmap getBitmap() {
-        return getBitmap(getWidth(), getHeight());
-    }
-
-    @Override
-    public Bitmap getBitmap(int width, int height) {
-        return mContentViewCore.getBitmap(width, height);
     }
 
     @Override
@@ -164,18 +147,6 @@ public class ContentView extends FrameLayout
     }
 
     /**
-     * Returns true if the given Activity has hardware acceleration enabled
-     * in its manifest, or in its foreground window.
-     *
-     * TODO(husky): Remove when ContentViewCore.initialize() is refactored (see TODO there)
-     * TODO(dtrainor) This is still used by other classes.  Make sure to pull some version of this
-     * out before removing it.
-     */
-    public static boolean hasHardwareAcceleration(Activity activity) {
-        return ContentViewCore.hasHardwareAcceleration(activity);
-    }
-
-    /**
      * Destroy the internal state of the WebView. This method may only be called
      * after the WebView has been removed from the view system. No other methods
      * may be called on this WebView after this method has been called.
@@ -190,15 +161,6 @@ public class ContentView extends FrameLayout
      */
     public boolean isAlive() {
         return mContentViewCore.isAlive();
-    }
-
-    /**
-     * For internal use. Throws IllegalStateException if mNativeContentView is 0.
-     * Use this to ensure we get a useful Java stack trace, rather than a native
-     * crash dump, from use-after-destroy bugs in Java code.
-     */
-    void checkIsAlive() throws IllegalStateException {
-        mContentViewCore.checkIsAlive();
     }
 
     public void setContentViewClient(ContentViewClient client) {
@@ -222,13 +184,6 @@ public class ContentView extends FrameLayout
     }
 
     /**
-     * Stops loading the current web contents.
-     */
-    public void stopLoading() {
-        mContentViewCore.stopLoading();
-    }
-
-    /**
      * @return Whether the current WebContents has a previous navigation entry.
      */
     public boolean canGoBack() {
@@ -240,23 +195,6 @@ public class ContentView extends FrameLayout
      */
     public boolean canGoForward() {
         return mContentViewCore.canGoForward();
-    }
-
-    /**
-     * @param offset The offset into the navigation history.
-     * @return Whether we can move in history by given offset
-     */
-    public boolean canGoToOffset(int offset) {
-        return mContentViewCore.canGoToOffset(offset);
-    }
-
-    /**
-     * Navigates to the specified offset from the "current entry". Does nothing if the offset is out
-     * of bounds.
-     * @param offset The offset into the navigation history.
-     */
-    public void goToOffset(int offset) {
-        mContentViewCore.goToOffset(offset);
     }
 
     /**
@@ -274,39 +212,6 @@ public class ContentView extends FrameLayout
     }
 
     /**
-     * Reload the current page.
-     */
-    public void reload() {
-        mContentViewCore.reload();
-    }
-
-    /**
-     * Clears the WebView's page history in both the backwards and forwards
-     * directions.
-     */
-    public void clearHistory() {
-        mContentViewCore.clearHistory();
-    }
-
-    /**
-     * Start profiling the update speed. You must call {@link #stopFpsProfiling}
-     * to stop profiling.
-     */
-    @VisibleForTesting
-    public void startFpsProfiling() {
-        // TODO(nileshagrawal): Implement this.
-    }
-
-    /**
-     * Stop profiling the update speed.
-     */
-    @VisibleForTesting
-    public float stopFpsProfiling() {
-        // TODO(nileshagrawal): Implement this.
-        return 0.0f;
-    }
-
-    /**
      * Fling the ContentView from the current position.
      * @param x Fling touch starting position
      * @param y Fling touch starting position
@@ -315,49 +220,7 @@ public class ContentView extends FrameLayout
      */
     @VisibleForTesting
     public void fling(long timeMs, int x, int y, int velocityX, int velocityY) {
-        mContentViewCore.getContentViewGestureHandler().fling(timeMs, x, y, velocityX, velocityY);
-    }
-
-    /**
-     * Start pinch zoom. You must call {@link #pinchEnd} to stop.
-     */
-    @VisibleForTesting
-    public void pinchBegin(long timeMs, int x, int y) {
-        mContentViewCore.getContentViewGestureHandler().pinchBegin(timeMs, x, y);
-    }
-
-    /**
-     * Stop pinch zoom.
-     */
-    @VisibleForTesting
-    public void pinchEnd(long timeMs) {
-        mContentViewCore.getContentViewGestureHandler().pinchEnd(timeMs);
-    }
-
-    void setIgnoreSingleTap(boolean value) {
-        mContentViewCore.getContentViewGestureHandler().setIgnoreSingleTap(value);
-    }
-
-    /** @see ContentViewGestureHandler#setIgnoreRemainingTouchEvents */
-    public void setIgnoreRemainingTouchEvents() {
-        mContentViewCore.getContentViewGestureHandler().setIgnoreRemainingTouchEvents();
-    }
-
-    /**
-     * Modify the ContentView magnification level. The effect of calling this
-     * method is exactly as after "pinch zoom".
-     *
-     * @param timeMs The event time in milliseconds.
-     * @param delta The ratio of the new magnification level over the current
-     *            magnification level.
-     * @param anchorX The magnification anchor (X) in the current view
-     *            coordinate.
-     * @param anchorY The magnification anchor (Y) in the current view
-     *            coordinate.
-     */
-    @VisibleForTesting
-    public void pinchBy(long timeMs, int anchorX, int anchorY, float delta) {
-        mContentViewCore.getContentViewGestureHandler().pinchBy(timeMs, anchorX, anchorY, delta);
+        mContentViewCore.flingForTest(timeMs, x, y, velocityX, velocityY);
     }
 
     /**
@@ -367,20 +230,6 @@ public class ContentView extends FrameLayout
      */
     public void evaluateJavaScript(String script) throws IllegalStateException {
         mContentViewCore.evaluateJavaScript(script, null);
-    }
-
-    /**
-     * This method should be called when the containing activity is paused.
-     **/
-    public void onActivityPause() {
-        mContentViewCore.onActivityPause();
-    }
-
-    /**
-     * This method should be called when the containing activity is resumed.
-     **/
-    public void onActivityResume() {
-        mContentViewCore.onActivityResume();
     }
 
     /**
@@ -398,16 +247,6 @@ public class ContentView extends FrameLayout
     }
 
     /**
-     * Return the ContentSettings object used to retrieve the settings for this
-     * ContentView.
-     * @return A ContentSettings object that can be used to retrieve this ContentView's
-     *         settings.
-     */
-    public ContentSettings getContentSettings() {
-        return mContentViewCore.getContentSettings();
-    }
-
-    /**
      * Hides the select action bar.
      */
     public void hideSelectActionBar() {
@@ -422,12 +261,27 @@ public class ContentView extends FrameLayout
         return super.drawChild(canvas, child, drawingTime);
     }
 
+    // Needed by ContentViewCore.InternalAccessDelegate
+    @Override
+    public void onScrollChanged(int l, int t, int oldl, int oldt) {
+        super.onScrollChanged(l, t, oldl, oldt);
+    }
+
     @Override
     protected void onSizeChanged(int w, int h, int ow, int oh) {
         TraceEvent.begin();
         super.onSizeChanged(w, h, ow, oh);
         mContentViewCore.onSizeChanged(w, h, ow, oh);
         TraceEvent.end();
+    }
+
+    @Override
+    protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+        super.onLayout(changed, left, top, right, bottom);
+        if (changed) {
+            getLocationInWindow(mLocationInWindow);
+            mContentViewCore.onLocationInWindowChanged(mLocationInWindow[0], mLocationInWindow[1]);
+        }
     }
 
     @Override
@@ -491,6 +345,7 @@ public class ContentView extends FrameLayout
         MotionEvent offset = createOffsetMotionEvent(event);
         boolean consumed = mContentViewCore.onHoverEvent(offset);
         offset.recycle();
+        super.onHoverEvent(event);
         return consumed;
     }
 
@@ -544,7 +399,7 @@ public class ContentView extends FrameLayout
 
     @Override
     protected int computeHorizontalScrollExtent() {
-        // TODO (dtrainor): Need to expose scroll events properly to public. Either make getScroll*
+        // TODO(dtrainor): Need to expose scroll events properly to public. Either make getScroll*
         // work or expose computeHorizontalScrollOffset()/computeVerticalScrollOffset as public.
         return mContentViewCore.computeHorizontalScrollExtent();
     }
@@ -587,11 +442,11 @@ public class ContentView extends FrameLayout
     }
 
     public int getSingleTapX()  {
-        return mContentViewCore.getContentViewGestureHandler().getSingleTapX();
+        return mContentViewCore.getSingleTapX();
     }
 
     public int getSingleTapY()  {
-        return mContentViewCore.getContentViewGestureHandler().getSingleTapY();
+        return mContentViewCore.getSingleTapY();
     }
 
     @Override
@@ -629,105 +484,6 @@ public class ContentView extends FrameLayout
     }
 
     /**
-     * Register the delegate to be used when content can not be handled by
-     * the rendering engine, and should be downloaded instead. This will replace
-     * the current delegate.
-     * @param delegate An implementation of ContentViewDownloadDelegate.
-     */
-    public void setDownloadDelegate(ContentViewDownloadDelegate delegate) {
-        mContentViewCore.setDownloadDelegate(delegate);
-    }
-
-    // Called by DownloadController.
-    ContentViewDownloadDelegate getDownloadDelegate() {
-        return mContentViewCore.getDownloadDelegate();
-    }
-
-    public boolean getUseDesktopUserAgent() {
-        return mContentViewCore.getUseDesktopUserAgent();
-    }
-
-    /**
-     * Set whether or not we're using a desktop user agent for the currently loaded page.
-     * @param override If true, use a desktop user agent.  Use a mobile one otherwise.
-     * @param reloadOnChange Reload the page if the UA has changed.
-     */
-    public void setUseDesktopUserAgent(boolean override, boolean reloadOnChange) {
-        mContentViewCore.setUseDesktopUserAgent(override, reloadOnChange);
-    }
-
-    /**
-     * @return Whether the native ContentView has crashed.
-     */
-    public boolean isCrashed() {
-        return mContentViewCore.isCrashed();
-    }
-
-    /**
-     * @return Whether a reload happens when this ContentView is activated.
-     */
-    public boolean needsReload() {
-        return mContentViewCore.needsReload();
-    }
-
-    /**
-     * Checks whether the WebView can be zoomed in.
-     *
-     * @return True if the WebView can be zoomed in.
-     */
-    // This method uses the term 'zoom' for legacy reasons, but relates
-    // to what chrome calls the 'page scale factor'.
-    public boolean canZoomIn() {
-        return mContentViewCore.canZoomIn();
-    }
-
-    /**
-     * Checks whether the WebView can be zoomed out.
-     *
-     * @return True if the WebView can be zoomed out.
-     */
-    // This method uses the term 'zoom' for legacy reasons, but relates
-    // to what chrome calls the 'page scale factor'.
-    public boolean canZoomOut() {
-        return mContentViewCore.canZoomOut();
-    }
-
-    /**
-     * Zooms in the WebView by 25% (or less if that would result in zooming in
-     * more than possible).
-     *
-     * @return True if there was a zoom change, false otherwise.
-     */
-    // This method uses the term 'zoom' for legacy reasons, but relates
-    // to what chrome calls the 'page scale factor'.
-    public boolean zoomIn() {
-        return mContentViewCore.zoomIn();
-    }
-
-    /**
-     * Zooms out the WebView by 20% (or less if that would result in zooming out
-     * more than possible).
-     *
-     * @return True if there was a zoom change, false otherwise.
-     */
-    // This method uses the term 'zoom' for legacy reasons, but relates
-    // to what chrome calls the 'page scale factor'.
-    public boolean zoomOut() {
-        return mContentViewCore.zoomOut();
-    }
-
-    /**
-     * Resets the zoom factor of the WebView.
-     *
-     * @return True if there was a zoom change, false otherwise.
-     */
-    // This method uses the term 'zoom' for legacy reasons, but relates
-    // to what chrome calls the 'page scale factor'.
-    public boolean zoomReset() {
-        return mContentViewCore.zoomReset();
-    }
-
-    /**
      * Return the current scale of the WebView
      * @return The current scale.
      */
@@ -736,34 +492,10 @@ public class ContentView extends FrameLayout
     }
 
     /**
-     * If the view is ready to draw contents to the screen. In hardware mode,
-     * the initialization of the surface texture may not occur until after the
-     * view has been added to the layout. This method will return {@code true}
-     * once the texture is actually ready.
-     */
-    public boolean isReady() {
-        return mContentViewCore.isReady();
-    }
-
-    /**
-     * Returns whether or not accessibility injection is being used.
-     */
-    public boolean isInjectingAccessibilityScript() {
-        return mContentViewCore.isInjectingAccessibilityScript();
-    }
-
-    /**
      * Enable or disable accessibility features.
      */
     public void setAccessibilityState(boolean state) {
         mContentViewCore.setAccessibilityState(state);
-    }
-
-    /**
-     * Stop any TTS notifications that are currently going on.
-     */
-    public void stopCurrentAccessibilityNotifications() {
-        mContentViewCore.stopCurrentAccessibilityNotifications();
     }
 
     /**

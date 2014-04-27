@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -24,7 +24,7 @@ public class AdvancedMockContext extends ContextWrapper {
     private final Map<String, SharedPreferences> mSharedPreferences =
             new HashMap<String, SharedPreferences>();
 
-    private final Map<String, Boolean> flags = new HashMap<String, Boolean>();
+    private final Map<String, Boolean> mFlags = new HashMap<String, Boolean>();
 
     public AdvancedMockContext(Context base) {
         super(base);
@@ -71,15 +71,15 @@ public class AdvancedMockContext extends ContextWrapper {
     }
 
     public void setFlag(String key) {
-        flags.put(key, true);
+        mFlags.put(key, true);
     }
 
     public void clearFlag(String key) {
-        flags.remove(key);
+        mFlags.remove(key);
     }
 
     public boolean isFlagSet(String key) {
-        return flags.containsKey(key) && flags.get(key);
+        return mFlags.containsKey(key) && mFlags.get(key);
     }
 
     public static class MapBuilder {

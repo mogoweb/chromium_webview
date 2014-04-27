@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,13 +10,13 @@ import android.net.Uri;
 import android.util.Log;
 import android.util.TypedValue;
 
-import java.io.InputStream;
+import org.chromium.base.CalledByNative;
+import org.chromium.base.JNINamespace;
+
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URLConnection;
 import java.util.List;
-
-import org.chromium.base.CalledByNativeUnchecked;
-import org.chromium.base.JNINamespace;
 
 /**
  * Implements the Java side of Android URL protocol jobs.
@@ -37,23 +37,25 @@ public class AndroidProtocolHandler {
      * @param url The url to load.
      * @return An InputStream to the Android resource.
      */
-    // TODO(bulach): this should have either a throw clause, or
-    // handle the exception in the java side rather than the native side.
-    @CalledByNativeUnchecked
+    @CalledByNative
     public static InputStream open(Context context, String url) {
         Uri uri = verifyUrl(url);
         if (uri == null) {
             return null;
         }
-        String path = uri.getPath();
-        if (uri.getScheme().equals(FILE_SCHEME)) {
-            if (path.startsWith(nativeGetAndroidAssetPath())) {
-                return openAsset(context, uri);
-            } else if (path.startsWith(nativeGetAndroidResourcePath())) {
-                return openResource(context, uri);
+        try {
+            String path = uri.getPath();
+            if (uri.getScheme().equals(FILE_SCHEME)) {
+                if (path.startsWith(nativeGetAndroidAssetPath())) {
+                    return openAsset(context, uri);
+                } else if (path.startsWith(nativeGetAndroidResourcePath())) {
+                    return openResource(context, uri);
+                }
+            } else if (uri.getScheme().equals(CONTENT_SCHEME)) {
+                return openContent(context, uri);
             }
-        } else if (uri.getScheme().equals(CONTENT_SCHEME)) {
-            return openContent(context, uri);
+        } catch (Exception ex) {
+            Log.e(TAG, "Error opening inputstream: " + url);
         }
         return null;
     }
@@ -67,16 +69,16 @@ public class AndroidProtocolHandler {
         return id;
     }
 
-    private static int getValueType(Context context, int field_id) {
-      TypedValue value = new TypedValue();
-      context.getResources().getValue(field_id, value, true);
-      return value.type;
+    private static int getValueType(Context context, int fieldId) {
+        TypedValue value = new TypedValue();
+        context.getResources().getValue(fieldId, value, true);
+        return value.type;
     }
 
     private static InputStream openResource(Context context, Uri uri) {
-        assert(uri.getScheme().equals(FILE_SCHEME));
-        assert(uri.getPath() != null);
-        assert(uri.getPath().startsWith(nativeGetAndroidResourcePath()));
+        assert uri.getScheme().equals(FILE_SCHEME);
+        assert uri.getPath() != null;
+        assert uri.getPath().startsWith(nativeGetAndroidResourcePath());
         // The path must be of the form "/android_res/asset_type/asset_name.ext".
         List<String> pathSegments = uri.getPathSegments();
         if (pathSegments.size() != 3) {
@@ -101,10 +103,10 @@ public class AndroidProtocolHandler {
             if (context.getApplicationContext() != null) {
                 context = context.getApplicationContext();
             }
-            int field_id = getFieldId(context, assetType, assetName);
-            int value_type = getValueType(context, field_id);
-            if (value_type == TypedValue.TYPE_STRING) {
-                return context.getResources().openRawResource(field_id);
+            int fieldId = getFieldId(context, assetType, assetName);
+            int valueType = getValueType(context, fieldId);
+            if (valueType == TypedValue.TYPE_STRING) {
+                return context.getResources().openRawResource(fieldId);
             } else {
                 Log.e(TAG, "Asset not of type string: " + uri);
                 return null;
@@ -122,9 +124,9 @@ public class AndroidProtocolHandler {
     }
 
     private static InputStream openAsset(Context context, Uri uri) {
-        assert(uri.getScheme().equals(FILE_SCHEME));
-        assert(uri.getPath() != null);
-        assert(uri.getPath().startsWith(nativeGetAndroidAssetPath()));
+        assert uri.getScheme().equals(FILE_SCHEME);
+        assert uri.getPath() != null;
+        assert uri.getPath().startsWith(nativeGetAndroidAssetPath());
         String path = uri.getPath().replaceFirst(nativeGetAndroidAssetPath(), "");
         try {
             AssetManager assets = context.getAssets();
@@ -136,13 +138,9 @@ public class AndroidProtocolHandler {
     }
 
     private static InputStream openContent(Context context, Uri uri) {
-        assert(uri.getScheme().equals(CONTENT_SCHEME));
+        assert uri.getScheme().equals(CONTENT_SCHEME);
         try {
-            // We strip the query parameters before opening the stream to
-            // ensure that the URL we try to load exactly matches the URL
-            // we have permission to read.
-            Uri baseUri = stripQueryParameters(uri);
-            return context.getContentResolver().openInputStream(baseUri);
+            return context.getContentResolver().openInputStream(uri);
         } catch (Exception e) {
             Log.e(TAG, "Unable to open content URL: " + uri);
             return null;
@@ -156,25 +154,28 @@ public class AndroidProtocolHandler {
      * @param url The url from which the stream was opened.
      * @return The mime type or null if the type is unknown.
      */
-    // TODO(bulach): this should have either a throw clause, or
-    // handle the exception in the java side rather than the native side.
-    @CalledByNativeUnchecked
+    @CalledByNative
     public static String getMimeType(Context context, InputStream stream, String url) {
         Uri uri = verifyUrl(url);
         if (uri == null) {
             return null;
         }
-        String path = uri.getPath();
-        // The content URL type can be queried directly.
-        if (uri.getScheme().equals(CONTENT_SCHEME)) {
-            return context.getContentResolver().getType(uri);
-        // Asset files may have a known extension.
-        } else if (uri.getScheme().equals(FILE_SCHEME) &&
-                   path.startsWith(nativeGetAndroidAssetPath())) {
-            String mimeType = URLConnection.guessContentTypeFromName(path);
-            if (mimeType != null) {
-                return mimeType;
+        try {
+            String path = uri.getPath();
+            // The content URL type can be queried directly.
+            if (uri.getScheme().equals(CONTENT_SCHEME)) {
+                return context.getContentResolver().getType(uri);
+                // Asset files may have a known extension.
+            } else if (uri.getScheme().equals(FILE_SCHEME) &&
+                       path.startsWith(nativeGetAndroidAssetPath())) {
+                String mimeType = URLConnection.guessContentTypeFromName(path);
+                if (mimeType != null) {
+                    return mimeType;
+                }
             }
+        } catch (Exception ex) {
+            Log.e(TAG, "Unable to get mime type" + url);
+            return null;
         }
         // Fall back to sniffing the type from the stream.
         try {
@@ -203,21 +204,6 @@ public class AndroidProtocolHandler {
             return null;
         }
         return uri;
-    }
-
-    /**
-     * Remove query parameters from a Uri.
-     * @param uri The input uri.
-     * @return The given uri without query parameters.
-     */
-    private static Uri stripQueryParameters(Uri uri) {
-        assert(uri.getAuthority() != null);
-        assert(uri.getPath() != null);
-        Uri.Builder builder = new Uri.Builder();
-        builder.scheme(uri.getScheme());
-        builder.encodedAuthority(uri.getAuthority());
-        builder.encodedPath(uri.getPath());
-        return builder.build();
     }
 
     /**

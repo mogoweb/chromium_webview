@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,11 +18,13 @@ import android.view.Surface;
 
 import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
+import org.chromium.base.library_loader.LibraryLoader;
+import org.chromium.base.library_loader.Linker;
+import org.chromium.base.library_loader.ProcessInitException;
 import org.chromium.content.browser.ChildProcessConnection;
+import org.chromium.content.browser.ChildProcessLauncher;
 import org.chromium.content.common.IChildProcessCallback;
 import org.chromium.content.common.IChildProcessService;
-import org.chromium.content.browser.ChildProcessLauncher;
-import org.chromium.content.common.ProcessInitException;
 
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicReference;
@@ -52,9 +54,13 @@ public class ChildProcessService extends Service {
     // Pairs IDs and file descriptors that should be registered natively.
     private ArrayList<Integer> mFileIds;
     private ArrayList<ParcelFileDescriptor> mFileFds;
+    // Linker-specific parameters for this child process service.
+    private ChromiumLinkerParams mLinkerParams;
 
     private static AtomicReference<Context> sContext = new AtomicReference<Context>(null);
     private boolean mLibraryInitialized = false;
+    // Becomes true once the service is bound. Access must synchronize around mMainThread.
+    private boolean mIsBound = false;
 
     // Binder object used by clients for this service.
     private final IChildProcessService.Stub mBinder = new IChildProcessService.Stub() {
@@ -89,6 +95,11 @@ public class ChildProcessService extends Service {
                             + ChildProcessConnection.EXTRA_FILES_ID_SUFFIX;
                     mFileIds.add(args.getInt(idName));
                 }
+                Bundle sharedRelros = args.getBundle(Linker.EXTRA_LINKER_SHARED_RELROS);
+                if (sharedRelros != null) {
+                    Linker.useSharedRelros(sharedRelros);
+                    sharedRelros = null;
+                }
                 mMainThread.notifyAll();
             }
             return Process.myPid();
@@ -112,11 +123,28 @@ public class ChildProcessService extends Service {
             @Override
             public void run()  {
                 try {
+                    boolean useLinker = Linker.isUsed();
+
+                    if (useLinker) {
+                        synchronized (mMainThread) {
+                            while (!mIsBound) {
+                                mMainThread.wait();
+                            }
+                        }
+                        if (mLinkerParams != null) {
+                            if (mLinkerParams.mWaitForSharedRelro)
+                                Linker.initServiceProcess(mLinkerParams.mBaseLoadAddress);
+                            else
+                                Linker.disableSharedRelros();
+
+                            Linker.setTestRunnerClassName(mLinkerParams.mTestRunnerClassName);
+                        }
+                    }
                     try {
-                        LibraryLoader.loadNow();
+                        LibraryLoader.loadNow(getApplicationContext());
                     } catch (ProcessInitException e) {
                         Log.e(TAG, "Failed to load native library, exiting child process", e);
-                        return;
+                        System.exit(-1);
                     }
                     synchronized (mMainThread) {
                         while (mCommandLineParams == null) {
@@ -170,6 +198,7 @@ public class ChildProcessService extends Service {
                     mMainThread.wait();
                 }
             } catch (InterruptedException e) {
+                // Ignore
             }
         }
         // Try to shutdown the MainThread gracefully, but it might not
@@ -188,6 +217,10 @@ public class ChildProcessService extends Service {
         synchronized (mMainThread) {
             mCommandLineParams = intent.getStringArrayExtra(
                     ChildProcessConnection.EXTRA_COMMAND_LINE);
+            mLinkerParams = null;
+            if (Linker.isUsed())
+                mLinkerParams = new ChromiumLinkerParams(intent);
+            mIsBound = true;
             mMainThread.notifyAll();
         }
 
@@ -216,9 +249,9 @@ public class ChildProcessService extends Service {
         Surface surface = null;
         boolean needRelease = false;
         if (surfaceObject instanceof Surface) {
-            surface = (Surface)surfaceObject;
+            surface = (Surface) surfaceObject;
         } else if (surfaceObject instanceof SurfaceTexture) {
-            surface = new Surface((SurfaceTexture)surfaceObject);
+            surface = new Surface((SurfaceTexture) surfaceObject);
             needRelease = true;
         } else {
             Log.e(TAG, "Not a valid surfaceObject: " + surfaceObject);

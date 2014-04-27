@@ -31,8 +31,9 @@ public final class CollectionUtil {
 
     public static <E> ArrayList<E> newArrayList(Iterable<E> iterable) {
         ArrayList<E> list = new ArrayList<E>();
-        for (E element : iterable)
+        for (E element : iterable) {
             list.add(element);
+        }
         return list;
     }
 }

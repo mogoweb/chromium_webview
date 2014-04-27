@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,6 @@ import android.webkit.ValueCallback;
 
 import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
-import org.chromium.base.ThreadUtils;
 
 /**
  * This class handles the JNI communication logic for the the AwContentsClient class.
@@ -24,7 +23,7 @@ public class AwContentsClientBridge {
 
     private AwContentsClient mClient;
     // The native peer of this object.
-    private int mNativeContentsClientBridge;
+    private long mNativeContentsClientBridge;
 
     public AwContentsClientBridge(AwContentsClient client) {
         assert client != null;
@@ -33,7 +32,7 @@ public class AwContentsClientBridge {
 
     // Used by the native peer to set/reset a weak ref to the native peer.
     @CalledByNative
-    private void setNativeContentsClientBridge(int nativeContentsClientBridge) {
+    private void setNativeContentsClientBridge(long nativeContentsClientBridge) {
         mNativeContentsClientBridge = nativeContentsClientBridge;
     }
 
@@ -91,6 +90,11 @@ public class AwContentsClientBridge {
         mClient.handleJsBeforeUnload(url, message, handler);
     }
 
+    @CalledByNative
+    private boolean shouldOverrideUrlLoading(String url) {
+        return mClient.shouldOverrideUrlLoading(url);
+    }
+
     void confirmJsResult(int id, String prompt) {
         if (mNativeContentsClientBridge == 0) return;
         nativeConfirmJsResult(mNativeContentsClientBridge, id, prompt);
@@ -104,10 +108,10 @@ public class AwContentsClientBridge {
     //--------------------------------------------------------------------------------------------
     //  Native methods
     //--------------------------------------------------------------------------------------------
-    private native void nativeProceedSslError(int nativeAwContentsClientBridge, boolean proceed,
+    private native void nativeProceedSslError(long nativeAwContentsClientBridge, boolean proceed,
             int id);
 
-    private native void nativeConfirmJsResult(int nativeAwContentsClientBridge, int id,
+    private native void nativeConfirmJsResult(long nativeAwContentsClientBridge, int id,
             String prompt);
-    private native void nativeCancelJsResult(int nativeAwContentsClientBridge, int id);
+    private native void nativeCancelJsResult(long nativeAwContentsClientBridge, int id);
 }

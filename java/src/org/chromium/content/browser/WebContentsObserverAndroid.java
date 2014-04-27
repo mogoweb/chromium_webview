@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,10 +13,14 @@ import org.chromium.base.JNINamespace;
  */
 @JNINamespace("content")
 public abstract class WebContentsObserverAndroid {
-    private int mNativeWebContentsObserverAndroid;
+    private long mNativeWebContentsObserverAndroid;
 
     public WebContentsObserverAndroid(ContentViewCore contentViewCore) {
         mNativeWebContentsObserverAndroid = nativeInit(contentViewCore.getNativeContentViewCore());
+    }
+
+    @CalledByNative
+    public void renderProcessGone(boolean wasOomProtected) {
     }
 
     /**
@@ -46,15 +50,24 @@ public abstract class WebContentsObserverAndroid {
             boolean isMainFrame, int errorCode, String description, String failingUrl) {
     }
 
+    // TODO(mkosiba): delete once downstream rolls.
+    @Deprecated
+    @CalledByNative
+    public void didNavigateMainFrame(String url, String baseUrl,
+            boolean isNavigationToDifferentPage) {
+    }
+
     /**
      * Called when the main frame of the page has committed.
      * @param url The validated url for the page.
      * @param baseUrl The validated base url for the page.
      * @param isNavigationToDifferentPage Whether the main frame navigated to a different page.
+     * @param isNavigationInPage Whether the main frame navigation did not cause changes to the
+     *                           document (for example scrolling to a named anchor or PopState).
      */
     @CalledByNative
     public void didNavigateMainFrame(String url, String baseUrl,
-            boolean isNavigationToDifferentPage) {
+            boolean isNavigationToDifferentPage, boolean isNavigationInPage) {
     }
 
     /**
@@ -113,6 +126,13 @@ public abstract class WebContentsObserverAndroid {
     }
 
     /**
+     * Notifies that a navigation entry has been committed.
+     */
+    @CalledByNative
+    public void navigationEntryCommitted() {
+    }
+
+    /**
      * Invoked when visible SSL state changes.
      */
     @CalledByNative
@@ -144,6 +164,6 @@ public abstract class WebContentsObserverAndroid {
         }
     }
 
-    private native int nativeInit(int contentViewCorePtr);
-    private native void nativeDestroy(int nativeWebContentsObserverAndroid);
+    private native long nativeInit(long contentViewCorePtr);
+    private native void nativeDestroy(long nativeWebContentsObserverAndroid);
 }

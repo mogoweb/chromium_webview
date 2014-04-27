@@ -73,7 +73,7 @@ public class DefaultVideoPosterRequestHandler {
     private AwContentsClient mContentClient;
 
     public DefaultVideoPosterRequestHandler(AwContentsClient contentClient) {
-        mDefaultVideoPosterURL = GenerateDefaulVideoPosterURL();
+        mDefaultVideoPosterURL = generateDefaulVideoPosterURL();
         mContentClient = contentClient;
     }
 
@@ -102,9 +102,11 @@ public class DefaultVideoPosterRequestHandler {
     /**
      * @return a unique URL which has little chance to be used by application.
      */
-    private static String GenerateDefaulVideoPosterURL() {
+    private static String generateDefaulVideoPosterURL() {
         Random randomGenerator = new Random();
         String path = String.valueOf(randomGenerator.nextLong());
-        return "android-webview:default_video_poster/" + path;
+        // The scheme of this URL should be kept in sync with kAndroidWebViewVideoPosterScheme
+        // on the native side (see android_webview/common/url_constants.h)
+        return "android-webview-video-poster:default_video_poster/" + path;
     }
 }

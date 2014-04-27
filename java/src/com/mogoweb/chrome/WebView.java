@@ -25,8 +25,7 @@ import java.util.Map;
 import org.chromium.android_webview.AwBrowserContext;
 import org.chromium.android_webview.AwContents;
 import org.chromium.android_webview.AwLayoutSizer;
-import org.chromium.content.browser.ContentViewCore;
-import org.chromium.content.browser.ContentViewRenderView;
+import org.chromium.android_webview.AwSettings;
 import org.chromium.content.browser.LoadUrlParams;
 import org.chromium.content.browser.NavigationHistory;
 
@@ -385,9 +384,6 @@ public class WebView extends FrameLayout {
     /** The closest thing to a WebView that Chromium has to offer. */
     private AwContents mAwContents;
 
-    /** Implements some of AwContents. */
-    private ContentViewCore mContentViewCore;
-
     /** Glue that passes calls from the Chromium view to a WebChromeClient. */
     private ChromeAwContentsClientProxy mAwContentsClient;
 
@@ -396,9 +392,6 @@ public class WebView extends FrameLayout {
 
     /** Glue that passes calls from the Chromium view to its parent (us).  */
     private ChromeInternalAcccessAdapter mInternalAccessAdapter;
-
-    // The target for content rendering.
-    private ContentViewRenderView mContentViewRenderView;
 
     /**
      * Constructs a new WebView with a Context object.
@@ -450,16 +443,10 @@ public class WebView extends FrameLayout {
 
         mInternalAccessAdapter = new ChromeInternalAcccessAdapter();
         mAwContentsClient = new ChromeAwContentsClientProxy(this);
+        final AwSettings awSettings = new AwSettings(context,
+                false /*isAccessFromFileURLsGrantedByDefault*/, true /*supportsLegacyQuirks*/);
         mAwContents = new AwContents(mBrowserContext, this, mInternalAccessAdapter,
-                mAwContentsClient, false, new AwLayoutSizer(), true);
-        mContentViewCore = mAwContents.getContentViewCore();
-
-        mContentViewRenderView = new ContentViewRenderView(context) {
-            @Override
-            protected void onReadyToRender() {
-
-            }
-        };
+                mAwContentsClient, awSettings, new AwLayoutSizer());
     }
 
     //// Methods from android.webkit.WebView

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -43,7 +43,7 @@ public class NetworkChangeNotifier {
     public static final int CONNECTION_NONE = 6;
 
     private final Context mContext;
-    private final ArrayList<Integer> mNativeChangeNotifiers;
+    private final ArrayList<Long> mNativeChangeNotifiers;
     private final ObserverList<ConnectionTypeObserver> mConnectionTypeObservers;
     private NetworkChangeNotifierAutoDetect mAutoDetector;
     private int mCurrentConnectionType = CONNECTION_UNKNOWN;
@@ -51,8 +51,8 @@ public class NetworkChangeNotifier {
     private static NetworkChangeNotifier sInstance;
 
     private NetworkChangeNotifier(Context context) {
-        mContext = context;
-        mNativeChangeNotifiers = new ArrayList<Integer>();
+        mContext = context.getApplicationContext();
+        mNativeChangeNotifiers = new ArrayList<Long>();
         mConnectionTypeObservers = new ObserverList<ConnectionTypeObserver>();
     }
 
@@ -84,7 +84,7 @@ public class NetworkChangeNotifier {
      * Adds a native-side observer.
      */
     @CalledByNative
-    public void addNativeObserver(int nativeChangeNotifier) {
+    public void addNativeObserver(long nativeChangeNotifier) {
         mNativeChangeNotifiers.add(nativeChangeNotifier);
     }
 
@@ -92,10 +92,8 @@ public class NetworkChangeNotifier {
      * Removes a native-side observer.
      */
     @CalledByNative
-    public void removeNativeObserver(int nativeChangeNotifier) {
-        // Please keep the cast performing the boxing below. It ensures that the right method
-        // overload is used. ArrayList<T> has both remove(int index) and remove(T element).
-        mNativeChangeNotifiers.remove((Integer) nativeChangeNotifier);
+    public void removeNativeObserver(long nativeChangeNotifier) {
+        mNativeChangeNotifiers.remove(nativeChangeNotifier);
     }
 
     /**
@@ -171,7 +169,7 @@ public class NetworkChangeNotifier {
      * Alerts all observers of a connection change.
      */
     void notifyObserversOfConnectionTypeChange(int newConnectionType) {
-        for (Integer nativeChangeNotifier : mNativeChangeNotifiers) {
+        for (Long nativeChangeNotifier : mNativeChangeNotifiers) {
             nativeNotifyConnectionTypeChanged(nativeChangeNotifier, newConnectionType);
         }
         for (ConnectionTypeObserver observer : mConnectionTypeObservers) {
@@ -204,10 +202,7 @@ public class NetworkChangeNotifier {
     }
 
     @NativeClassQualifiedName("NetworkChangeNotifierDelegateAndroid")
-    private native void nativeNotifyConnectionTypeChanged(int nativePtr, int newConnectionType);
-
-    @NativeClassQualifiedName("NetworkChangeNotifierDelegateAndroid")
-    private native int nativeGetConnectionType(int nativePtr);
+    private native void nativeNotifyConnectionTypeChanged(long nativePtr, int newConnectionType);
 
     // For testing only.
     public static NetworkChangeNotifierAutoDetect getAutoDetectorForTest() {

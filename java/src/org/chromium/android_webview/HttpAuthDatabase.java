@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -52,6 +52,8 @@ public class HttpAuthDatabase {
      */
     private boolean mInitialized = false;
 
+    private final Object mInitializedLock = new Object();
+
     /**
      * Create an instance of HttpAuthDatabase for the named file, and kick-off background
      * initialization of that database.
@@ -74,16 +76,18 @@ public class HttpAuthDatabase {
      * @param context the Context to use for opening the database
      * @param databaseFile Name of the file to be initialized.
      */
-    private synchronized void initOnBackgroundThread(Context context, String databaseFile) {
-        if (mInitialized) {
-            return;
+    private void initOnBackgroundThread(Context context, String databaseFile) {
+        synchronized (mInitializedLock) {
+            if (mInitialized) {
+                return;
+            }
+
+            initDatabase(context, databaseFile);
+
+            // Thread done, notify.
+            mInitialized = true;
+            mInitializedLock.notifyAll();
         }
-
-        initDatabase(context, databaseFile);
-
-        // Thread done, notify.
-        mInitialized = true;
-        notifyAll();
     }
 
     /**
@@ -138,10 +142,10 @@ public class HttpAuthDatabase {
      * @return true if the database was initialized, false otherwise
      */
     private boolean waitForInit() {
-        synchronized (this) {
+        synchronized (mInitializedLock) {
             while (!mInitialized) {
                 try {
-                    wait();
+                    mInitializedLock.wait();
                 } catch (InterruptedException e) {
                     Log.e(LOGTAG, "Caught exception while checking initialization", e);
                 }
@@ -184,7 +188,7 @@ public class HttpAuthDatabase {
      *         String[1] is password.  Null is returned if it can't find anything.
      */
     public String[] getHttpAuthUsernamePassword(String host, String realm) {
-        if (host == null || realm == null || !waitForInit()){
+        if (host == null || realm == null || !waitForInit()) {
             return null;
         }
 

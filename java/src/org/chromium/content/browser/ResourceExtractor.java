@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,7 +14,7 @@ import android.preference.PreferenceManager;
 import android.util.Log;
 
 import org.chromium.base.PathUtils;
-import org.chromium.ui.LocalizationUtils;
+import org.chromium.ui.base.LocalizationUtils;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -221,9 +221,9 @@ public class ResourceExtractor {
         }
     }
 
-    private Context mContext;
+    private final Context mContext;
     private ExtractTask mExtractTask;
-    private File mOutputDir;
+    private final File mOutputDir;
 
     private static ResourceExtractor sInstance;
 
@@ -275,22 +275,21 @@ public class ResourceExtractor {
 
         try {
             mExtractTask.get();
-        }
-        catch (CancellationException e) {
+        } catch (CancellationException e) {
             // Don't leave the files in an inconsistent state.
             deleteFiles(mContext);
-        }
-        catch (ExecutionException e2) {
+        } catch (ExecutionException e2) {
             deleteFiles(mContext);
-        }
-        catch (InterruptedException e3) {
+        } catch (InterruptedException e3) {
             deleteFiles(mContext);
         }
     }
 
-    // This will extract the application pak resources in an
-    // AsyncTask. Call waitForCompletion() at the point resources
-    // are needed to block until the task completes.
+    /**
+     * This will extract the application pak resources in an
+     * AsyncTask. Call waitForCompletion() at the point resources
+     * are needed to block until the task completes.
+     */
     public void startExtractingResources() {
         if (mExtractTask != null) {
             return;

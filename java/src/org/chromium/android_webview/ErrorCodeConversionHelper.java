@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -48,7 +48,7 @@ public abstract class ErrorCodeConversionHelper {
         // These will be handled by the default case, ERROR_UNKNOWN.
         switch (netError) {
             case NetError.ERR_UNSUPPORTED_AUTH_SCHEME:
-              return ERROR_UNSUPPORTED_AUTH_SCHEME;
+                return ERROR_UNSUPPORTED_AUTH_SCHEME;
 
             case NetError.ERR_INVALID_AUTH_CREDENTIALS:
             case NetError.ERR_MISSING_AUTH_CREDENTIALS:

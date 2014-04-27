@@ -8,13 +8,13 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.MessageQueue;
-import android.util.Log;
 
 import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
-import java.lang.reflect.Method;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 
 /**
  * Handles processing messages in nested run loops.
@@ -66,7 +66,7 @@ class NestedSystemMessageHandler {
         while (!quitLoop) {
             Message msg = null;
             try {
-                msg = (Message)nextMethod.invoke(queue);
+                msg = (Message) nextMethod.invoke(queue);
             } catch (IllegalArgumentException e) {
                 e.printStackTrace();
                 return false;
@@ -109,9 +109,9 @@ class NestedSystemMessageHandler {
                 if (target == null) {
                     // No target is a magic identifier for the quit message.
                     quitLoop = true;
+                } else {
+                    target.dispatchMessage(msg);
                 }
-
-                target.dispatchMessage(msg);
                 msg.recycle();
             } else {
                 quitLoop = true;

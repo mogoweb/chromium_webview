@@ -4,7 +4,6 @@
 
 package org.chromium.base;
 
-import java.lang.Iterable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -26,6 +25,8 @@ import javax.annotation.concurrent.NotThreadSafe;
  * <p/>
  * This class is not threadsafe. Observers MUST be added, removed and will be notified on the same
  * thread this is created.
+ *
+ * @param <E> The type of observers that this list should hold.
  */
 @NotThreadSafe
 public class ObserverList<E> implements Iterable<E> {
@@ -93,8 +94,9 @@ public class ObserverList<E> implements Iterable<E> {
         }
 
         int size = mObservers.size();
-        for (int i = 0; i < size; i++)
+        for (int i = 0; i < size; i++) {
             mObservers.set(i, null);
+        }
     }
 
     @Override
@@ -167,10 +169,10 @@ public class ObserverList<E> implements Iterable<E> {
         public boolean hasNext() {
             int lookupIndex = mIndex;
             while (lookupIndex < mListEndMarker &&
-                    ObserverList.this.getObserverAt(lookupIndex) == null)
+                    ObserverList.this.getObserverAt(lookupIndex) == null) {
                 lookupIndex++;
-            if (lookupIndex < mListEndMarker)
-                return true;
+            }
+            if (lookupIndex < mListEndMarker) return true;
 
             // We have reached the end of the list, allow for compaction.
             compactListIfNeeded();
@@ -180,10 +182,10 @@ public class ObserverList<E> implements Iterable<E> {
         @Override
         public E next() {
             // Advance if the current element is null.
-            while (mIndex < mListEndMarker && ObserverList.this.getObserverAt(mIndex) == null)
+            while (mIndex < mListEndMarker && ObserverList.this.getObserverAt(mIndex) == null) {
                 mIndex++;
-            if (mIndex < mListEndMarker)
-                return ObserverList.this.getObserverAt(mIndex++);
+            }
+            if (mIndex < mListEndMarker) return ObserverList.this.getObserverAt(mIndex++);
 
             // We have reached the end of the list, allow for compaction.
             compactListIfNeeded();

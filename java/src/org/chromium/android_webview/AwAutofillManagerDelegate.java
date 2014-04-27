@@ -4,8 +4,6 @@
 
 package org.chromium.android_webview;
 
-import android.content.Context;
-import android.view.View;
 import android.view.ViewGroup;
 
 import org.chromium.base.CalledByNative;
@@ -14,22 +12,24 @@ import org.chromium.content.browser.ContentViewCore;
 import org.chromium.ui.autofill.AutofillPopup;
 import org.chromium.ui.autofill.AutofillSuggestion;
 
-// Java counterpart to the AwAutofillManagerDelegate. This class is owned by
-// AwContents and has a weak reference from native side.
+/**
+ * Java counterpart to the AwAutofillManagerDelegate. This class is owned by AwContents and has
+ * a weak reference from native side.
+ */
 @JNINamespace("android_webview")
 public class AwAutofillManagerDelegate {
 
-    private final int mNativeAwAutofillManagerDelegate;
+    private final long mNativeAwAutofillManagerDelegate;
     private AutofillPopup mAutofillPopup;
     private ViewGroup mContainerView;
     private ContentViewCore mContentViewCore;
 
     @CalledByNative
-    public static AwAutofillManagerDelegate create(int nativeDelegate) {
+    public static AwAutofillManagerDelegate create(long nativeDelegate) {
         return new AwAutofillManagerDelegate(nativeDelegate);
     }
 
-    private AwAutofillManagerDelegate(int nativeAwAutofillManagerDelegate) {
+    private AwAutofillManagerDelegate(long nativeAwAutofillManagerDelegate) {
         mNativeAwAutofillManagerDelegate = nativeAwAutofillManagerDelegate;
     }
 
@@ -49,7 +49,9 @@ public class AwAutofillManagerDelegate {
                 mContentViewCore.getContext(),
                 mContentViewCore.getViewAndroidDelegate(),
                 new AutofillPopup.AutofillPopupDelegate() {
+                    @Override
                     public void requestHide() { }
+                    @Override
                     public void suggestionSelected(int listIndex) {
                         nativeSuggestionSelected(mNativeAwAutofillManagerDelegate, listIndex);
                     }
@@ -85,5 +87,6 @@ public class AwAutofillManagerDelegate {
         array[index] = new AutofillSuggestion(name, label, uniqueId);
     }
 
-    private native void nativeSuggestionSelected(int nativeAwAutofillManagerDelegate, int position);
+    private native void nativeSuggestionSelected(long nativeAwAutofillManagerDelegate,
+            int position);
 }

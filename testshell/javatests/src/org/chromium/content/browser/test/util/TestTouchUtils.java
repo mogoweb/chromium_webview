@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -88,7 +88,7 @@ public class TestTouchUtils extends android.test.TouchUtils {
      * @param instrumentation Instrumentation object used by the test.
      */
     public static void sleepForDoubleTapTimeout(Instrumentation instrumentation) {
-        SystemClock.sleep((long)(ViewConfiguration.getDoubleTapTimeout() * 1.5));
+        SystemClock.sleep((long) (ViewConfiguration.getDoubleTapTimeout() * 1.5));
     }
 
     /**
@@ -106,8 +106,20 @@ public class TestTouchUtils extends android.test.TouchUtils {
 
         long downTime = SystemClock.uptimeMillis();
         sendAction(instrumentation, MotionEvent.ACTION_DOWN, downTime, absoluteX, absoluteY);
-        SystemClock.sleep((long)(ViewConfiguration.getLongPressTimeout() * 1.5));
+        SystemClock.sleep((long) (ViewConfiguration.getLongPressTimeout() * 1.5));
         sendAction(instrumentation, MotionEvent.ACTION_UP, downTime, absoluteX, absoluteY);
+    }
+
+    /**
+     * Sends (synchronously) a long click to the View at its center.
+     *
+     * @param instrumentation Instrumentation object used by the test.
+     * @param v The view to long click.
+     */
+    public static void longClickView(Instrumentation instrumentation, View v) {
+        int x = v.getWidth() / 2;
+        int y = v.getHeight() / 2;
+        longClickView(instrumentation, v, x, y);
     }
 
     /**

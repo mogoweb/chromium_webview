@@ -39,11 +39,8 @@ public class ChromeInitializer {
     //     chromium/src/android_webview/test/shell/src/org/chromium/android_webview/shell/AwShellResourceProvider
 
     AwResource.setResources(context.getResources());
-
-    AwResource.RAW_LOAD_ERROR = R.raw.blank_html;
-    AwResource.RAW_NO_DOMAIN = R.raw.blank_html;
-
-    AwResource.STRING_DEFAULT_TEXT_ENCODING = R.string.default_encoding;
+    AwResource.setErrorPageResources(R.raw.blank_html, R.raw.blank_html);
+    AwResource.setDefaultTextEncoding(R.string.default_encoding);
 
     // Initialization lifted from
     //     chromium/src/android_webview/test/shell/src/org/chromium/android_webview/shell/AwShellApplication

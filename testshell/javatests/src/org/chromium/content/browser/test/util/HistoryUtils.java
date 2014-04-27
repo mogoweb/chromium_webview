@@ -1,8 +1,10 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.content.browser.test.util;
+
+import static org.chromium.base.test.util.ScalableTimeout.scaleTimeout;
 
 import android.app.Instrumentation;
 
@@ -19,7 +21,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class HistoryUtils {
 
-    protected final static int WAIT_TIMEOUT_SECONDS = 15;
+    protected static final long WAIT_TIMEOUT_SECONDS = scaleTimeout(15);
 
     /**
      * Calls {@link ContentView#canGoBack()} on UI thread.
@@ -41,13 +43,13 @@ public class HistoryUtils {
     }
 
     /**
-     * Calls {@link ContentView#canGoToOffset(int)} on UI thread.
+     * Calls {@link ContentViewCore#canGoToOffset(int)} on UI thread.
      *
      * @param instrumentation an Instrumentation instance.
      * @param contentViewCore a ContentViewCore instance.
      * @param offset The number of steps to go on the UI thread, with negative
      *      representing going back.
-     * @return result of {@link ContentView#canGoToOffset(int)}
+     * @return result of {@link ContentViewCore#canGoToOffset(int)}
      * @throws Throwable
      */
     public static boolean canGoToOffsetOnUiThread(Instrumentation instrumentation,
@@ -81,7 +83,7 @@ public class HistoryUtils {
     }
 
     /**
-     * Calls {@link ContentView#clearHistory()} on UI thread.
+     * Calls {@link ContentViewCore#clearHistory()} on UI thread.
      *
      * @param instrumentation an Instrumentation instance.
      * @param contentViewCore a ContentViewCore instance.
