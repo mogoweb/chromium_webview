@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,6 @@ package org.chromium.content.browser;
 
 import android.content.Context;
 import android.util.DisplayMetrics;
-import android.util.Log;
 import android.view.MotionEvent;
 
 /**
@@ -25,11 +24,9 @@ class SnapScrollController {
     private int mFirstTouchY = -1;
     private float mDistanceX = 0;
     private float mDistanceY = 0;
-    private ZoomManager mZoomManager;
 
-    SnapScrollController(Context context, ZoomManager zoomManager) {
+    SnapScrollController(Context context) {
         calculateChannelDistance(context);
-        mZoomManager = zoomManager;
     }
 
     /**
@@ -64,7 +61,7 @@ class SnapScrollController {
      * Sets the snap scroll mode based on the event type.
      * @param event The received MotionEvent.
      */
-    void setSnapScrollingMode(MotionEvent event) {
+    void setSnapScrollingMode(MotionEvent event, boolean isScaleGestureDetectionInProgress) {
         switch(event.getAction()) {
             case MotionEvent.ACTION_DOWN:
                 mSnapScrollMode = SNAP_NONE;
@@ -77,7 +74,7 @@ class SnapScrollController {
              // and movement towards x-axis is trivial.
              // Scrolling mode will remain in SNAP_NONE for other conditions.
             case MotionEvent.ACTION_MOVE:
-                if (!mZoomManager.isScaleGestureDetectionInProgress() &&
+                if (!isScaleGestureDetectionInProgress &&
                         mSnapScrollMode == SNAP_NONE) {
                     int xDiff = (int) Math.abs(event.getX() - mFirstTouchX);
                     int yDiff = (int) Math.abs(event.getY() - mFirstTouchY);
@@ -96,7 +93,6 @@ class SnapScrollController {
                 mDistanceY = 0;
                 break;
             default:
-                Log.i(TAG, "setSnapScrollingMode case-default no-op");
                 break;
         }
     }
@@ -117,13 +113,6 @@ class SnapScrollController {
         }
         mChannelDistance = mChannelDistance * metrics.density;
         if (mChannelDistance < 16f) mChannelDistance = 16f;
-    }
-
-    /**
-     * Resets the snap scroll mode to default.
-     */
-    void resetSnapScrollMode() {
-        mSnapScrollMode = SNAP_NONE;
     }
 
     /**

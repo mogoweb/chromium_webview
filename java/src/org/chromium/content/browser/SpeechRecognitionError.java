@@ -32,4 +32,7 @@ public static final int NO_MATCH = 6;
 
 
 public static final int BAD_GRAMMAR = 7;
+
+
+public static final int LAST = 7;
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -31,9 +31,9 @@ public abstract class CpuFeatures {
      * This is a 64-bit integer that corresponds to the CPU's features.
      * The value comes directly from android_getCpuFeatures().
      */
-     public static long getMask() {
+    public static long getMask() {
         return nativeGetCpuFeatures();
-     }
+    }
 
     private static native int nativeGetCoreCount();
     private static native long nativeGetCpuFeatures();

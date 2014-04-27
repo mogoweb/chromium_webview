@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,7 +19,7 @@ import android.os.Looper;
 public class PowerMonitor implements ActivityStatus.StateListener {
     private static final long SUSPEND_DELAY_MS = 1 * 60 * 1000;  // 1 minute.
     private static class LazyHolder {
-      private static final PowerMonitor INSTANCE = new PowerMonitor();
+        private static final PowerMonitor INSTANCE = new PowerMonitor();
     }
     private static PowerMonitor sInstance;
 

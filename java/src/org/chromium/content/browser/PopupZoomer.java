@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -35,7 +35,7 @@ import org.chromium.content.R;
  * canvas and touch events to display the on-demand zoom magnifier.
  */
 class PopupZoomer extends View {
-    private static String LOGTAG = "PopupZoomer";
+    private static final String LOGTAG = "PopupZoomer";
 
     // The padding between the edges of the view and the popup. Note that there is a mirror
     // constant in content/renderer/render_view_impl.cc which should be kept in sync if
@@ -175,52 +175,52 @@ class PopupZoomer extends View {
         setFocusableInTouchMode(true);
 
         GestureDetector.SimpleOnGestureListener listener =
-            new GestureDetector.SimpleOnGestureListener() {
-                @Override
-                public boolean onScroll(MotionEvent e1, MotionEvent e2,
-                        float distanceX, float distanceY) {
-                    if (mAnimating) return true;
+                new GestureDetector.SimpleOnGestureListener() {
+                    @Override
+                    public boolean onScroll(MotionEvent e1, MotionEvent e2,
+                            float distanceX, float distanceY) {
+                        if (mAnimating) return true;
 
-                    if (isTouchOutsideArea(e1.getX(), e1.getY())) {
-                        hide(true);
-                    } else {
-                        scroll(distanceX, distanceY);
-                    }
-                    return true;
-                }
-
-                @Override
-                public boolean onSingleTapUp(MotionEvent e) {
-                    return handleTapOrPress(e, false);
-                }
-
-                @Override
-                public void onLongPress(MotionEvent e) {
-                    handleTapOrPress(e, true);
-                }
-
-                private boolean handleTapOrPress(MotionEvent e, boolean isLongPress) {
-                    if (mAnimating) return true;
-
-                    float x = e.getX();
-                    float y = e.getY();
-                    if (isTouchOutsideArea(x, y)) {
-                        // User clicked on area outside the popup.
-                        hide(true);
-                    } else if (mOnTapListener != null) {
-                        PointF converted = convertTouchPoint(x, y);
-                        MotionEvent event = MotionEvent.obtainNoHistory(e);
-                        event.setLocation(converted.x, converted.y);
-                        if (isLongPress) {
-                            mOnTapListener.onLongPress(PopupZoomer.this, event);
+                        if (isTouchOutsideArea(e1.getX(), e1.getY())) {
+                            hide(true);
                         } else {
-                            mOnTapListener.onSingleTap(PopupZoomer.this, event);
+                            scroll(distanceX, distanceY);
                         }
-                        hide(true);
+                        return true;
                     }
-                    return true;
-                }
-        };
+
+                    @Override
+                    public boolean onSingleTapUp(MotionEvent e) {
+                        return handleTapOrPress(e, false);
+                    }
+
+                    @Override
+                    public void onLongPress(MotionEvent e) {
+                        handleTapOrPress(e, true);
+                    }
+
+                    private boolean handleTapOrPress(MotionEvent e, boolean isLongPress) {
+                        if (mAnimating) return true;
+
+                        float x = e.getX();
+                        float y = e.getY();
+                        if (isTouchOutsideArea(x, y)) {
+                            // User clicked on area outside the popup.
+                            hide(true);
+                        } else if (mOnTapListener != null) {
+                            PointF converted = convertTouchPoint(x, y);
+                            MotionEvent event = MotionEvent.obtainNoHistory(e);
+                            event.setLocation(converted.x, converted.y);
+                            if (isLongPress) {
+                                mOnTapListener.onLongPress(PopupZoomer.this, event);
+                            } else {
+                                mOnTapListener.onSingleTap(PopupZoomer.this, event);
+                            }
+                            hide(true);
+                        }
+                        return true;
+                    }
+                };
         mGestureDetector = new GestureDetector(context, listener);
     }
 
@@ -459,8 +459,8 @@ class PopupZoomer extends View {
         // Since we want the content to appear directly above its counterpart on the
         // page, we need to remove the mShiftX/Y effect at the beginning of the animation.
         // The unshifting decreases with the animation.
-        float unshiftX = - mShiftX * (1.0f - fractionAnimation) / mScale;
-        float unshiftY = - mShiftY * (1.0f - fractionAnimation) / mScale;
+        float unshiftX = -mShiftX * (1.0f - fractionAnimation) / mScale;
+        float unshiftY = -mShiftY * (1.0f - fractionAnimation) / mScale;
 
         // Compute the rect to show.
         RectF rect = new RectF();
@@ -493,7 +493,7 @@ class PopupZoomer extends View {
     /**
      * Show the PopupZoomer view with given target bounds.
      */
-    public void show(Rect rect){
+    public void show(Rect rect) {
         if (mShowing || mZoomedBitmap == null) return;
 
         setTargetBounds(rect);
@@ -504,7 +504,7 @@ class PopupZoomer extends View {
      * Hide the PopupZoomer view.
      * @param animation true if hide with animation.
      */
-    public void hide(boolean animation){
+    public void hide(boolean animation) {
         if (!mShowing) return;
 
         if (animation) {

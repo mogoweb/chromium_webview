@@ -9,7 +9,6 @@ import android.graphics.Color;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.accessibility.AccessibilityEvent;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.SeekBar.OnSeekBarChangeListener;
@@ -70,7 +69,6 @@ public class ColorPickerAdvanced extends LinearLayout implements OnSeekBarChange
                 SATURATION_SEEK_BAR_MAX, this);
         mValueDetails = createAndAddNewGradient(R.string.color_picker_value,
                 VALUE_SEEK_BAR_MAX, this);
-
         refreshGradientComponents();
     }
 

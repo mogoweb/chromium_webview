@@ -34,10 +34,4 @@ public interface ContentVideoViewClient {
      * If null is returned, the default video loading view is used.
      */
     public View getVideoLoadingProgressView();
-
-    /**
-     * Allows the embedder to replace the default playback controls by returning a custom
-     * implementation. If null is returned, the default controls are used.
-     */
-    public ContentVideoViewControls createControls();
 }

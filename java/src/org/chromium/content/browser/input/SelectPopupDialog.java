@@ -1,24 +1,23 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.content.browser.input;
 
-import org.chromium.content.browser.ContentViewCore;
-
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.res.TypedArray;
 import android.util.SparseBooleanArray;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
-import android.widget.ArrayAdapter;
-import android.widget.CheckedTextView;
 import android.widget.ListView;
 
 import org.chromium.content.R;
+import org.chromium.content.browser.ContentViewCore;
+
+import java.util.List;
 
 /**
  * Handles the popup dialog for the <select> HTML tag support.
@@ -35,92 +34,17 @@ public class SelectPopupDialog {
     // The dialog hosting the popup list view.
     private AlertDialog mListBoxPopup = null;
 
-    private ContentViewCore mContentViewCore;
+    private final ContentViewCore mContentViewCore;
+    private final Context mContext;
 
-    /**
-     * Subclass ArrayAdapter so we can disable OPTION_GROUP items.
-     */
-    private class SelectPopupArrayAdapter extends ArrayAdapter<String> {
-        /**
-         * Possible values for mItemEnabled.
-         * Keep in sync with the value passed from content_view_core_impl.cc
-         */
-        final static int POPUP_ITEM_TYPE_GROUP = 0;
-        final static int POPUP_ITEM_TYPE_DISABLED = 1;
-        final static int POPUP_ITEM_TYPE_ENABLED = 2;
-
-        // Indicates the POPUP_ITEM_TYPE of each item.
-        private int[] mItemEnabled;
-
-        // True if all items are POPUP_ITEM_TYPE_ENABLED.
-        private boolean mAreAllItemsEnabled;
-
-        public SelectPopupArrayAdapter(String[] labels, int[] enabled, boolean multiple) {
-            super(mContentViewCore.getContext(), getSelectDialogLayout(multiple), labels);
-            mItemEnabled = enabled;
-            mAreAllItemsEnabled = true;
-            for (int item : mItemEnabled) {
-                if (item != POPUP_ITEM_TYPE_ENABLED) {
-                    mAreAllItemsEnabled = false;
-                    break;
-                }
-            }
-        }
-
-        @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            if (position < 0 || position >= getCount()) {
-                return null;
-            }
-
-            // Always pass in null so that we will get a new CheckedTextView. Otherwise, an item
-            // which was previously used as an <optgroup> element (i.e. has no check), could get
-            // used as an <option> element, which needs a checkbox/radio, but it would not have
-            // one.
-            convertView = super.getView(position, null, parent);
-            if (mItemEnabled[position] != POPUP_ITEM_TYPE_ENABLED) {
-                if (mItemEnabled[position] == POPUP_ITEM_TYPE_GROUP) {
-                    // Currently select_dialog_multichoice & select_dialog_multichoice use
-                    // CheckedTextViews. If that changes, the class cast will no longer be valid.
-                    ((CheckedTextView) convertView).setCheckMarkDrawable(null);
-                } else {
-                    // Draw the disabled element in a disabled state.
-                    convertView.setEnabled(false);
-                }
-            }
-            return convertView;
-        }
-
-        @Override
-        public boolean areAllItemsEnabled() {
-            return mAreAllItemsEnabled;
-        }
-
-        @Override
-        public boolean isEnabled(int position) {
-            if (position < 0 || position >= getCount()) {
-                return false;
-            }
-            return mItemEnabled[position] == POPUP_ITEM_TYPE_ENABLED;
-        }
-    }
-
-    private int getSelectDialogLayout(boolean isMultiChoice) {
-        int resource_id;
-        TypedArray styledAttributes = mContentViewCore.getContext().obtainStyledAttributes(
-                R.style.SelectPopupDialog, SELECT_DIALOG_ATTRS);
-        resource_id = styledAttributes.getResourceId(isMultiChoice ? 0 : 1, 0);
-        styledAttributes.recycle();
-        return resource_id;
-    }
-
-    private SelectPopupDialog(ContentViewCore contentViewCore, String[] labels, int[] enabled,
+    private SelectPopupDialog(ContentViewCore contentViewCore, List<SelectPopupItem> items,
             boolean multiple, int[] selected) {
         mContentViewCore = contentViewCore;
+        mContext = mContentViewCore.getContext();
 
-        final ListView listView = new ListView(mContentViewCore.getContext());
+        final ListView listView = new ListView(mContext);
         listView.setCacheColorHint(0);
-        AlertDialog.Builder b = new AlertDialog.Builder(mContentViewCore.getContext())
+        AlertDialog.Builder b = new AlertDialog.Builder(mContext)
                 .setView(listView)
                 .setCancelable(true)
                 .setInverseBackgroundForced(true);
@@ -130,17 +54,19 @@ public class SelectPopupDialog {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
                     mContentViewCore.selectPopupMenuItems(getSelectedIndices(listView));
-                }});
+                }
+            });
             b.setNegativeButton(android.R.string.cancel,
                     new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    mContentViewCore.selectPopupMenuItems(null);
-            }});
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            mContentViewCore.selectPopupMenuItems(null);
+                        }
+                    });
         }
         mListBoxPopup = b.create();
-        final SelectPopupArrayAdapter adapter = new SelectPopupArrayAdapter(labels, enabled,
-                multiple);
+        final SelectPopupAdapter adapter = new SelectPopupAdapter(
+                mContext, getSelectDialogLayout(multiple), items);
         listView.setAdapter(adapter);
         listView.setFocusableInTouchMode(true);
 
@@ -179,6 +105,15 @@ public class SelectPopupDialog {
         });
     }
 
+    private int getSelectDialogLayout(boolean isMultiChoice) {
+        int resourceId;
+        TypedArray styledAttributes = mContext.obtainStyledAttributes(
+                R.style.SelectPopupDialog, SELECT_DIALOG_ATTRS);
+        resourceId = styledAttributes.getResourceId(isMultiChoice ? 0 : 1, 0);
+        styledAttributes.recycle();
+        return resourceId;
+    }
+
     private int[] getSelectedIndices(ListView listView) {
         SparseBooleanArray sparseArray = listView.getCheckedItemPositions();
         int selectedCount = 0;
@@ -200,18 +135,16 @@ public class SelectPopupDialog {
      * Shows the popup menu triggered by the passed ContentView.
      * Hides any currently shown popup.
      * @param items           Items to show.
-     * @param enabled         POPUP_ITEM_TYPEs for items.
      * @param multiple        Whether the popup menu should support multi-select.
      * @param selectedIndices Indices of selected items.
      */
-    public static void show(ContentViewCore contentViewCore, String[] items, int[] enabled,
+    public static void show(ContentViewCore contentViewCore, List<SelectPopupItem> items,
             boolean multiple, int[] selectedIndices) {
         // Hide the popup currently showing if any.  This could happen if the user pressed a select
         // and pressed it again before the popup was shown.  In that case, the previous popup is
         // irrelevant and can be hidden.
         hide(null);
-        sShownDialog = new SelectPopupDialog(contentViewCore, items, enabled, multiple,
-                selectedIndices);
+        sShownDialog = new SelectPopupDialog(contentViewCore, items, multiple, selectedIndices);
         sShownDialog.mListBoxPopup.show();
     }
 

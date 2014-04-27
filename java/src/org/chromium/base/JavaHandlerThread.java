@@ -6,8 +6,6 @@ package org.chromium.base;
 
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.os.Looper;
-import android.os.Message;
 
 /**
  * This class is an internal detail of the native counterpart.
@@ -27,7 +25,7 @@ class JavaHandlerThread {
     }
 
     @CalledByNative
-    private void start(final int nativeThread, final int nativeEvent) {
+    private void start(final long nativeThread, final long nativeEvent) {
         mThread.start();
         new Handler(mThread.getLooper()).post(new Runnable() {
             @Override
@@ -37,5 +35,5 @@ class JavaHandlerThread {
         });
     }
 
-    private native void nativeInitializeThread(int nativeJavaHandlerThread, int nativeEvent);
+    private native void nativeInitializeThread(long nativeJavaHandlerThread, long nativeEvent);
 }

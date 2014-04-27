@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,8 +16,6 @@ import android.os.Bundle;
 import android.util.Log;
 
 import java.util.List;
-
-import org.chromium.base.ContextTypes;
 
 /**
  * {@link PepperPluginManager} collects meta data about plugins from preloaded android apps
@@ -54,7 +52,7 @@ public class PepperPluginManager {
             return null;
         }
         // Assemble the plugin info, according to the format described in
-        // pepper_plugin_registry.cc.
+        // pepper_plugin_list.cc.
         // (eg. path<#name><#description><#version>;mimetype)
         StringBuffer plugin = new StringBuffer(PEPPER_PLUGIN_ROOT);
         plugin.append(filename);
@@ -80,7 +78,7 @@ public class PepperPluginManager {
         plugin.append(mimetype);
 
         return plugin.toString();
-   }
+    }
 
     /**
      * Collects information about installed plugins and returns a plugin description
@@ -90,11 +88,6 @@ public class PepperPluginManager {
      * @return        Description string for plugins
      */
     public static String getPlugins(final Context context) {
-        if (DeviceUtils.isTv(context) &&
-                !ContextTypes.isRunningInWebapp(context)) {
-            // Chrome-for-tv enables plugins only on webapp mode.
-            return null;
-        }
         StringBuffer ret = new StringBuffer();
         PackageManager pm = context.getPackageManager();
         List<ResolveInfo> plugins = pm.queryIntentServices(

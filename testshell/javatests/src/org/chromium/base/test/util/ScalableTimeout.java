@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,7 +13,7 @@ public class ScalableTimeout {
     private static Double sTimeoutScale = null;
     private static final String PROPERTY_FILE = "/data/local/tmp/chrome_timeout_scale";
 
-    public static long ScaleTimeout(long timeout) {
+    public static long scaleTimeout(long timeout) {
         if (sTimeoutScale == null) {
             try {
                 char[] data = TestFileUtil.readUtf8File(PROPERTY_FILE, 32);

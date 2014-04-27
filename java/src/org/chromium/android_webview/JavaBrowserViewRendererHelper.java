@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,14 +6,11 @@ package org.chromium.android_webview;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Picture;
-import android.util.Log;
 import android.util.LruCache;
 
 import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
-import org.chromium.content.common.TraceEvent;
 
 /**
  * Provides auxiliary methods related to Picture objects and native SkPictures.
@@ -23,7 +20,7 @@ public class JavaBrowserViewRendererHelper {
     private static final String LOGTAG = "JavaBrowserViewRendererHelper";
 
     // Until the full HW path is ready, we limit to 5 AwContents on the screen at once.
-    private static LruCache<Integer, Bitmap> sBitmapCache = new LruCache<Integer, Bitmap>(5);
+    private static LruCache<Long, Bitmap> sBitmapCache = new LruCache<Long, Bitmap>(5);
 
     /**
      * Provides a Bitmap object with a given width and height used for auxiliary rasterization.
@@ -32,7 +29,7 @@ public class JavaBrowserViewRendererHelper {
      * the Bitmap will be cached in sBitmapCache for future use.
      */
     @CalledByNative
-    private static Bitmap createBitmap(int width, int height, Canvas canvas, int ownerKey) {
+    private static Bitmap createBitmap(int width, int height, Canvas canvas, long ownerKey) {
         if (canvas != null) {
             // When drawing into a Canvas, there is a maximum size imposed
             // on Bitmaps that can be drawn. Respect that limit.

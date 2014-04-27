@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,7 +13,7 @@ import org.chromium.base.JNINamespace;
  * content/public/app/content_main.h which is not used in Android as it has
  * the different initialization process.
  *
- * TODO (michaelbai): Refactorying the BrowserProcessMain.java and the
+ * TODO(michaelbai): Refactorying the BrowserProcessMain.java and the
  * ChildProcessService.java to start ContentMain, and run the process
  * specific initialization code in ContentMainRunner::Initialize.
  *
@@ -36,4 +36,4 @@ public class ContentMain {
 
     private static native void nativeInitApplicationContext(Context context);
     private static native int nativeStart();
-};
+}

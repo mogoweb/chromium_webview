@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,14 +21,6 @@ import org.chromium.content.R;
 
 class DateTimePickerDialog extends AlertDialog implements OnClickListener,
         OnDateChangedListener, OnTimeChangedListener {
-
-    private static final String YEAR = "year";
-    private static final String MONTH = "month";
-    private static final String DAY = "day";
-    private static final String HOUR = "hour";
-    private static final String MINUTE = "minute";
-    private static final String IS_24_HOUR = "is24hour";
-
     private final DatePicker mDatePicker;
     private final TimePicker mTimePicker;
     private final OnDateTimeSetListener mCallBack;
@@ -68,11 +60,11 @@ class DateTimePickerDialog extends AlertDialog implements OnClickListener,
             int monthOfYear,
             int dayOfMonth,
             int hourOfDay, int minute, boolean is24HourView,
-            long min, long max) {
+            double min, double max) {
         super(context, 0);
 
-        mMinTimeMillis = min;
-        mMaxTimeMillis = max;
+        mMinTimeMillis = (long) min;
+        mMaxTimeMillis = (long) max;
 
         mCallBack = callBack;
 
@@ -89,7 +81,7 @@ class DateTimePickerDialog extends AlertDialog implements OnClickListener,
         setView(view);
         mDatePicker = (DatePicker) view.findViewById(R.id.date_picker);
         DateDialogNormalizer.normalize(mDatePicker, this,
-                year, monthOfYear, dayOfMonth, hourOfDay, minute, min, max);
+                year, monthOfYear, dayOfMonth, hourOfDay, minute, mMinTimeMillis, mMaxTimeMillis);
 
         mTimePicker = (TimePicker) view.findViewById(R.id.time_picker);
         mTimePicker.setIs24HourView(is24HourView);

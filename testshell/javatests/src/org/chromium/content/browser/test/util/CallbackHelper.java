@@ -1,8 +1,10 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.content.browser.test.util;
+
+import static org.chromium.base.test.util.ScalableTimeout.scaleTimeout;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -121,7 +123,7 @@ import java.util.concurrent.TimeoutException;
  *
  */
 public class CallbackHelper {
-    protected static final int WAIT_TIMEOUT_SECONDS = 5;
+    protected static final long WAIT_TIMEOUT_SECONDS = scaleTimeout(5);
 
     private final Object mLock = new Object();
     private int mCallCount = 0;
@@ -141,7 +143,7 @@ public class CallbackHelper {
      * is called.
      */
     public int getCallCount() {
-        synchronized(mLock) {
+        synchronized (mLock) {
             return mCallCount;
         }
     }
@@ -170,7 +172,7 @@ public class CallbackHelper {
             TimeUnit unit) throws InterruptedException, TimeoutException {
         assert mCallCount >= currentCallCount;
         assert numberOfCallsToWaitFor > 0;
-        synchronized(mLock) {
+        synchronized (mLock) {
             int callCountWhenDoneWaiting = currentCallCount + numberOfCallsToWaitFor;
             while (callCountWhenDoneWaiting > mCallCount) {
                 int callCountBeforeWait = mCallCount;
@@ -201,7 +203,7 @@ public class CallbackHelper {
      */
     public void waitUntilCriteria(Criteria criteria, long timeout, TimeUnit unit)
             throws InterruptedException, TimeoutException {
-        synchronized(mLock) {
+        synchronized (mLock) {
             final long startTime = System.currentTimeMillis();
             boolean isSatisfied = criteria.isSatisfied();
             while (!isSatisfied &&
@@ -222,7 +224,7 @@ public class CallbackHelper {
      * Should be called when the callback associated with this helper object is called.
      */
     public void notifyCalled() {
-        synchronized(mLock) {
+        synchronized (mLock) {
             mCallCount++;
             mLock.notifyAll();
         }

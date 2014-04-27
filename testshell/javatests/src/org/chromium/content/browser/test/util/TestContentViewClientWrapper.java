@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,9 +9,7 @@ import android.view.ActionMode;
 import android.view.KeyEvent;
 
 import org.chromium.content.browser.ContentViewClient;
-import org.chromium.content.browser.SelectActionModeCallback;
 import org.chromium.content.browser.SelectActionModeCallback.ActionHandler;
-import org.chromium.content.browser.test.util.TestContentViewClient;
 
 /**
  * Simplistic {@link TestContentViewClient} for browser tests.
@@ -35,18 +33,6 @@ public class TestContentViewClientWrapper extends TestContentViewClient {
     }
 
     @Override
-    public void onScaleChanged(float oldScale, float newScale) {
-        super.onScaleChanged(oldScale, newScale);
-        mWrappedClient.onScaleChanged(oldScale, newScale);
-    }
-
-    @Override
-    public void onRendererCrash(boolean processWasOomProtected) {
-        super.onRendererCrash(processWasOomProtected);
-        mWrappedClient.onRendererCrash(processWasOomProtected);
-    }
-
-    @Override
     public boolean shouldOverrideKeyEvent(KeyEvent event) {
         return mWrappedClient.shouldOverrideKeyEvent(event);
     }
@@ -55,11 +41,6 @@ public class TestContentViewClientWrapper extends TestContentViewClient {
     public void onImeEvent() {
         super.onImeEvent();
         mWrappedClient.onImeEvent();
-    }
-
-    @Override
-    public boolean shouldOverrideScroll(float deltaX, float deltaY, float currX, float currY) {
-        return mWrappedClient.shouldOverrideScroll(deltaX, deltaY, currX, currX);
     }
 
     @Override

@@ -54,7 +54,7 @@ class ScrollAccessibilityHelper {
     /**
      * Post a callback to send a {@link AccessibilityEvent#TYPE_VIEW_SCROLLED} event.
      * This event is sent at most once every
-     * {@link ViewConfiguration#getSendRecurringAccessibilityEventsInterval()}
+     * {@link android.view.ViewConfiguration#getSendRecurringAccessibilityEventsInterval()}
      */
     public void postViewScrolledAccessibilityEventCallback() {
         if (mMsgViewScrolledQueued)

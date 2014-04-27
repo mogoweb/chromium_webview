@@ -6,29 +6,33 @@ package org.chromium.content.browser.input;
 
 import android.content.Context;
 
-import java.util.Calendar;
-
 import org.chromium.content.R;
+
+import java.util.Calendar;
+import java.util.TimeZone;
 
 // This class is heavily based on android.widget.DatePicker.
 public class WeekPicker extends TwoFieldDatePicker {
 
-    public WeekPicker(Context context, long minValue, long maxValue) {
+    public WeekPicker(Context context, double minValue, double maxValue) {
         super(context, minValue, maxValue);
 
         getPositionInYearSpinner().setContentDescription(
                 getResources().getString(R.string.accessibility_date_picker_week));
 
         // initialize to current date
-        Calendar cal = Calendar.getInstance();
+        Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
         cal.setFirstDayOfWeek(Calendar.MONDAY);
         cal.setMinimalDaysInFirstWeek(4);
         cal.setTimeInMillis(System.currentTimeMillis());
         init(getISOWeekYearForDate(cal), getWeekForDate(cal), null);
     }
 
-    private Calendar createDateFromWeek(int year, int week) {
-        Calendar date = Calendar.getInstance();
+    /**
+     * Creates a date object from the |year| and |week|.
+     */
+    public static Calendar createDateFromWeek(int year, int week) {
+        Calendar date = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
         date.clear();
         date.setFirstDayOfWeek(Calendar.MONDAY);
         date.setMinimalDaysInFirstWeek(4);
@@ -38,14 +42,21 @@ public class WeekPicker extends TwoFieldDatePicker {
         return date;
     }
 
-    @Override
-    protected Calendar createDateFromValue(long value) {
-        Calendar date = Calendar.getInstance();
+    /**
+     * Creates a date object from the |value| which is milliseconds since epoch.
+     */
+    public static Calendar createDateFromValue(double value) {
+        Calendar date = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
         date.clear();
         date.setFirstDayOfWeek(Calendar.MONDAY);
         date.setMinimalDaysInFirstWeek(4);
-        date.setTimeInMillis(value);
+        date.setTimeInMillis((long) value);
         return date;
+    }
+
+    @Override
+    protected Calendar getDateForValue(double value) {
+        return WeekPicker.createDateFromValue(value);
     }
 
     public static int getISOWeekYearForDate(Calendar date) {

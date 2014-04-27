@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,8 +9,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.SystemClock;
-
-import org.chromium.content.browser.ContentViewCore;
 
 import java.util.concurrent.Callable;
 
@@ -51,9 +49,9 @@ class AwContentsClientCallbackHelper {
         final String mArgs;
 
         LoginRequestInfo(String realm, String account, String args) {
-          mRealm = realm;
-          mAccount = account;
-          mArgs = args;
+            mRealm = realm;
+            mAccount = account;
+            mArgs = args;
         }
     }
 
@@ -69,12 +67,13 @@ class AwContentsClientCallbackHelper {
         }
     }
 
-    private final static int MSG_ON_LOAD_RESOURCE = 1;
-    private final static int MSG_ON_PAGE_STARTED = 2;
-    private final static int MSG_ON_DOWNLOAD_START = 3;
-    private final static int MSG_ON_RECEIVED_LOGIN_REQUEST = 4;
-    private final static int MSG_ON_RECEIVED_ERROR = 5;
-    private final static int MSG_ON_NEW_PICTURE = 6;
+    private static final int MSG_ON_LOAD_RESOURCE = 1;
+    private static final int MSG_ON_PAGE_STARTED = 2;
+    private static final int MSG_ON_DOWNLOAD_START = 3;
+    private static final int MSG_ON_RECEIVED_LOGIN_REQUEST = 4;
+    private static final int MSG_ON_RECEIVED_ERROR = 5;
+    private static final int MSG_ON_NEW_PICTURE = 6;
+    private static final int MSG_ON_SCALE_CHANGED_SCALED = 7;
 
     // Minimum period allowed between consecutive onNewPicture calls, to rate-limit the callbacks.
     private static final long ON_NEW_PICTURE_MIN_PERIOD_MILLIS = 500;
@@ -85,7 +84,13 @@ class AwContentsClientCallbackHelper {
 
     private final AwContentsClient mContentsClient;
 
-    private final Handler mHandler = new Handler(Looper.getMainLooper()) {
+    private final Handler mHandler;
+
+    private class MyHandler extends Handler {
+        private MyHandler(Looper looper) {
+            super(looper);
+        }
+
         @Override
         public void handleMessage(Message msg) {
             switch(msg.what) {
@@ -128,14 +133,21 @@ class AwContentsClientCallbackHelper {
                     mHasPendingOnNewPicture = false;
                     break;
                 }
+                case MSG_ON_SCALE_CHANGED_SCALED: {
+                    float oldScale = Float.intBitsToFloat(msg.arg1);
+                    float newScale = Float.intBitsToFloat(msg.arg2);
+                    mContentsClient.onScaleChangedScaled(oldScale, newScale);
+                    break;
+                }
                 default:
                     throw new IllegalStateException(
                             "AwContentsClientCallbackHelper: unhandled message " + msg.what);
             }
         }
-    };
+    }
 
-    public AwContentsClientCallbackHelper(AwContentsClient contentsClient) {
+    public AwContentsClientCallbackHelper(Looper looper, AwContentsClient contentsClient) {
+        mHandler = new MyHandler(looper);
         mContentsClient = contentsClient;
     }
 
@@ -171,5 +183,14 @@ class AwContentsClientCallbackHelper {
                 SystemClock.uptimeMillis());
         mHandler.sendMessageAtTime(mHandler.obtainMessage(MSG_ON_NEW_PICTURE, pictureProvider),
                 pictureTime);
+    }
+
+    public void postOnScaleChangedScaled(float oldScale, float newScale) {
+        // The float->int->float conversion here is to avoid unnecessary allocations. The
+        // documentation states that intBitsToFloat(floatToIntBits(a)) == a for all values of a
+        // (except for NaNs which are collapsed to a single canonical NaN, but we don't care for
+        // that case).
+        mHandler.sendMessage(mHandler.obtainMessage(MSG_ON_SCALE_CHANGED_SCALED,
+                    Float.floatToIntBits(oldScale), Float.floatToIntBits(newScale)));
     }
 }

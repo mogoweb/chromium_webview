@@ -43,9 +43,9 @@ public class MultiFieldTimePickerDialog
         void onTimeSet(int hourOfDay, int minute, int second, int milli);
     }
 
-    private final static int SECOND_IN_MILLIS = 1000;
-    private final static int MINUTE_IN_MILLIS = 60 * SECOND_IN_MILLIS;
-    private final static int HOUR_IN_MILLIS = 60 * MINUTE_IN_MILLIS;
+    private static final int SECOND_IN_MILLIS = 1000;
+    private static final int MINUTE_IN_MILLIS = 60 * SECOND_IN_MILLIS;
+    private static final int HOUR_IN_MILLIS = 60 * MINUTE_IN_MILLIS;
 
     public MultiFieldTimePickerDialog(
             Context context,
@@ -99,7 +99,7 @@ public class MultiFieldTimePickerDialog
             mAmPmSpinner.setDisplayedValues(new String[] {
                     context.getString(R.string.time_picker_dialog_am),
                     context.getString(R.string.time_picker_dialog_pm)
-                });
+            });
 
             hour %= 12;
             if (hour == 0) {
@@ -232,7 +232,7 @@ public class MultiFieldTimePickerDialog
             }
             mMilliSpinner.setMinValue(0);
             mMilliSpinner.setMaxValue(strValue.size() - 1);
-            mMilliSpinner.setValue( (milli - min) / step);
+            mMilliSpinner.setValue((milli - min) / step);
             mMilliSpinner.setDisplayedValues(
                 strValue.toArray(new String[strValue.size()]));
             mBaseMilli = min;

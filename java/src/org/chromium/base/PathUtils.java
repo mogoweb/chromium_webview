@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,16 +8,12 @@ import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.os.Environment;
 
-import java.io.File;
-
 /**
  * This class provides the path related methods for the native library.
  */
 public abstract class PathUtils {
 
     private static String sDataDirectorySuffix;
-    private static String sWebappDirectorySuffix;
-    private static String sWebappCacheDirectory;
 
     // Prevent instantiation.
     private PathUtils() {}
@@ -30,17 +26,6 @@ public abstract class PathUtils {
      */
     public static void setPrivateDataDirectorySuffix(String suffix) {
         sDataDirectorySuffix = suffix;
-    }
-
-    /**
-     * Sets the directory info used for chrome process running in application mode.
-     *
-     * @param webappSuffix The suffix of the directory used for storing webapp-specific profile
-     * @param cacheDir Cache directory name for web apps.
-     */
-    public static void setWebappDirectoryInfo(String webappSuffix, String cacheDir) {
-        sWebappDirectorySuffix = webappSuffix;
-        sWebappCacheDirectory = cacheDir;
     }
 
     /**
@@ -70,15 +55,7 @@ public abstract class PathUtils {
     @SuppressWarnings("unused")
     @CalledByNative
     public static String getCacheDirectory(Context appContext) {
-        if (ContextTypes.getInstance().getType(appContext) == ContextTypes.CONTEXT_TYPE_NORMAL) {
-            return appContext.getCacheDir().getPath();
-        }
-        if (sWebappDirectorySuffix == null || sWebappCacheDirectory == null) {
-            throw new IllegalStateException(
-                    "setWebappDirectoryInfo must be called before getCacheDirectory");
-        }
-        return new File(appContext.getDir(sWebappDirectorySuffix, appContext.MODE_PRIVATE),
-                sWebappCacheDirectory).getPath();
+        return appContext.getCacheDir().getPath();
     }
 
     /**

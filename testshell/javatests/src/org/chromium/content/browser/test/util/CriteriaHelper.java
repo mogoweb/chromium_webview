@@ -1,8 +1,10 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.content.browser.test.util;
+
+import static org.chromium.base.test.util.ScalableTimeout.scaleTimeout;
 
 /**
  * Helper methods for creating and managing criteria.
@@ -15,7 +17,7 @@ package org.chromium.content.browser.test.util;
 public class CriteriaHelper {
 
     /** The default maximum time to wait for a criteria to become valid. */
-    public static final long DEFAULT_MAX_TIME_TO_POLL = 3000;
+    public static final long DEFAULT_MAX_TIME_TO_POLL = scaleTimeout(3000);
     /** The default polling interval to wait between checking for a satisfied criteria. */
     public static final long DEFAULT_POLLING_INTERVAL = 50;
 

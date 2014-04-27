@@ -8,10 +8,13 @@ SCRIPT_DIR="$(dirname "${BASH_SOURCE:-$0}")"
 
 . ${SCRIPT_DIR}/../../build/android/envsetup.sh "$@"
 
+HOST_OS=$(uname -s | sed -e 's/Linux/linux/;s/Darwin/mac/')
+ANDROID_HOST_ARCH=$(uname -m)
+export PATH=$PATH:${ANDROID_NDK_ROOT}/toolchains/arm-linux-androideabi-4.6/prebuilt/${HOST_OS}-${ANDROID_HOST_ARCH}/bin
 export PATH=$PATH:${CHROME_SRC}/chromeview/tools:${CHROME_SRC}/chromeview/build
 
-export CHROMIUM_GYP_FILE=${CHROME_SRC}/chromeview/chromeview.gyp 
- 
+export CHROMIUM_GYP_FILE=${CHROME_SRC}/chromeview/chromeview.gyp
+
 mogo_gyp() {
   echo "GYP_GENERATORS set to '$GYP_GENERATORS'"
   (

@@ -1,11 +1,10 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.media;
 
 import android.content.Context;
-import android.media.AudioFormat;
 import android.media.MediaCodec;
 import android.media.MediaCodec.BufferInfo;
 import android.media.MediaExtractor;
@@ -13,15 +12,14 @@ import android.media.MediaFormat;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
 
-import java.io.File;
-import java.nio.ByteBuffer;
-
 import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
 
+import java.io.File;
+import java.nio.ByteBuffer;
+
 @JNINamespace("media")
 class WebAudioMediaCodecBridge {
-    private static final boolean DEBUG = true;
     static final String LOG_TAG = "WebAudioMediaCodec";
     // TODO(rtoy): What is the correct timeout value for reading
     // from a file in memory?
@@ -35,7 +33,7 @@ class WebAudioMediaCodecBridge {
 
     @CalledByNative
     private static boolean decodeAudioFile(Context ctx,
-                                           int nativeMediaCodecBridge,
+                                           long nativeMediaCodecBridge,
                                            int inputFD,
                                            long dataSize) {
 
@@ -81,21 +79,27 @@ class WebAudioMediaCodecBridge {
             }
         }
 
-        if (DEBUG) {
-            Log.d(LOG_TAG, "Tracks: " + extractor.getTrackCount()
-                  + " Rate: " + sampleRate
-                  + " Channels: " + inputChannelCount
-                  + " Mime: " + mime
-                  + " Duration: " + durationMicroseconds + " microsec");
+        // If the duration is too long, set to 0 to force the caller
+        // not to preallocate space.  See crbug.com/326856.
+        // FIXME: What should be the limit? We're arbitrarily using
+        // about 2148 sec (35.8 min).
+        if (durationMicroseconds > 0x7fffffff) {
+            durationMicroseconds = 0;
         }
 
-        nativeInitializeDestination(nativeMediaCodecBridge,
-                                    inputChannelCount,
-                                    sampleRate,
-                                    durationMicroseconds);
+        Log.d(LOG_TAG, "Initial: Tracks: " + extractor.getTrackCount() +
+              " Format: " + format);
 
         // Create decoder
-        MediaCodec codec = MediaCodec.createDecoderByType(mime);
+        MediaCodec codec;
+        try {
+            codec = MediaCodec.createDecoderByType(mime);
+        } catch (Exception e) {
+            Log.w(LOG_TAG, "Failed to create MediaCodec for mime type: " + mime);
+            encodedFD.detachFd();
+            return false;
+        }
+
         codec.configure(format, null /* surface */, null /* crypto */, 0 /* flags */);
         codec.start();
 
@@ -107,6 +111,7 @@ class WebAudioMediaCodecBridge {
 
         boolean sawInputEOS = false;
         boolean sawOutputEOS = false;
+        boolean destinationInitialized = false;
 
         // Keep processing until the output is done.
         while (!sawOutputEOS) {
@@ -145,7 +150,24 @@ class WebAudioMediaCodecBridge {
             if (outputBufIndex >= 0) {
                 ByteBuffer buf = codecOutputBuffers[outputBufIndex];
 
-                if (info.size > 0) {
+                if (!destinationInitialized) {
+                    // Initialize the destination as late as possible to
+                    // catch any changes in format. But be sure to
+                    // initialize it BEFORE we send any decoded audio,
+                    // and only initialize once.
+                    Log.d(LOG_TAG, "Final:  Rate: " + sampleRate +
+                          " Channels: " + inputChannelCount +
+                          " Mime: " + mime +
+                          " Duration: " + durationMicroseconds + " microsec");
+
+                    nativeInitializeDestination(nativeMediaCodecBridge,
+                                                inputChannelCount,
+                                                sampleRate,
+                                                durationMicroseconds);
+                    destinationInitialized = true;
+                }
+
+                if (destinationInitialized && info.size > 0) {
                     nativeOnChunkDecoded(nativeMediaCodecBridge, buf, info.size,
                                          inputChannelCount, outputChannelCount);
                 }
@@ -161,6 +183,7 @@ class WebAudioMediaCodecBridge {
             } else if (outputBufIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                 MediaFormat newFormat = codec.getOutputFormat();
                 outputChannelCount = newFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
+                sampleRate = newFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE);
                 Log.d(LOG_TAG, "output format changed to " + newFormat);
             }
         }
@@ -175,11 +198,11 @@ class WebAudioMediaCodecBridge {
     }
 
     private static native void nativeOnChunkDecoded(
-        int nativeWebAudioMediaCodecBridge, ByteBuffer buf, int size,
+        long nativeWebAudioMediaCodecBridge, ByteBuffer buf, int size,
         int inputChannelCount, int outputChannelCount);
 
     private static native void nativeInitializeDestination(
-        int nativeWebAudioMediaCodecBridge,
+        long nativeWebAudioMediaCodecBridge,
         int inputChannelCount,
         int sampleRate,
         long durationMicroseconds);

@@ -17,4 +17,6 @@ public static final int NEW_WINDOW = 7;
 public static final int SAVE_TO_DISK = 8;
 public static final int OFF_THE_RECORD = 9;
 public static final int IGNORE_ACTION = 10;
+
+public static final int WINDOW_OPEN_DISPOSITION_LAST = 10;
 }

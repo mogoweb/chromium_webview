@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,46 +11,52 @@ import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.os.SystemClock;
 import android.util.TypedValue;
-import android.view.Gravity;
-import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
-import android.view.ViewGroup;
 import android.view.ViewParent;
-import android.view.WindowManager;
-import android.view.View.OnClickListener;
-import android.view.ViewGroup.LayoutParams;
 import android.widget.PopupWindow;
-import android.widget.TextView;
+
+import org.chromium.content.browser.PositionObserver;
 
 /**
  * View that displays a selection or insertion handle for text editing.
+ *
+ * While a HandleView is logically a child of some other view, it does not exist in that View's
+ * hierarchy.
+ *
  */
 public class HandleView extends View {
     private static final float FADE_DURATION = 200.f;
 
     private Drawable mDrawable;
     private final PopupWindow mContainer;
+
+    // The position of the handle relative to the parent view.
     private int mPositionX;
     private int mPositionY;
+
+    // The position of the parent relative to the application's root view.
+    private int mParentPositionX;
+    private int mParentPositionY;
+
+    // The offset from this handles position to the "tip" of the handle.
+    private float mHotspotX;
+    private float mHotspotY;
+
     private final CursorController mController;
     private boolean mIsDragging;
     private float mTouchToWindowOffsetX;
     private float mTouchToWindowOffsetY;
-    private float mHotspotX;
-    private float mHotspotY;
-    private int mLineOffsetY;
-    private int mLastParentX;
-    private int mLastParentY;
+
+    private final int mLineOffsetY;
     private float mDownPositionX, mDownPositionY;
-    private int mContainerPositionX, mContainerPositionY;
     private long mTouchTimer;
     private boolean mIsInsertionHandle = false;
     private float mAlpha;
     private long mFadeStartTime;
 
-    private View mParent;
+    private final View mParent;
     private InsertionHandleController.PastePopupMenu mPastePopupWindow;
 
     private final int mTextSelectHandleLeftRes;
@@ -61,12 +67,14 @@ public class HandleView extends View {
     private Drawable mSelectHandleRight;
     private Drawable mSelectHandleCenter;
 
-    private final int[] mTempCoords = new int[2];
     private final Rect mTempRect = new Rect();
 
     static final int LEFT = 0;
     static final int CENTER = 1;
     static final int RIGHT = 2;
+
+    private final PositionObserver mParentPositionObserver;
+    private final PositionObserver.Listener mParentPositionListener;
 
     // Number of dips to subtract from the handle's y position to give a suitable
     // y coordinate for the corresponding text position. This is to compensate for the fact
@@ -79,7 +87,8 @@ public class HandleView extends View {
         android.R.attr.textSelectHandleRight,
     };
 
-    HandleView(CursorController controller, int pos, View parent) {
+    HandleView(CursorController controller, int pos, View parent,
+            PositionObserver parentPositionObserver) {
         super(parent.getContext());
         Context context = parent.getContext();
         mParent = parent;
@@ -101,45 +110,53 @@ public class HandleView extends View {
                 LINE_OFFSET_Y_DIP, context.getResources().getDisplayMetrics());
 
         mAlpha = 1.f;
+
+        mParentPositionListener = new PositionObserver.Listener() {
+            @Override
+            public void onPositionChanged(int x, int y) {
+                updateParentPosition(x, y);
+            }
+        };
+        mParentPositionObserver = parentPositionObserver;
     }
 
     void setOrientation(int pos) {
         int handleWidth;
         switch (pos) {
-        case LEFT: {
-            if (mSelectHandleLeft == null) {
-                mSelectHandleLeft = getContext().getResources().getDrawable(
-                        mTextSelectHandleLeftRes);
+            case LEFT: {
+                if (mSelectHandleLeft == null) {
+                    mSelectHandleLeft = getContext().getResources().getDrawable(
+                            mTextSelectHandleLeftRes);
+                }
+                mDrawable = mSelectHandleLeft;
+                handleWidth = mDrawable.getIntrinsicWidth();
+                mHotspotX = (handleWidth * 3) / 4f;
+                break;
             }
-            mDrawable = mSelectHandleLeft;
-            handleWidth = mDrawable.getIntrinsicWidth();
-            mHotspotX = (handleWidth * 3) / 4f;
-            break;
-        }
 
-        case RIGHT: {
-            if (mSelectHandleRight == null) {
-                mSelectHandleRight = getContext().getResources().getDrawable(
-                        mTextSelectHandleRightRes);
+            case RIGHT: {
+                if (mSelectHandleRight == null) {
+                    mSelectHandleRight = getContext().getResources().getDrawable(
+                            mTextSelectHandleRightRes);
+                }
+                mDrawable = mSelectHandleRight;
+                handleWidth = mDrawable.getIntrinsicWidth();
+                mHotspotX = handleWidth / 4f;
+                break;
             }
-            mDrawable = mSelectHandleRight;
-            handleWidth = mDrawable.getIntrinsicWidth();
-            mHotspotX = handleWidth / 4f;
-            break;
-        }
 
-        case CENTER:
-        default: {
-            if (mSelectHandleCenter == null) {
-                mSelectHandleCenter = getContext().getResources().getDrawable(
-                        mTextSelectHandleRes);
+            case CENTER:
+            default: {
+                if (mSelectHandleCenter == null) {
+                    mSelectHandleCenter = getContext().getResources().getDrawable(
+                            mTextSelectHandleRes);
+                }
+                mDrawable = mSelectHandleCenter;
+                handleWidth = mDrawable.getIntrinsicWidth();
+                mHotspotX = handleWidth / 2f;
+                mIsInsertionHandle = true;
+                break;
             }
-            mDrawable = mSelectHandleCenter;
-            handleWidth = mDrawable.getIntrinsicWidth();
-            mHotspotX = handleWidth / 2f;
-            mIsInsertionHandle = true;
-            break;
-        }
         }
 
         mHotspotY = 0;
@@ -152,21 +169,46 @@ public class HandleView extends View {
                 mDrawable.getIntrinsicHeight());
     }
 
-    private void updateContainerPosition() {
-        final int[] coords = mTempCoords;
-        mParent.getLocationInWindow(coords);
-        mContainerPositionX = coords[0] + mPositionX;
-        mContainerPositionY = coords[1] + mPositionY;
+    private void updateParentPosition(int parentPositionX, int parentPositionY) {
+        // Hide paste popup window as soon as a scroll occurs.
+        if (mPastePopupWindow != null) mPastePopupWindow.hide();
+
+        mTouchToWindowOffsetX += parentPositionX - mParentPositionX;
+        mTouchToWindowOffsetY += parentPositionY - mParentPositionY;
+        mParentPositionX = parentPositionX;
+        mParentPositionY = parentPositionY;
+        onPositionChanged();
+    }
+
+    private int getContainerPositionX() {
+        return mParentPositionX + mPositionX;
+    }
+
+    private int getContainerPositionY() {
+        return mParentPositionY + mPositionY;
+    }
+
+    private void onPositionChanged() {
+        mContainer.update(getContainerPositionX(), getContainerPositionY(),
+                getRight() - getLeft(), getBottom() - getTop());
+    }
+
+    private void showContainer() {
+        mContainer.showAtLocation(mParent, 0, getContainerPositionX(), getContainerPositionY());
     }
 
     void show() {
+        // While hidden, the parent position may have become stale. It must be updated before
+        // checking isPositionVisible().
+        updateParentPosition(mParentPositionObserver.getPositionX(),
+                mParentPositionObserver.getPositionY());
         if (!isPositionVisible()) {
             hide();
             return;
         }
+        mParentPositionObserver.addListener(mParentPositionListener);
         mContainer.setContentView(this);
-        updateContainerPosition();
-        mContainer.showAtLocation(mParent, 0, mContainerPositionX, mContainerPositionY);
+        showContainer();
 
         // Hide paste view when handle is moved on screen.
         if (mPastePopupWindow != null) {
@@ -177,6 +219,7 @@ public class HandleView extends View {
     void hide() {
         mIsDragging = false;
         mContainer.dismiss();
+        mParentPositionObserver.removeListener(mParentPositionListener);
         if (mPastePopupWindow != null) {
             mPastePopupWindow.hide();
         }
@@ -203,10 +246,8 @@ public class HandleView extends View {
             return false;
         }
 
-        final int[] coords = mTempCoords;
-        mParent.getLocationInWindow(coords);
-        final int posX = coords[0] + mPositionX + (int) mHotspotX;
-        final int posY = coords[1] + mPositionY + (int) mHotspotY;
+        final int posX = getContainerPositionX() + (int) mHotspotX;
+        final int posY = getContainerPositionY() + (int) mHotspotY;
 
         return posX >= clip.left && posX <= clip.right &&
                 posY >= clip.top && posY <= clip.bottom;
@@ -214,44 +255,24 @@ public class HandleView extends View {
 
     // x and y are in physical pixels.
     void moveTo(int x, int y) {
+        int previousPositionX = mPositionX;
+        int previousPositionY = mPositionY;
+
         mPositionX = x;
         mPositionY = y;
         if (isPositionVisible()) {
-            int[] coords = null;
             if (mContainer.isShowing()) {
-                coords = mTempCoords;
-                mParent.getLocationInWindow(coords);
-                final int containerPositionX = coords[0] + mPositionX;
-                final int containerPositionY = coords[1] + mPositionY;
-
-                if (containerPositionX != mContainerPositionX ||
-                    containerPositionY != mContainerPositionY) {
-                    mContainerPositionX = containerPositionX;
-                    mContainerPositionY = containerPositionY;
-
-                    mContainer.update(mContainerPositionX, mContainerPositionY,
-                            getRight() - getLeft(), getBottom() - getTop());
-
-                    // Hide paste popup window as soon as a scroll occurs.
-                    if (mPastePopupWindow != null) {
-                        mPastePopupWindow.hide();
-                    }
+                onPositionChanged();
+                // Hide paste popup window as soon as the handle is dragged.
+                if (mPastePopupWindow != null &&
+                        (previousPositionX != mPositionX || previousPositionY != mPositionY)) {
+                    mPastePopupWindow.hide();
                 }
             } else {
                 show();
             }
 
             if (mIsDragging) {
-                if (coords == null) {
-                    coords = mTempCoords;
-                    mParent.getLocationInWindow(coords);
-                }
-                if (coords[0] != mLastParentX || coords[1] != mLastParentY) {
-                    mTouchToWindowOffsetX += coords[0] - mLastParentX;
-                    mTouchToWindowOffsetY += coords[1] - mLastParentY;
-                    mLastParentX = coords[0];
-                    mLastParentY = coords[1];
-                }
                 // Hide paste popup window as soon as the handle is dragged.
                 if (mPastePopupWindow != null) {
                     mPastePopupWindow.hide();
@@ -265,9 +286,6 @@ public class HandleView extends View {
     @Override
     protected void onDraw(Canvas c) {
         updateAlpha();
-        updateContainerPosition();
-        mContainer.update(mContainerPositionX, mContainerPositionY,
-                getRight() - getLeft(), getBottom() - getTop());
         mDrawable.setBounds(0, 0, getRight() - getLeft(), getBottom() - getTop());
         mDrawable.draw(c);
     }
@@ -280,10 +298,6 @@ public class HandleView extends View {
                 mDownPositionY = ev.getRawY();
                 mTouchToWindowOffsetX = mDownPositionX - mPositionX;
                 mTouchToWindowOffsetY = mDownPositionY - mPositionY;
-                final int[] coords = mTempCoords;
-                mParent.getLocationInWindow(coords);
-                mLastParentX = coords[0];
-                mLastParentY = coords[1];
                 mIsDragging = true;
                 mController.beforeStartUpdatingPosition(this);
                 mTouchTimer = SystemClock.uptimeMillis();
@@ -347,17 +361,31 @@ public class HandleView extends View {
 
     // x and y are in physical pixels.
     void positionAt(int x, int y) {
-        moveTo((int)(x - mHotspotX), (int)(y - mHotspotY));
+        moveTo(x - Math.round(mHotspotX), y - Math.round(mHotspotY));
     }
 
-    // Returns the x coordinate of the position that the handle appears to be pointing to.
+    // Returns the x coordinate of the position that the handle appears to be pointing to relative
+    // to the handles "parent" view.
     int getAdjustedPositionX() {
-        return (int) (mPositionX + mHotspotX);
+        return mPositionX + Math.round(mHotspotX);
     }
 
-    // Returns the y coordinate of the position that the handle appears to be pointing to.
+    // Returns the y coordinate of the position that the handle appears to be pointing to relative
+    // to the handles "parent" view.
     int getAdjustedPositionY() {
-        return (int) (mPositionY + mHotspotY);
+        return mPositionY + Math.round(mHotspotY);
+    }
+
+    // Returns the x coordinate of the postion that the handle appears to be pointing to relative to
+    // the root view of the application.
+    int getRootViewRelativePositionX() {
+        return getContainerPositionX() + Math.round(mHotspotX);
+    }
+
+    // Returns the y coordinate of the postion that the handle appears to be pointing to relative to
+    // the root view of the application.
+    int getRootViewRelativePositionY() {
+        return getContainerPositionY() + Math.round(mHotspotY);
     }
 
     // Returns a suitable y coordinate for the text position corresponding to the handle.

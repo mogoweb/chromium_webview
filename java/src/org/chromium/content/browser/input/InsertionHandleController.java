@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,6 +18,8 @@ import android.widget.PopupWindow;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import org.chromium.content.browser.PositionObserver;
+
 /**
  * CursorController for inserting text at the cursor position.
  */
@@ -27,7 +29,7 @@ public abstract class InsertionHandleController implements CursorController {
     private HandleView mHandle;
 
     /** The view over which the insertion handle should be shown */
-    private View mParent;
+    private final View mParent;
 
     /** True iff the insertion handle is currently showing */
     private boolean mIsShowing;
@@ -35,11 +37,15 @@ public abstract class InsertionHandleController implements CursorController {
     /** True iff the insertion handle can be shown automatically when selection changes */
     private boolean mAllowAutomaticShowing;
 
-    private Context mContext;
+    private final Context mContext;
 
-    public InsertionHandleController(View parent) {
+    private final PositionObserver mPositionObserver;
+
+    public InsertionHandleController(View parent, PositionObserver positionObserver) {
         mParent = parent;
+
         mContext = parent.getContext();
+        mPositionObserver = positionObserver;
     }
 
     /** Allows the handle to be shown automatically when cursor position changes */
@@ -70,6 +76,13 @@ public abstract class InsertionHandleController implements CursorController {
     public void showHandleWithPastePopup() {
         showHandle();
         showPastePopup();
+    }
+
+    /**
+     * @return whether the handle is being dragged.
+     */
+    public boolean isDragging() {
+        return mHandle != null && mHandle.isDragging();
     }
 
     /** Shows the handle at the given coordinates, as long as automatic showing is allowed */
@@ -162,12 +175,14 @@ public abstract class InsertionHandleController implements CursorController {
     public void onDetached() {}
 
     boolean canPaste() {
-        return ((ClipboardManager)mContext.getSystemService(
+        return ((ClipboardManager) mContext.getSystemService(
                 Context.CLIPBOARD_SERVICE)).hasPrimaryClip();
     }
 
     private void createHandleIfNeeded() {
-        if (mHandle == null) mHandle = new HandleView(this, HandleView.CENTER, mParent);
+        if (mHandle == null) {
+            mHandle = new HandleView(this, HandleView.CENTER, mParent, mPositionObserver);
+        }
     }
 
     private void showHandleIfNeeded() {
@@ -185,8 +200,8 @@ public abstract class InsertionHandleController implements CursorController {
         private final PopupWindow mContainer;
         private int mPositionX;
         private int mPositionY;
-        private View[] mPasteViews;
-        private int[] mPasteViewLayouts;
+        private final View[] mPasteViews;
+        private final int[] mPasteViewLayouts;
 
         public PastePopupMenu() {
             mContainer = new PopupWindow(mContext, null,
@@ -215,7 +230,7 @@ public abstract class InsertionHandleController implements CursorController {
         }
 
         private int viewIndex(boolean onTop) {
-            return (onTop ? 0 : 1<<1) + (canPaste() ? 0 : 1 << 0);
+            return (onTop ? 0 : 1 << 1) + (canPaste() ? 0 : 1 << 0);
         }
 
         private void updateContent(boolean onTop) {
@@ -224,7 +239,7 @@ public abstract class InsertionHandleController implements CursorController {
 
             if (view == null) {
                 final int layout = mPasteViewLayouts[viewIndex];
-                LayoutInflater inflater = (LayoutInflater)mContext.
+                LayoutInflater inflater = (LayoutInflater) mContext.
                     getSystemService(Context.LAYOUT_INFLATER_SERVICE);
                 if (inflater != null) {
                     view = inflater.inflate(layout, null);

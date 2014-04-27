@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -28,7 +28,7 @@ public class UiUtils {
     }
 
     /** The minimum size of the bottom margin below the app to detect a keyboard. */
-    private static float KEYBOARD_DETECT_BOTTOM_THRESHOLD_DP = 100;
+    private static final float KEYBOARD_DETECT_BOTTOM_THRESHOLD_DP = 100;
 
     /**
      * Shows the software keyboard if necessary.

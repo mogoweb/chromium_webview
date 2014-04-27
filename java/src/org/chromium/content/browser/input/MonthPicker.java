@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,19 +6,20 @@ package org.chromium.content.browser.input;
 
 import android.content.Context;
 
+import org.chromium.content.R;
+
 import java.text.DateFormatSymbols;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Locale;
-
-import org.chromium.content.R;
+import java.util.TimeZone;
 
 public class MonthPicker extends TwoFieldDatePicker {
     private static final int MONTHS_NUMBER = 12;
 
-    private String[] mShortMonths;
+    private final String[] mShortMonths;
 
-    public MonthPicker(Context context, long minValue, long maxValue) {
+    public MonthPicker(Context context, double minValue, double maxValue) {
         super(context, minValue, maxValue);
 
         getPositionInYearSpinner().setContentDescription(
@@ -29,23 +30,30 @@ public class MonthPicker extends TwoFieldDatePicker {
                 DateFormatSymbols.getInstance(Locale.getDefault()).getShortMonths();
 
         // initialize to current date
-        Calendar cal = Calendar.getInstance();
+        Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
         init(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), null);
     }
 
-    @Override
-    protected Calendar createDateFromValue(long value) {
-        int year = (int)Math.min(value / 12 + 1970, Integer.MAX_VALUE);
+    /**
+     * Creates a date object from the |value| which is months since epoch.
+     */
+    public static Calendar createDateFromValue(double value) {
+        int year = (int) Math.min(value / 12 + 1970, Integer.MAX_VALUE);
         int month = (int) (value % 12);
-        Calendar cal = Calendar.getInstance();
+        Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
         cal.clear();
         cal.set(year, month, 1);
         return cal;
     }
 
     @Override
+    protected Calendar getDateForValue(double value) {
+        return MonthPicker.createDateFromValue(value);
+    }
+
+    @Override
     protected void setCurrentDate(int year, int month) {
-        Calendar date = Calendar.getInstance();
+        Calendar date = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
         date.set(year, month, 1);
         if (date.before(getMinDate())) {
             setCurrentDate(getMinDate());

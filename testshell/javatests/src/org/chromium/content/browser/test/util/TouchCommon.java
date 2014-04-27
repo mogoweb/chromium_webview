@@ -1,14 +1,15 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.content.browser.test.util;
 
 import android.os.SystemClock;
+import android.test.ActivityInstrumentationTestCase2;
+import android.test.TouchUtils;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
-import android.test.ActivityInstrumentationTestCase2;
 
 /**
  * Touch-related functionality reused across test cases.
@@ -213,7 +214,7 @@ public class TouchCommon {
                     view.dispatchTouchEvent(event);
                 }
             });
-        } catch(Throwable e) {
+        } catch (Throwable e) {
             throw new RuntimeException("Dispatching touch event failed", e);
         }
     }

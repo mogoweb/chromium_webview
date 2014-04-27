@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,7 @@ import org.chromium.base.JNINamespace;
 @JNINamespace("android_webview")
 public class AwHttpAuthHandler {
 
-    private int mNativeAwHttpAuthHandler;
+    private long mNativeAwHttpAuthHandler;
     private final boolean mFirstAttempt;
 
     public void proceed(String username, String password) {
@@ -32,11 +32,11 @@ public class AwHttpAuthHandler {
     }
 
     @CalledByNative
-    public static AwHttpAuthHandler create(int nativeAwAuthHandler, boolean firstAttempt) {
+    public static AwHttpAuthHandler create(long nativeAwAuthHandler, boolean firstAttempt) {
         return new AwHttpAuthHandler(nativeAwAuthHandler, firstAttempt);
     }
 
-    private AwHttpAuthHandler(int nativeAwHttpAuthHandler, boolean firstAttempt) {
+    private AwHttpAuthHandler(long nativeAwHttpAuthHandler, boolean firstAttempt) {
         mNativeAwHttpAuthHandler = nativeAwHttpAuthHandler;
         mFirstAttempt = firstAttempt;
     }
@@ -46,7 +46,7 @@ public class AwHttpAuthHandler {
         mNativeAwHttpAuthHandler = 0;
     }
 
-    private native void nativeProceed(int nativeAwHttpAuthHandler,
+    private native void nativeProceed(long nativeAwHttpAuthHandler,
             String username, String password);
-    private native void nativeCancel(int nativeAwHttpAuthHandler);
+    private native void nativeCancel(long nativeAwHttpAuthHandler);
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,7 +13,7 @@ import org.chromium.base.JNINamespace;
 @JNINamespace("content")
 public class InterstitialPageDelegateAndroid {
 
-    private int mNativePtr;
+    private long mNativePtr;
 
     /**
      * Constructs an interstitial with the given HTML content.
@@ -27,7 +27,7 @@ public class InterstitialPageDelegateAndroid {
     /**
      * @return The pointer to the underlying native counterpart.
      */
-    public int getNative() {
+    public long getNative() {
         return mNativePtr;
     }
 
@@ -73,7 +73,7 @@ public class InterstitialPageDelegateAndroid {
         if (mNativePtr != 0) nativeDontProceed(mNativePtr);
     }
 
-    private native int nativeInit(String htmlContent);
-    private native void nativeProceed(int nativeInterstitialPageDelegateAndroid);
-    private native void nativeDontProceed(int nativeInterstitialPageDelegateAndroid);
+    private native long nativeInit(String htmlContent);
+    private native void nativeProceed(long nativeInterstitialPageDelegateAndroid);
+    private native void nativeDontProceed(long nativeInterstitialPageDelegateAndroid);
 }

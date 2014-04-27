@@ -39,6 +39,7 @@ public class ViewPositionObserver implements PositionObserver {
     /**
      * @return The current x position of the observed view.
      */
+    @Override
     public int getPositionX() {
         // The stored position may be out-of-date. Get the real current position.
         updatePosition();
@@ -48,6 +49,7 @@ public class ViewPositionObserver implements PositionObserver {
     /**
      * @return The current y position of the observed view.
      */
+    @Override
     public int getPositionY() {
         // The stored position may be out-of-date. Get the real current position.
         updatePosition();
@@ -57,6 +59,7 @@ public class ViewPositionObserver implements PositionObserver {
     /**
      * Register a listener to be called when the position of the underlying view changes.
      */
+    @Override
     public void addListener(Listener listener) {
         if (mListeners.contains(listener)) return;
 
@@ -71,6 +74,7 @@ public class ViewPositionObserver implements PositionObserver {
     /**
      * Remove a previously installed listener.
      */
+    @Override
     public void removeListener(Listener listener) {
         if (!mListeners.contains(listener)) return;
 

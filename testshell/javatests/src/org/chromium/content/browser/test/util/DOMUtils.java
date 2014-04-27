@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,13 +8,13 @@ import android.graphics.Rect;
 import android.test.ActivityInstrumentationTestCase2;
 import android.util.JsonReader;
 
-import java.io.IOException;
-import java.io.StringReader;
-import java.util.concurrent.TimeoutException;
-
 import junit.framework.Assert;
 
 import org.chromium.content.browser.ContentView;
+
+import java.io.IOException;
+import java.io.StringReader;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Collection of DOM-based utilities.
@@ -139,7 +139,7 @@ public class DOMUtils {
         sb.append("(function() {");
         sb.append("  var node = document.getElementById('" + nodeId + "');");
         sb.append("  if (!node) return null;");
-        sb.append("  if (!node." + fieldName +") return null;");
+        sb.append("  if (!node." + fieldName + ") return null;");
         sb.append("  return [ node." + fieldName + " ];");
         sb.append("})();");
 
@@ -164,6 +164,29 @@ public class DOMUtils {
     }
 
     /**
+     * Wait until a given node has non-zero bounds.
+     * @return Whether the node started having non-zero bounds.
+     */
+    public static boolean waitForNonZeroNodeBounds(final ContentView view,
+            final TestCallbackHelperContainer viewClient, final String nodeName)
+            throws InterruptedException {
+        return CriteriaHelper.pollForCriteria(new Criteria() {
+            @Override
+            public boolean isSatisfied() {
+                try {
+                    return !DOMUtils.getNodeBounds(view, viewClient, nodeName).isEmpty();
+                } catch (InterruptedException e) {
+                    // Intentionally do nothing
+                    return false;
+                } catch (TimeoutException e) {
+                    // Intentionally do nothing
+                    return false;
+                }
+            }
+        });
+    }
+
+    /**
      * Returns click targets for a given DOM node.
      */
     private static int[] getClickTargetForNode(final ContentView view,
@@ -173,9 +196,9 @@ public class DOMUtils {
         Assert.assertNotNull("Failed to get DOM element bounds of '" + nodeName + "'.", bounds);
 
         int clickX = (int) view.getRenderCoordinates().fromLocalCssToPix(bounds.exactCenterX())
-                + (int) view.getContentViewCore().getViewportSizeOffsetWidthPix();
+                + view.getContentViewCore().getViewportSizeOffsetWidthPix();
         int clickY = (int) view.getRenderCoordinates().fromLocalCssToPix(bounds.exactCenterY())
-                + (int) view.getContentViewCore().getViewportSizeOffsetHeightPix();
+                + view.getContentViewCore().getViewportSizeOffsetHeightPix();
         return new int[] { clickX, clickY };
     }
 }

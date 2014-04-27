@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -35,11 +35,14 @@ public class ColorPickerDialog extends AlertDialog implements OnColorChangedList
 
     /**
      * @param context The context the dialog is to run in.
-     * @param theme The theme to display the dialog in.
      * @param listener The object to notify when the color is set.
      * @param color The initial color to set.
+     * @param suggestions The list of suggestions.
      */
-    public ColorPickerDialog(Context context, OnColorChangedListener listener, int color) {
+    public ColorPickerDialog(Context context,
+                             OnColorChangedListener listener,
+                             int color,
+                             ColorSuggestion[] suggestions) {
         super(context, 0);
 
         mListener = listener;
@@ -110,7 +113,7 @@ public class ColorPickerDialog extends AlertDialog implements OnColorChangedList
 
         // Initialize simple color view (default view).
         mSimpleColorPicker = (ColorPickerSimple) content.findViewById(R.id.color_picker_simple);
-        mSimpleColorPicker.init(this);
+        mSimpleColorPicker.init(suggestions, this);
 
         updateCurrentColor(mInitialColor);
     }
@@ -136,8 +139,8 @@ public class ColorPickerDialog extends AlertDialog implements OnColorChangedList
         View buttonBorder = findViewById(R.id.more_colors_button_border);
         buttonBorder.setVisibility(View.GONE);
 
-        View simpleViewBorder = findViewById(R.id.color_picker_simple_border);
-        simpleViewBorder.setVisibility(View.GONE);
+        View simpleView = findViewById(R.id.color_picker_simple);
+        simpleView.setVisibility(View.GONE);
 
         mAdvancedColorPicker.setVisibility(View.VISIBLE);
         mAdvancedColorPicker.setListener(this);
@@ -148,9 +151,7 @@ public class ColorPickerDialog extends AlertDialog implements OnColorChangedList
      * Tries to notify any listeners that the color has been set.
      */
     private void tryNotifyColorSet(int color) {
-        if (mListener != null) {
-            mListener.onColorChanged(color);
-        }
+        if (mListener != null) mListener.onColorChanged(color);
     }
 
     /**
@@ -159,8 +160,6 @@ public class ColorPickerDialog extends AlertDialog implements OnColorChangedList
      */
     private void updateCurrentColor(int color) {
         mCurrentColor = color;
-        if (mCurrentColorView != null) {
-            mCurrentColorView.setBackgroundColor(color);
-        }
+        if (mCurrentColorView != null) mCurrentColorView.setBackgroundColor(color);
     }
 }
