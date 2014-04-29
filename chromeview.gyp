@@ -7,7 +7,7 @@
     # compilation targets to 'All'
     'android_app_targets%': [],
     'chromium_code': 1,
-  }, 
+  },
   'targets': [
     {
       'target_name': 'All',
@@ -24,7 +24,14 @@
         '../android_webview/android_webview.gyp:android_webview_common',
       ],
       'sources': [
-        '../android_webview/lib/main/webview_entry_point.cc',
+        'native/jni_entry_point.cpp',
+        'native/draw_gl_functor.cpp',
+      ],
+      'include_dirs': [
+        './native',
+      ],
+      'cflags!': [
+        '-Werror',
       ],
     },
   ],

@@ -1,7 +1,6 @@
 // Copyright (c) 2013 mogoweb. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
 /*
  * Copyright (C) 2006 The Android Open Source Project
  *
@@ -47,7 +46,7 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.webkit.ValueCallback;
 import android.webkit.WebViewDatabase;
-import android.widget.FrameLayout;
+import android.widget.AbsoluteLayout;
 
 import com.mogoweb.chrome.impl.ChromeAwContentsClientProxy;
 import com.mogoweb.chrome.impl.ChromeSettingsProxy;
@@ -257,7 +256,7 @@ import com.mogoweb.chrome.impl.WebBackForwardListImpl;
  * {@link WebChromeClient#getVideoLoadingProgressView()} is optional.
  * </p>
  */
-public class WebView extends FrameLayout {
+public class WebView extends AbsoluteLayout {
 
     /**
      * URI scheme for telephone number.
@@ -384,6 +383,9 @@ public class WebView extends FrameLayout {
     /** The closest thing to a WebView that Chromium has to offer. */
     private AwContents mAwContents;
 
+    // Non-null if this webview is using the GL accelerated draw path.
+    private DrawGLFunctor mGLfunctor;
+
     /** Glue that passes calls from the Chromium view to a WebChromeClient. */
     private ChromeAwContentsClientProxy mAwContentsClient;
 
@@ -425,16 +427,6 @@ public class WebView extends FrameLayout {
         if (isInEditMode()) {
             return;  // Chromium isn't loaded in edit mode.
         }
-// TODO(alex): chromium webview not support hardware accelerated yet.
-//        try {
-//            Activity activity = (Activity)context;
-//            activity.getWindow().setFlags(
-//                    WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
-//                    WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
-//
-//        } catch(ClassCastException e) {
-//            // Hope that hardware acceleration is enabled.
-//        }
 
         SharedPreferences sharedPreferences = context.getSharedPreferences(
                 "chromeview", Context.MODE_PRIVATE);
@@ -1306,7 +1298,7 @@ public class WebView extends FrameLayout {
     }
 
     public void flingScroll(int vx, int vy) {
-
+        mAwContents.flingScroll(vx, vy);
     }
 
     /**
@@ -1424,27 +1416,27 @@ public class WebView extends FrameLayout {
       //// Lifted from chromium/src/android_webview/test/shell/src/org/chromium/android_webview/test/AwTestContainerView
       @Override
       public boolean drawChild(Canvas canvas, View child, long drawingTime) {
-        return WebView.this.drawChild(canvas, child, drawingTime);
+          return WebView.this.drawChild(canvas, child, drawingTime);
       }
 
       @Override
       public boolean super_onKeyUp(int keyCode, KeyEvent event) {
-        return WebView.super.onKeyUp(keyCode, event);
+          return WebView.super.onKeyUp(keyCode, event);
       }
 
       @Override
       public boolean super_dispatchKeyEventPreIme(KeyEvent event) {
-        return WebView.super.dispatchKeyEventPreIme(event);
+          return WebView.super.dispatchKeyEventPreIme(event);
       }
 
       @Override
       public boolean super_dispatchKeyEvent(KeyEvent event) {
-        return WebView.super.dispatchKeyEvent(event);
+          return WebView.super.dispatchKeyEvent(event);
       }
 
       @Override
       public boolean super_onGenericMotionEvent(MotionEvent event) {
-        return WebView.super.onGenericMotionEvent(event);
+          return WebView.super.onGenericMotionEvent(event);
       }
 
       @Override
@@ -1476,12 +1468,12 @@ public class WebView extends FrameLayout {
 
       @Override
       public boolean awakenScrollBars() {
-        return WebView.this.awakenScrollBars();
+          return WebView.this.awakenScrollBars();
       }
 
       @Override
       public boolean super_awakenScrollBars(int startDelay, boolean invalidate) {
-        return WebView.super.awakenScrollBars(startDelay, invalidate);
+          return WebView.super.awakenScrollBars(startDelay, invalidate);
       }
 
       @Override
@@ -1496,25 +1488,25 @@ public class WebView extends FrameLayout {
 
       @Override
       public boolean requestDrawGL(Canvas canvas) {
-        if (canvas != null) {
-          if (canvas.isHardwareAccelerated()) {
-            // TODO(pwnall): figure out what AwContents wants from us, and do it;
-            //               most likely something to do with
-            //               AwContents.getAwDrawGLFunction()
-            return false;
+          if (canvas != null) {
+              if (canvas.isHardwareAccelerated()) {
+                  if (mGLfunctor == null) {
+                      mGLfunctor = new DrawGLFunctor(mAwContents.getAwDrawGLViewContext());
+                  }
+                  return mGLfunctor.requestDrawGL(canvas, WebView.this);
+              } else {
+                  return false;
+              }
           } else {
-            return false;
+              if (WebView.this.isHardwareAccelerated()) {
+                  if (mGLfunctor == null) {
+                      mGLfunctor = new DrawGLFunctor(mAwContents.getAwDrawGLViewContext());
+                  }
+                  return mGLfunctor.requestDrawGL(canvas, WebView.this);
+              } else {
+                  return false;
+              }
           }
-        } else {
-          if (WebView.this.isHardwareAccelerated()) {
-            // TODO(pwnall): figure out what AwContents wants from us, and do it;
-            //               most likely something to do with
-            //               AwContents.getAwDrawGLFunction()
-            return false;
-          } else {
-            return false;
-          }
-        }
-      }
+       }
     }
 }
