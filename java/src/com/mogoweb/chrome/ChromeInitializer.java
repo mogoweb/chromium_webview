@@ -5,6 +5,7 @@
 package com.mogoweb.chrome;
 
 import org.chromium.android_webview.AwBrowserProcess;
+import org.chromium.android_webview.AwContents;
 import org.chromium.android_webview.AwResource;
 import org.chromium.content.browser.ResourceExtractor;
 import org.chromium.content.common.CommandLine;
@@ -51,5 +52,7 @@ public class ChromeInitializer {
     ResourceExtractor.setExtractImplicitLocaleForTesting(false);
     AwBrowserProcess.loadLibrary();
     AwBrowserProcess.start(context);
+
+    DrawGLFunctor.setChromiumAwDrawGLFunction(AwContents.getAwDrawGLFunction());
   }
 }
