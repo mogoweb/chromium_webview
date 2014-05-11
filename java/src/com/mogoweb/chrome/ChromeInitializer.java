@@ -13,6 +13,7 @@ import org.chromium.content.common.CommandLine;
 import android.content.Context;
 
 import com.mogoweb.chrome.R;
+import com.mogoweb.chrome.impl.DrawGLFunctor;
 
 /**
  * Chromium setup chores.

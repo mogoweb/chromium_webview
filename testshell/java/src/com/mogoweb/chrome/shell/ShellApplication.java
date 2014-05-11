@@ -14,6 +14,6 @@ public class ShellApplication extends Application {
     public void onCreate() {
         super.onCreate();
 
-        ChromeInitializer.initialize(this);
+//        ChromeInitializer.initialize(this);
     }
 }

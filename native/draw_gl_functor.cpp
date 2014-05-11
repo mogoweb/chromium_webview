@@ -144,7 +144,7 @@ void SetChromiumAwDrawGLFunction(JNIEnv*, jclass, jint draw_function) {
   g_aw_drawgl_function = reinterpret_cast<AwDrawGLFunction*>(draw_function);
 }
 
-const char kClassName[] = "com/mogoweb/chrome/DrawGLFunctor";
+const char kClassName[] = "com/mogoweb/chrome/impl/DrawGLFunctor";
 const JNINativeMethod kJniMethods[] = {
     { "nativeCreateGLFunctor", "(I)I",
         reinterpret_cast<void*>(CreateGLFunctor) },

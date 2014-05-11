@@ -191,10 +191,10 @@ public class ShellActivity extends Activity {
         mCaptureButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                Picture picture = mWebView.capturePicture();
-                if (picture != null) {
-                    Log.d("ShellActivity", "capture success");
-                }
+//                Picture picture = mWebView.capturePicture();
+//                if (picture != null) {
+//                    Log.d("ShellActivity", "capture success");
+//                }
             }
         });
     }
