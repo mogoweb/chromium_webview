@@ -18,6 +18,9 @@ Inspired by [ChromeView project](https://github.com/pwnall/chromeview), our
 goal is to provide full Android WebKit compatible API, so the web apps or 
 hybrid apps can easily immigrate to chromium. 
 
+You can use ChromiumWebView as the same as Android WebView except for different
+package name.
+
 ## Setting Up
 
 This section explains how to set up your Android project to use ChromiumWebView.
@@ -34,27 +37,6 @@ in the `Library` section.
 Copy `assets/webviewchromium.pak` to your project's `assets` directory. [Star 
 this bug](https://code.google.com/p/android/issues/detail?id=35748) if you 
 agree that this is annoying.
-
-### Initialize
-
-In your Application subclass, call ChromeIntializer.initialize and pass it the 
-application's context. For example,
-
-```java
-import com.mogoweb.chrome.ChromeInitializer;
-import android.app.Application;
-
-public class MyApplication extends Application {
-    @Override
-    public void onCreate() {
-        super.onCreate();
-        ChromeInitializer.initialize(this);
-    }
-}
-```
-
-Now you can use ChromiumWebView as the same as Android WebView except for different
-package name.
 
 ### TestShell
 
