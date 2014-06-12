@@ -1,6 +1,49 @@
-<resources>
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (c) 2014 mogoweb. All rights reserved.
+
+     Use of this source code is governed by a BSD-style license that can be
+     found in the LICENSE file.
+ -->
+<!--
+/* //device/apps/common/assets/res/any/strings.xml
+**
+** Copyright 2006, The Android Open Source Project
+**
+** Licensed under the Apache License, Version 2.0 (the "License");
+** you may not use this file except in compliance with the License.
+** You may obtain a copy of the License at
+**
+**     http://www.apache.org/licenses/LICENSE-2.0
+**
+** Unless required by applicable law or agreed to in writing, software
+** distributed under the License is distributed on an "AS IS" BASIS,
+** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+** See the License for the specific language governing permissions and
+** limitations under the License.
+*/
+-->
+
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
 
     <string name="app_name">CefAndroid</string>
 
     <string name="default_encoding">text/plain</string>
+
+    <!-- Title for a JavaScript dialog. "The page at <url of current page> says:" -->
+    <string name="js_dialog_title">The page at \"<xliff:g id="title">%s</xliff:g>\" says:</string>
+    <!-- Default title for a javascript dialog -->
+    <string name="js_dialog_title_default">JavaScript</string>
+    <!-- Title for the unload javascript dialog -->
+    <string name="js_dialog_before_unload_title">Confirm Navigation</string>
+    <!-- Text for the positive button on the unload javascript dialog -->
+    <string name="js_dialog_before_unload_positive_button">Leave this Page</string>
+    <!-- Text for the negative button on the unload javascript dialog -->
+    <string name="js_dialog_before_unload_negative_button">Stay on this Page</string>
+    <!-- Message in a javascript dialog asking if the user wishes to leave the current page -->
+    <string name="js_dialog_before_unload"><xliff:g id="message">%s</xliff:g>\n\nAre you sure you want to navigate away from this page?</string>
+
+    <!-- Preference framework strings. -->
+    <string name="ok">OK</string>
+    <!-- Preference framework strings. -->
+    <string name="cancel">Cancel</string>
 </resources>

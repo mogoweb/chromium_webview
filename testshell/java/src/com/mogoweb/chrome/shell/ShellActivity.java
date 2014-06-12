@@ -9,11 +9,9 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.Picture;
 import android.graphics.drawable.ClipDrawable;
 import android.os.Bundle;
 import android.text.TextUtils;
-import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -21,6 +19,7 @@ import android.view.View.OnFocusChangeListener;
 import android.view.ViewGroup.LayoutParams;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
@@ -43,6 +42,7 @@ public class ShellActivity extends Activity {
     private ImageButton mPrevButton;
     private ImageButton mNextButton;
     private ImageButton mCaptureButton;
+    private Button mTestJsButton;
 
     private LinearLayout mToolbar;
     private ClipDrawable mProgressDrawable;
@@ -195,6 +195,14 @@ public class ShellActivity extends Activity {
 //                if (picture != null) {
 //                    Log.d("ShellActivity", "capture success");
 //                }
+            }
+        });
+
+        mTestJsButton = (Button) findViewById(R.id.test_js);
+        mTestJsButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mWebView.loadUrl("http://mogoweb.github.io/resources/mytestpage.html");
             }
         });
     }

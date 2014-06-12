@@ -44,6 +44,15 @@
             android:src="@android:drawable/ic_media_next"
             android:scaleType="center" />
     </LinearLayout>
+    <LinearLayout android:id="@+id/test_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal" >
+        <Button android:id="@+id/test_js"
+            android:layout_width="wrap_content"
+            android:layout_height="38dp"
+            android:text="@string/btn_text_test_javascript" />
+    </LinearLayout>
     <LinearLayout android:id="@+id/content_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"

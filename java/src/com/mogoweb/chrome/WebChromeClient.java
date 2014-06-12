@@ -23,7 +23,6 @@ import android.os.Message;
 import android.view.View;
 import android.webkit.ConsoleMessage;
 import android.webkit.GeolocationPermissions;
-import android.webkit.JsPromptResult;
 import android.webkit.ValueCallback;
 import android.webkit.WebStorage;
 

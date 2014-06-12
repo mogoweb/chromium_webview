@@ -569,8 +569,8 @@ public class WebViewContentsClientAdapter extends AwContentsClient {
                     new JsPromptResultReceiverAdapter(receiver).getPromptResult();
             if (TRACE) Log.d(TAG, "onJsAlert");
             if (!mWebChromeClient.onJsAlert(mWebView, url, message, res)) {
-//                new JsDialogHelper(res, JsDialogHelper.ALERT, null, message, url)
-//                        .showDialog(mWebView.getContext());
+                new JsDialogHelper(res, JsDialogHelper.ALERT, null, message, url)
+                        .showDialog(mWebView.getContext());
             }
         } else {
             receiver.cancel();
@@ -586,8 +586,8 @@ public class WebViewContentsClientAdapter extends AwContentsClient {
                     new JsPromptResultReceiverAdapter(receiver).getPromptResult();
             if (TRACE) Log.d(TAG, "onJsBeforeUnload");
             if (!mWebChromeClient.onJsBeforeUnload(mWebView, url, message, res)) {
-//                new JsDialogHelper(res, JsDialogHelper.UNLOAD, null, message, url)
-//                        .showDialog(mWebView.getContext());
+                new JsDialogHelper(res, JsDialogHelper.UNLOAD, null, message, url)
+                        .showDialog(mWebView.getContext());
             }
         } else {
             receiver.cancel();
@@ -603,8 +603,8 @@ public class WebViewContentsClientAdapter extends AwContentsClient {
                     new JsPromptResultReceiverAdapter(receiver).getPromptResult();
             if (TRACE) Log.d(TAG, "onJsConfirm");
             if (!mWebChromeClient.onJsConfirm(mWebView, url, message, res)) {
-//                new JsDialogHelper(res, JsDialogHelper.CONFIRM, null, message, url)
-//                        .showDialog(mWebView.getContext());
+                new JsDialogHelper(res, JsDialogHelper.CONFIRM, null, message, url)
+                        .showDialog(mWebView.getContext());
             }
         } else {
             receiver.cancel();
@@ -620,10 +620,10 @@ public class WebViewContentsClientAdapter extends AwContentsClient {
             final JsPromptResult res =
                     new JsPromptResultReceiverAdapter(receiver).getPromptResult();
             if (TRACE) Log.d(TAG, "onJsPrompt");
-//            if (!mWebChromeClient.onJsPrompt(mWebView, url, message, defaultValue, res)) {
-//                new JsDialogHelper(res, JsDialogHelper.PROMPT, defaultValue, message, url)
-//                        .showDialog(mWebView.getContext());
-//            }
+            if (!mWebChromeClient.onJsPrompt(mWebView, url, message, defaultValue, res)) {
+                new JsDialogHelper(res, JsDialogHelper.PROMPT, defaultValue, message, url)
+                        .showDialog(mWebView.getContext());
+            }
         } else {
             receiver.cancel();
         }
