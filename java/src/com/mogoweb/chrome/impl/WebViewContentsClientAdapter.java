@@ -634,8 +634,8 @@ public class WebViewContentsClientAdapter extends AwContentsClient {
     public void onReceivedHttpAuthRequest(AwHttpAuthHandler handler, String host, String realm) {
         TraceEvent.begin();
         if (TRACE) Log.d(TAG, "onReceivedHttpAuthRequest=" + host);
-//        mWebViewClient.onReceivedHttpAuthRequest(mWebView,
-//                new AwHttpAuthHandlerAdapter(handler), host, realm);
+        mWebViewClient.onReceivedHttpAuthRequest(mWebView,
+                new AwHttpAuthHandlerAdapter(handler), host, realm);
         TraceEvent.end();
     }
 
@@ -770,33 +770,33 @@ public class WebViewContentsClientAdapter extends AwContentsClient {
         return result;
     }
 
-//    private static class AwHttpAuthHandlerAdapter extends android.webkit.HttpAuthHandler {
-//        private AwHttpAuthHandler mAwHandler;
-//
-//        public AwHttpAuthHandlerAdapter(AwHttpAuthHandler awHandler) {
-//            mAwHandler = awHandler;
-//        }
-//
-//        @Override
-//        public void proceed(String username, String password) {
-//            if (username == null) {
-//                username = "";
-//            }
-//
-//            if (password == null) {
-//                password = "";
-//            }
-//            mAwHandler.proceed(username, password);
-//        }
-//
-//        @Override
-//        public void cancel() {
-//            mAwHandler.cancel();
-//        }
-//
-//        @Override
-//        public boolean useHttpAuthUsernamePassword() {
-//            return mAwHandler.isFirstAttempt();
-//        }
-//    }
+    private static class AwHttpAuthHandlerAdapter extends com.mogoweb.chrome.HttpAuthHandler {
+        private AwHttpAuthHandler mAwHandler;
+
+        public AwHttpAuthHandlerAdapter(AwHttpAuthHandler awHandler) {
+            mAwHandler = awHandler;
+        }
+
+        @Override
+        public void proceed(String username, String password) {
+            if (username == null) {
+                username = "";
+            }
+
+            if (password == null) {
+                password = "";
+            }
+            mAwHandler.proceed(username, password);
+        }
+
+        @Override
+        public void cancel() {
+            mAwHandler.cancel();
+        }
+
+        @Override
+        public boolean useHttpAuthUsernamePassword() {
+            return mAwHandler.isFirstAttempt();
+        }
+    }
 }

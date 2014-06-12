@@ -20,7 +20,6 @@ import android.graphics.Bitmap;
 import android.net.http.SslError;
 import android.os.Message;
 import android.view.KeyEvent;
-import android.webkit.HttpAuthHandler;
 import android.webkit.SslErrorHandler;
 import android.webkit.WebResourceResponse;
 

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (c) 2014 mogoweb. All rights reserved.
+
+     Use of this source code is governed by a BSD-style license that can be
+     found in the LICENSE file.
+ -->
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+
+    <string name="app_name">WebView外壳</string>
+    <string name="action_settings">设置</string>
+    <string name="hello_world">Hello world!</string>
+
+    <string name="btn_text_test_javascript">basic page test</string>
+
+    <string name="sign_in_to">登录 <xliff:g id="hostname">%s1</xliff:g> \"<xliff:g id="realm">%s2</xliff:g>\"</string>
+    <string name="username">"姓名"</string>
+    <string name="password">"密码"</string>
+    <string name="action">"登录"</string>
+</resources>

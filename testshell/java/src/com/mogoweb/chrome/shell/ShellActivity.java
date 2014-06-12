@@ -27,6 +27,7 @@ import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.mogoweb.chrome.HttpAuthHandler;
 import com.mogoweb.chrome.WebChromeClient;
 import com.mogoweb.chrome.WebView;
 import com.mogoweb.chrome.WebViewClient;
@@ -46,6 +47,8 @@ public class ShellActivity extends Activity {
 
     private LinearLayout mToolbar;
     private ClipDrawable mProgressDrawable;
+
+    private PageDialogsHandler mPageDialogsHandler;
 
     private boolean mIsLoading = false;
 
@@ -69,6 +72,7 @@ public class ShellActivity extends Activity {
 
         mToolbar = (LinearLayout)findViewById(R.id.toolbar);
         mProgressDrawable = (ClipDrawable) mToolbar.getBackground();
+        mPageDialogsHandler = new PageDialogsHandler(this);
 
         mWebView.getSettings().setJavaScriptEnabled(true);
 
@@ -104,6 +108,33 @@ public class ShellActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 mIsLoading = false;
+            }
+
+            @Override
+            public void onReceivedHttpAuthRequest(WebView view, final HttpAuthHandler handler,
+                    final String host, final String realm) {
+                String username = null;
+                String password = null;
+
+                boolean reuseHttpAuthUsernamePassword = handler.useHttpAuthUsernamePassword();
+
+                if (reuseHttpAuthUsernamePassword && view != null) {
+                    String[] credentials = view.getHttpAuthUsernamePassword(host, realm);
+                    if (credentials != null && credentials.length == 2) {
+                        username = credentials[0];
+                        password = credentials[1];
+                    }
+                }
+
+                if (username != null && password != null) {
+                    handler.proceed(username, password);
+                } else {
+                    if (!handler.suppressDialog()) {
+                        mPageDialogsHandler.showHttpAuthentication(handler, host, realm);
+                    } else {
+                        handler.cancel();
+                    }
+                }
             }
         };
 
