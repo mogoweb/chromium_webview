@@ -75,6 +75,57 @@ rsync -avz ${CHROMIUM_SRC}/android_webview/java/src/ ${CHROMIUMVIEW_PROJECT_ROOT
 rsync -avz ${CHROMIUM_SRC}/content/public/android/java/resource_map/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
 rsync -avz ${CHROMIUM_SRC}/ui/android/java/resource_map/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
 
+# sync content resources
+sync_content_resources() {
+    # Sync content resources such as drawable, layout, etc. Assume they are not duplicate.
+    local resfolders=(drawable drawable-hdpi drawable-xhdpi layout layout-land menu mipmap-hdpi mipmap-mdpi mipmap-xhdpi mipmap-xxhdpi)
+    for folder in ${resfolders[*]}
+    do
+        rsync -avz ${CHROMIUM_SRC}/content/public/android/java/res/$folder/ ${CHROMIUMVIEW_PROJECT_ROOT}/res/$folder/
+    done
+
+    # Sync content resource such as strings. They may have duplicated name, so rename it
+    local stringfolders=(values/attrs values/dimens values/strings values-v17/styles)
+    for stringfolder in ${stringfolders[*]}
+    do
+        rsync -avz ${CHROMIUM_SRC}/content/public/android/java/res/${stringfolder}.xml ${CHROMIUMVIEW_PROJECT_ROOT}/res/${stringfolder}_content.xml
+    done
+
+    # Sync content strings. They are generated form grit
+    local gritfolders=(values values-zh-rCN)
+    for gritfolder in ${gritfolders[*]}
+    do
+        rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/gen/content_java/res_grit/$gritfolder/ ${CHROMIUMVIEW_PROJECT_ROOT}/res/$gritfolder/
+    done
+}
+
+# sync ui resources
+sync_ui_resources() {
+    # Sync ui resources such as drawable, layout, etc. Assume they are not duplicate.
+    local resfolders=(drawable drawable-hdpi drawable-xhdpi layout)
+    for folder in ${resfolders[*]}
+    do
+        rsync -avz ${CHROMIUM_SRC}/ui/android/java/res/$folder/ ${CHROMIUMVIEW_PROJECT_ROOT}/res/$folder/
+    done
+
+    # Sync ui resource such as strings. They may have duplicated name, so rename it
+    local stringfolders=(values/colors values/dimens values/strings values/values values-v17/styles)
+    for stringfolder in ${stringfolders[*]}
+    do
+        rsync -avz ${CHROMIUM_SRC}/ui/android/java/res/${stringfolder}.xml ${CHROMIUMVIEW_PROJECT_ROOT}/res/${stringfolder}_ui.xml
+    done
+
+    # Sync ui strings. They are generated form grit
+    local gritfolders=(values values-zh-rCN)
+    for gritfolder in ${gritfolders[*]}
+    do
+        rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/gen/ui_java/res_grit/$gritfolder/ ${CHROMIUMVIEW_PROJECT_ROOT}/res/$gritfolder/
+    done
+}
+
+sync_content_resources
+sync_ui_resources
+
 # ContentView dependencies.
 rsync -avz ${CHROMIUM_SRC}/base/android/java/src/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/
 rsync -avz ${CHROMIUM_SRC}/content/public/android/java/src/ ${CHROMIUMVIEW_PROJECT_ROOT}/src/

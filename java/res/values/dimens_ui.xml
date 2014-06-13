@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2013 The Chromium Authors. All rights reserved.
+
+     Use of this source code is governed by a BSD-style license that can be
+     found in the LICENSE file.
+-->
+<resources>
+
+    <!--
+         14.5 = Seekbar thumb width - border width, but it depends on the width
+	     of the seek bar icon.
+    -->
+    <dimen name="color_picker_gradient_margin">14.5dp</dimen>
+    <dimen name="color_button_height">60dp</dimen>
+    <dimen name="autofill_text_height">44dp</dimen>
+    <dimen name="autofill_text_divider_height">1px</dimen>
+
+</resources>

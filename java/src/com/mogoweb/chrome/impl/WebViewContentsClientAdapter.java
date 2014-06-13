@@ -27,18 +27,14 @@ import org.chromium.android_webview.AwHttpAuthHandler;
 import org.chromium.android_webview.InterceptedRequestData;
 import org.chromium.android_webview.JsPromptResultReceiver;
 import org.chromium.android_webview.JsResultReceiver;
-import org.chromium.base.ThreadUtils;
+import org.chromium.base.TraceEvent;
 import org.chromium.content.browser.ContentView;
 import org.chromium.content.browser.ContentViewClient;
-import org.chromium.content.common.TraceEvent;
 
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Picture;
 import android.net.http.SslError;
 import android.os.Handler;
@@ -49,7 +45,6 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.webkit.ConsoleMessage;
 import android.webkit.GeolocationPermissions;
-import android.webkit.SslErrorHandler;
 import android.webkit.ValueCallback;
 import android.webkit.WebResourceResponse;
 
@@ -57,9 +52,7 @@ import com.mogoweb.chrome.DownloadListener;
 import com.mogoweb.chrome.JsPromptResult;
 import com.mogoweb.chrome.JsResult;
 import com.mogoweb.chrome.WebChromeClient;
-import com.mogoweb.chrome.WebChromeClient.CustomViewCallback;
 import com.mogoweb.chrome.WebView;
-import com.mogoweb.chrome.WebView.WebViewTransport;
 import com.mogoweb.chrome.WebViewClient;
 
 /**
