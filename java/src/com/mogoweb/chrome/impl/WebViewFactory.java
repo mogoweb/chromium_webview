@@ -109,6 +109,51 @@ public final class WebViewFactory {
             org.chromium.content.R.string.time_picker_dialog_title = com.mogoweb.chrome.R.string.time_picker_dialog_title;
             org.chromium.content.R.string.week_picker_dialog_title = com.mogoweb.chrome.R.string.week_picker_dialog_title;
             org.chromium.content.R.style.SelectPopupDialog = com.mogoweb.chrome.R.style.SelectPopupDialog;
+
+            org.chromium.ui.R.string.copy_to_clipboard_failure_message = com.mogoweb.chrome.R.string.copy_to_clipboard_failure_message;
+            org.chromium.ui.R.string.low_memory_error = com.mogoweb.chrome.R.string.low_memory_error;
+            org.chromium.ui.R.string.opening_file_error = com.mogoweb.chrome.R.string.opening_file_error;
+            org.chromium.ui.R.string.color_picker_button_more = com.mogoweb.chrome.R.string.color_picker_button_more;
+            org.chromium.ui.R.string.color_picker_hue = com.mogoweb.chrome.R.string.color_picker_hue;
+            org.chromium.ui.R.string.color_picker_saturation = com.mogoweb.chrome.R.string.color_picker_saturation;
+            org.chromium.ui.R.string.color_picker_value = com.mogoweb.chrome.R.string.color_picker_value;
+            org.chromium.ui.R.string.color_picker_button_set = com.mogoweb.chrome.R.string.color_picker_button_set;
+            org.chromium.ui.R.string.color_picker_button_cancel = com.mogoweb.chrome.R.string.color_picker_button_cancel;
+            org.chromium.ui.R.string.color_picker_dialog_title = com.mogoweb.chrome.R.string.color_picker_dialog_title;
+            org.chromium.ui.R.string.color_picker_button_red = com.mogoweb.chrome.R.string.color_picker_button_red;
+            org.chromium.ui.R.string.color_picker_button_cyan = com.mogoweb.chrome.R.string.color_picker_button_cyan;
+            org.chromium.ui.R.string.color_picker_button_blue = com.mogoweb.chrome.R.string.color_picker_button_blue;
+            org.chromium.ui.R.string.color_picker_button_green = com.mogoweb.chrome.R.string.color_picker_button_green;
+            org.chromium.ui.R.string.color_picker_button_magenta = com.mogoweb.chrome.R.string.color_picker_button_magenta;
+            org.chromium.ui.R.string.color_picker_button_yellow = com.mogoweb.chrome.R.string.color_picker_button_yellow;
+            org.chromium.ui.R.string.color_picker_button_black = com.mogoweb.chrome.R.string.color_picker_button_black;
+            org.chromium.ui.R.string.color_picker_button_white = com.mogoweb.chrome.R.string.color_picker_button_white;
+            org.chromium.ui.R.id.autofill_label = com.mogoweb.chrome.R.id.autofill_label;
+            org.chromium.ui.R.id.autofill_popup_window = com.mogoweb.chrome.R.id.autofill_popup_window;
+            org.chromium.ui.R.id.autofill_sublabel = com.mogoweb.chrome.R.id.autofill_sublabel;
+            org.chromium.ui.R.id.selected_color_view = com.mogoweb.chrome.R.id.selected_color_view;
+            org.chromium.ui.R.id.title = com.mogoweb.chrome.R.id.title;
+            org.chromium.ui.R.id.more_colors_button = com.mogoweb.chrome.R.id.more_colors_button;
+            org.chromium.ui.R.id.color_picker_advanced = com.mogoweb.chrome.R.id.color_picker_advanced;
+            org.chromium.ui.R.id.color_picker_simple = com.mogoweb.chrome.R.id.color_picker_simple;
+            org.chromium.ui.R.id.color_button_swatch = com.mogoweb.chrome.R.id.color_button_swatch;
+            org.chromium.ui.R.id.more_colors_button_border = com.mogoweb.chrome.R.id.more_colors_button_border;
+            org.chromium.ui.R.id.gradient= com.mogoweb.chrome.R.id.gradient;
+            org.chromium.ui.R.id.text = com.mogoweb.chrome.R.id.text;
+            org.chromium.ui.R.id.seek_bar = com.mogoweb.chrome.R.id.seek_bar;
+            org.chromium.ui.R.layout.autofill_text = com.mogoweb.chrome.R.layout.autofill_text;
+            org.chromium.ui.R.layout.color_picker_dialog_title = com.mogoweb.chrome.R.layout.color_picker_dialog_title;
+            org.chromium.ui.R.layout.color_picker_dialog_content = com.mogoweb.chrome.R.layout.color_picker_dialog_content;
+            org.chromium.ui.R.layout.color_picker_advanced_component = com.mogoweb.chrome.R.layout.color_picker_advanced_component;
+            org.chromium.ui.R.drawable.color_button_background = com.mogoweb.chrome.R.drawable.color_button_background;
+            org.chromium.ui.R.drawable.color_picker_advanced_select_handle = com.mogoweb.chrome.R.drawable.color_picker_advanced_select_handle;
+            org.chromium.ui.R.style.AutofillPopupWindow = com.mogoweb.chrome.R.style.AutofillPopupWindow;
+            org.chromium.ui.R.color.autofill_dark_divider_color = com.mogoweb.chrome.R.color.autofill_dark_divider_color;
+            org.chromium.ui.R.color.autofill_divider_color = com.mogoweb.chrome.R.color.autofill_divider_color;
+            org.chromium.ui.R.color.color_picker_border_color = com.mogoweb.chrome.R.color.color_picker_border_color;
+            org.chromium.ui.R.dimen.autofill_text_height = com.mogoweb.chrome.R.dimen.autofill_text_height;
+            org.chromium.ui.R.dimen.autofill_text_divider_height = com.mogoweb.chrome.R.dimen.autofill_text_divider_height;
+            org.chromium.ui.R.dimen.color_button_height = com.mogoweb.chrome.R.dimen.color_button_height;
         }
     }
 

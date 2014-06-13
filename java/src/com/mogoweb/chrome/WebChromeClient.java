@@ -59,17 +59,17 @@ public class WebChromeClient {
     public void onReceivedTouchIconUrl(WebView view, String url,
             boolean precomposed) {}
 
-    /**
-     * A callback interface used by the host application to notify
-     * the current page that its custom view has been dismissed.
-     */
-    public interface CustomViewCallback {
-        /**
-         * Invoked when the host application dismisses the
-         * custom view.
-         */
-        public void onCustomViewHidden();
-    }
+//    /**
+//     * A callback interface used by the host application to notify
+//     * the current page that its custom view has been dismissed.
+//     */
+//    public interface CustomViewCallback {
+//        /**
+//         * Invoked when the host application dismisses the
+//         * custom view.
+//         */
+//        public void onCustomViewHidden();
+//    }
 
     /**
      * Notify the host application that the current page would
@@ -78,7 +78,7 @@ public class WebChromeClient {
      * @param callback is the callback to be invoked if and when the view
      * is dismissed.
      */
-    public void onShowCustomView(View view, CustomViewCallback callback) {};
+    public void onShowCustomView(View view, android.webkit.WebChromeClient.CustomViewCallback callback) {};
 
     /**
      * Notify the host application that the current page would
@@ -90,7 +90,7 @@ public class WebChromeClient {
      * is dismissed.
      */
     public void onShowCustomView(View view, int requestedOrientation,
-            CustomViewCallback callback) {};
+            android.webkit.WebChromeClient.CustomViewCallback callback) {};
 
     /**
      * Notify the host application that the current page would

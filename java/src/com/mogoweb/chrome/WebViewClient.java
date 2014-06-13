@@ -1,3 +1,6 @@
+// Copyright (c) 2014 mogoweb. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 /*
  * Copyright (C) 2008 The Android Open Source Project
  *
@@ -20,7 +23,6 @@ import android.graphics.Bitmap;
 import android.net.http.SslError;
 import android.os.Message;
 import android.view.KeyEvent;
-import android.webkit.SslErrorHandler;
 import android.webkit.WebResourceResponse;
 
 public class WebViewClient {

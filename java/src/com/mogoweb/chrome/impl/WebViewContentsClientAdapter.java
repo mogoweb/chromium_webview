@@ -35,6 +35,9 @@ import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Picture;
 import android.net.http.SslError;
 import android.os.Handler;
@@ -46,11 +49,13 @@ import android.view.View;
 import android.webkit.ConsoleMessage;
 import android.webkit.GeolocationPermissions;
 import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient.CustomViewCallback;
 import android.webkit.WebResourceResponse;
 
 import com.mogoweb.chrome.DownloadListener;
 import com.mogoweb.chrome.JsPromptResult;
 import com.mogoweb.chrome.JsResult;
+import com.mogoweb.chrome.SslErrorHandler;
 import com.mogoweb.chrome.WebChromeClient;
 import com.mogoweb.chrome.WebView;
 import com.mogoweb.chrome.WebViewClient;
@@ -634,27 +639,27 @@ public class WebViewContentsClientAdapter extends AwContentsClient {
 
     @Override
     public void onReceivedSslError(final ValueCallback<Boolean> callback, SslError error) {
-//        SslErrorHandler handler = new SslErrorHandler() {
-//            @Override
-//            public void proceed() {
-//                postProceed(true);
-//            }
-//            @Override
-//            public void cancel() {
-//                postProceed(false);
-//            }
-//            private void postProceed(final boolean proceed) {
-//                post(new Runnable() {
-//                        @Override
-//                        public void run() {
-//                            callback.onReceiveValue(proceed);
-//                        }
-//                    });
-//            }
-//        };
+        SslErrorHandler handler = new SslErrorHandler() {
+            @Override
+            public void proceed() {
+                postProceed(true);
+            }
+            @Override
+            public void cancel() {
+                postProceed(false);
+            }
+            private void postProceed(final boolean proceed) {
+                post(new Runnable() {
+                        @Override
+                        public void run() {
+                            callback.onReceiveValue(proceed);
+                        }
+                    });
+            }
+        };
         TraceEvent.begin();
         if (TRACE) Log.d(TAG, "onReceivedSslError");
-//        mWebViewClient.onReceivedSslError(mWebView, handler, error);
+        mWebViewClient.onReceivedSslError(mWebView, handler, error);
         TraceEvent.end();
     }
 
@@ -700,15 +705,15 @@ public class WebViewContentsClientAdapter extends AwContentsClient {
         TraceEvent.end();
     }
 
-//    @Override
-//    public void onShowCustomView(View view, CustomViewCallback cb) {
-//        TraceEvent.begin();
-//        if (mWebChromeClient != null) {
-//            if (TRACE) Log.d(TAG, "onShowCustomView");
-//            mWebChromeClient.onShowCustomView(view, cb);
-//        }
-//        TraceEvent.end();
-//    }
+    @Override
+    public void onShowCustomView(View view, CustomViewCallback cb) {
+        TraceEvent.begin();
+        if (mWebChromeClient != null) {
+            if (TRACE) Log.d(TAG, "onShowCustomView");
+            mWebChromeClient.onShowCustomView(view, cb);
+        }
+        TraceEvent.end();
+    }
 
     @Override
     public void onHideCustomView() {
@@ -747,16 +752,16 @@ public class WebViewContentsClientAdapter extends AwContentsClient {
                 result = mCachedDefaultVideoPoster.get();
             }
             if (result == null) {
-//                Bitmap poster = BitmapFactory.decodeResource(
-//                        mWebView.getContext().getResources(),
-//                        com.android.internal.R.drawable.ic_media_video_poster);
-//                result = Bitmap.createBitmap(poster.getWidth(),
-//                                             poster.getHeight(),
-//                                             poster.getConfig());
-//                result.eraseColor(Color.GRAY);
-//                Canvas canvas = new Canvas(result);
-//                canvas.drawBitmap(poster, 0f, 0f, null);
-//                mCachedDefaultVideoPoster = new SoftReference<Bitmap>(result);
+                Bitmap poster = BitmapFactory.decodeResource(
+                        mWebView.getContext().getResources(),
+                        com.mogoweb.chrome.R.drawable.ic_media_video_poster);
+                result = Bitmap.createBitmap(poster.getWidth(),
+                                             poster.getHeight(),
+                                             poster.getConfig());
+                result.eraseColor(Color.GRAY);
+                Canvas canvas = new Canvas(result);
+                canvas.drawBitmap(poster, 0f, 0f, null);
+                mCachedDefaultVideoPoster = new SoftReference<Bitmap>(result);
             }
         }
         TraceEvent.end();
