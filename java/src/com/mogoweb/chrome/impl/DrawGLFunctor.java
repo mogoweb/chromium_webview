@@ -85,7 +85,7 @@ public class DrawGLFunctor {
             throw new RuntimeException("requested DrawGL on already destroyed DrawGLFunctor");
         }
         try {
-        mDestroyRunnable.mViewRootImpl = (ViewParent)mGetViewRootImplMethod.invoke(view, new Object[]{});
+            mDestroyRunnable.mViewRootImpl = (ViewParent)mGetViewRootImplMethod.invoke(view, new Object[]{});
             if (canvas != null) {
                 Integer i = (Integer)mCallDrawGLFunction.invoke(canvas, new Object[]{Integer.valueOf(mDestroyRunnable.mNativeDrawGLFunctor)});
                 int ret =  i.intValue();
@@ -94,7 +94,8 @@ public class DrawGLFunctor {
                     return false;
                 }
             } else {
-                mAttachFunctor.invoke(mDestroyRunnable.mViewRootImpl, new Object[]{Integer.valueOf(mDestroyRunnable.mNativeDrawGLFunctor)});
+                if (mDestroyRunnable.mViewRootImpl != null)
+                    mAttachFunctor.invoke(mDestroyRunnable.mViewRootImpl, new Object[]{Integer.valueOf(mDestroyRunnable.mNativeDrawGLFunctor)});
             }
         } catch (IllegalAccessException exception) {
             Log.e(TAG, "illegalAccessException" );

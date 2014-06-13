@@ -41,12 +41,12 @@ import android.content.Context;
 import android.os.Build;
 import android.os.Looper;
 import android.util.Log;
-import android.webkit.GeolocationPermissions;
 import android.webkit.WebIconDatabase;
 import android.webkit.WebStorage;
 import android.webkit.WebViewDatabase;
 
 import com.mogoweb.chrome.CookieManager;
+import com.mogoweb.chrome.GeolocationPermissions;
 import com.mogoweb.chrome.R;
 import com.mogoweb.chrome.WebView;
 
@@ -63,7 +63,7 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
     // Initialization guarded by mLock.
     private AwBrowserContext mBrowserContext;
     private Statics mStaticMethods;
-//    private GeolocationPermissionsAdapter mGeolocationPermissions;
+    private GeolocationPermissionsAdapter mGeolocationPermissions;
 //    private CookieManagerAdapter mCookieManager;
 //    private WebIconDatabaseAdapter mWebIconDatabase;
 //    private WebStorageAdapter mWebStorage;
@@ -265,15 +265,14 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
 
     @Override
     public GeolocationPermissions getGeolocationPermissions() {
-//        synchronized (mLock) {
-//            if (mGeolocationPermissions == null) {
-//                ensureChromiumStartedLocked(true);
-//                mGeolocationPermissions = new GeolocationPermissionsAdapter(
-//                        getBrowserContextLocked().getGeolocationPermissions());
-//            }
-//        }
-//        return mGeolocationPermissions;
-        return null;
+        synchronized (mLock) {
+            if (mGeolocationPermissions == null) {
+                ensureChromiumStartedLocked(true);
+                mGeolocationPermissions = new GeolocationPermissionsAdapter(
+                        getBrowserContextLocked().getGeolocationPermissions());
+            }
+        }
+        return mGeolocationPermissions;
     }
 
     AwBrowserContext getBrowserContext() {
