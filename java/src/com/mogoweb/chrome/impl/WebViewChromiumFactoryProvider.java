@@ -35,7 +35,6 @@ import org.chromium.base.CommandLine;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.ProcessInitException;
-import org.chromium.content.app.ContentMain;
 import org.chromium.content.browser.ContentViewStatics;
 import org.chromium.content.browser.ResourceExtractor;
 
@@ -43,13 +42,13 @@ import android.content.Context;
 import android.os.Build;
 import android.os.Looper;
 import android.util.Log;
-import android.webkit.WebIconDatabase;
 import android.webkit.WebStorage;
 import android.webkit.WebViewDatabase;
 
 import com.mogoweb.chrome.CookieManager;
 import com.mogoweb.chrome.GeolocationPermissions;
 import com.mogoweb.chrome.R;
+import com.mogoweb.chrome.WebIconDatabase;
 import com.mogoweb.chrome.WebView;
 
 public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
@@ -67,7 +66,7 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
     private Statics mStaticMethods;
     private GeolocationPermissionsAdapter mGeolocationPermissions;
     private CookieManagerAdapter mCookieManager;
-//    private WebIconDatabaseAdapter mWebIconDatabase;
+    private WebIconDatabaseAdapter mWebIconDatabase;
 //    private WebStorageAdapter mWebStorage;
 //    private WebViewDatabaseAdapter mWebViewDatabase;
     private AwDevToolsServer mDevToolsServer;
@@ -306,14 +305,13 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
 
     @Override
     public WebIconDatabase getWebIconDatabase() {
-//        synchronized (mLock) {
-//            if (mWebIconDatabase == null) {
-//                ensureChromiumStartedLocked(true);
-//                mWebIconDatabase = new WebIconDatabaseAdapter();
-//            }
-//        }
-//        return mWebIconDatabase;
-        return null;
+        synchronized (mLock) {
+            if (mWebIconDatabase == null) {
+                ensureChromiumStartedLocked(true);
+                mWebIconDatabase = new WebIconDatabaseAdapter();
+            }
+        }
+        return mWebIconDatabase;
     }
 
     @Override
