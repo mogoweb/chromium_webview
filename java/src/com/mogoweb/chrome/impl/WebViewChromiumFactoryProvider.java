@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import org.chromium.android_webview.AwBrowserContext;
 import org.chromium.android_webview.AwBrowserProcess;
 import org.chromium.android_webview.AwContents;
+import org.chromium.android_webview.AwCookieManager;
 import org.chromium.android_webview.AwDevToolsServer;
 import org.chromium.android_webview.AwResource;
 import org.chromium.android_webview.AwSettings;
@@ -34,6 +35,7 @@ import org.chromium.base.CommandLine;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.ProcessInitException;
+import org.chromium.content.app.ContentMain;
 import org.chromium.content.browser.ContentViewStatics;
 import org.chromium.content.browser.ResourceExtractor;
 
@@ -64,7 +66,7 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
     private AwBrowserContext mBrowserContext;
     private Statics mStaticMethods;
     private GeolocationPermissionsAdapter mGeolocationPermissions;
-//    private CookieManagerAdapter mCookieManager;
+    private CookieManagerAdapter mCookieManager;
 //    private WebIconDatabaseAdapter mWebIconDatabase;
 //    private WebStorageAdapter mWebStorage;
 //    private WebViewDatabaseAdapter mWebViewDatabase;
@@ -294,20 +296,12 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
 
     @Override
     public CookieManager getCookieManager() {
-//        synchronized (mLock) {
-//            if (mCookieManager == null) {
-//                if (!mStarted) {
-//                    // We can use CookieManager without starting Chromium; the native code
-//                    // will bring up just the parts it needs to make this work on a temporary
-//                    // basis until Chromium is started for real. The temporary cookie manager
-//                    // needs the application context to have been set.
-//                    ContentMain.initApplicationContext(ActivityThread.currentApplication());
-//                }
-//                mCookieManager = new CookieManagerAdapter(new AwCookieManager());
-//            }
-//        }
-//        return mCookieManager;
-        return null;
+        synchronized (mLock) {
+            if (mCookieManager == null) {
+                mCookieManager = new CookieManagerAdapter(new AwCookieManager());
+            }
+        }
+        return mCookieManager;
     }
 
     @Override
