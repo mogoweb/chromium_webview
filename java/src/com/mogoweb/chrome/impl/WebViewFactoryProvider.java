@@ -20,13 +20,13 @@
 package com.mogoweb.chrome.impl;
 
 import android.content.Context;
-import android.webkit.WebViewDatabase;
 
 import com.mogoweb.chrome.CookieManager;
 import com.mogoweb.chrome.GeolocationPermissions;
 import com.mogoweb.chrome.WebIconDatabase;
 import com.mogoweb.chrome.WebStorage;
 import com.mogoweb.chrome.WebView;
+import com.mogoweb.chrome.WebViewDatabase;
 
 /**
  * This is the main entry-point into the WebView back end implementations, which the WebView

@@ -47,7 +47,6 @@ import android.view.accessibility.AccessibilityNodeProvider;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.webkit.ValueCallback;
-import android.webkit.WebViewDatabase;
 import android.widget.AbsoluteLayout;
 
 import com.mogoweb.chrome.impl.DebugFlags;

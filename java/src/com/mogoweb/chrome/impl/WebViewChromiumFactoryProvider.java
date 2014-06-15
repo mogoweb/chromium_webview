@@ -43,7 +43,6 @@ import android.content.Context;
 import android.os.Build;
 import android.os.Looper;
 import android.util.Log;
-import android.webkit.WebViewDatabase;
 
 import com.mogoweb.chrome.CookieManager;
 import com.mogoweb.chrome.GeolocationPermissions;
@@ -51,6 +50,7 @@ import com.mogoweb.chrome.R;
 import com.mogoweb.chrome.WebIconDatabase;
 import com.mogoweb.chrome.WebStorage;
 import com.mogoweb.chrome.WebView;
+import com.mogoweb.chrome.WebViewDatabase;
 
 public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
 
@@ -69,7 +69,7 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
     private CookieManagerAdapter mCookieManager;
     private WebIconDatabaseAdapter mWebIconDatabase;
     private WebStorageAdapter mWebStorage;
-//    private WebViewDatabaseAdapter mWebViewDatabase;
+    private WebViewDatabaseAdapter mWebViewDatabase;
     private AwDevToolsServer mDevToolsServer;
 
     private ArrayList<WeakReference<WebViewChromium>> mWebViewsToStart =
@@ -328,17 +328,16 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
 
     @Override
     public WebViewDatabase getWebViewDatabase(Context context) {
-//        synchronized (mLock) {
-//            if (mWebViewDatabase == null) {
-//                ensureChromiumStartedLocked(true);
-//                AwBrowserContext browserContext = getBrowserContextLocked();
-//                mWebViewDatabase = new WebViewDatabaseAdapter(
-//                        browserContext.getFormDatabase(),
-//                        browserContext.getHttpAuthDatabase(context));
-//            }
-//        }
-//        return mWebViewDatabase;
-        return null;
+        synchronized (mLock) {
+            if (mWebViewDatabase == null) {
+                ensureChromiumStartedLocked(true);
+                AwBrowserContext browserContext = getBrowserContextLocked();
+                mWebViewDatabase = new WebViewDatabaseAdapter(
+                        browserContext.getFormDatabase(),
+                        browserContext.getHttpAuthDatabase(context));
+            }
+        }
+        return mWebViewDatabase;
     }
 
     private void setWebContentsDebuggingEnabled(boolean enable) {
