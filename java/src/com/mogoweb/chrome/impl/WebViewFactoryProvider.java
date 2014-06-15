@@ -20,12 +20,12 @@
 package com.mogoweb.chrome.impl;
 
 import android.content.Context;
-import android.webkit.WebStorage;
 import android.webkit.WebViewDatabase;
 
 import com.mogoweb.chrome.CookieManager;
 import com.mogoweb.chrome.GeolocationPermissions;
 import com.mogoweb.chrome.WebIconDatabase;
+import com.mogoweb.chrome.WebStorage;
 import com.mogoweb.chrome.WebView;
 
 /**

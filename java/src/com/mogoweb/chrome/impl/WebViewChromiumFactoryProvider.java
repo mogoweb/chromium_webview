@@ -29,6 +29,7 @@ import org.chromium.android_webview.AwBrowserProcess;
 import org.chromium.android_webview.AwContents;
 import org.chromium.android_webview.AwCookieManager;
 import org.chromium.android_webview.AwDevToolsServer;
+import org.chromium.android_webview.AwQuotaManagerBridge;
 import org.chromium.android_webview.AwResource;
 import org.chromium.android_webview.AwSettings;
 import org.chromium.base.CommandLine;
@@ -42,13 +43,13 @@ import android.content.Context;
 import android.os.Build;
 import android.os.Looper;
 import android.util.Log;
-import android.webkit.WebStorage;
 import android.webkit.WebViewDatabase;
 
 import com.mogoweb.chrome.CookieManager;
 import com.mogoweb.chrome.GeolocationPermissions;
 import com.mogoweb.chrome.R;
 import com.mogoweb.chrome.WebIconDatabase;
+import com.mogoweb.chrome.WebStorage;
 import com.mogoweb.chrome.WebView;
 
 public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
@@ -67,7 +68,7 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
     private GeolocationPermissionsAdapter mGeolocationPermissions;
     private CookieManagerAdapter mCookieManager;
     private WebIconDatabaseAdapter mWebIconDatabase;
-//    private WebStorageAdapter mWebStorage;
+    private WebStorageAdapter mWebStorage;
 //    private WebViewDatabaseAdapter mWebViewDatabase;
     private AwDevToolsServer mDevToolsServer;
 
@@ -316,14 +317,13 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
 
     @Override
     public WebStorage getWebStorage() {
-//        synchronized (mLock) {
-//            if (mWebStorage == null) {
-//                ensureChromiumStartedLocked(true);
-//                mWebStorage = new WebStorageAdapter(AwQuotaManagerBridge.getInstance());
-//            }
-//        }
-//        return mWebStorage;
-        return null;
+        synchronized (mLock) {
+            if (mWebStorage == null) {
+                ensureChromiumStartedLocked(true);
+                mWebStorage = new WebStorageAdapter(AwQuotaManagerBridge.getInstance());
+            }
+        }
+        return mWebStorage;
     }
 
     @Override
