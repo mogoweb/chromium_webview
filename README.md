@@ -7,6 +7,8 @@ Android WebView wrapper based on chromium
 
 This is just a experimental project, don't use it in product.
 
+If you have problem when git pull, please re-clone this repository. I updated the commits information in 06/19/2014.
+
 ## Why you need
 
 The current performance of Android webview is so poor. ChromiumWebView gives your 
