@@ -25,6 +25,7 @@ import java.lang.reflect.Method;
 import org.chromium.content.common.CleanupReference;
 
 import android.graphics.Canvas;
+import android.os.Build;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewParent;
@@ -58,13 +59,17 @@ public class DrawGLFunctor {
         try {
             mClassTypeOfHardwareCanvas = Class.forName(HARDWARE_CANVAS_CLASS);
             mClassTypeOfViewRootImpl = Class.forName(VIEW_ROOT_IMPL_CLASS);
-            mGetViewRootImplMethod = View.class.getMethod("getViewRootImpl", new Class[]{});
+            // in Android ICS, getViewRootImpl is not public and attachFunctor/detachFunctor not available
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+                mGetViewRootImplMethod = View.class.getMethod("getViewRootImpl", new Class[]{});
+                mAttachFunctor = mClassTypeOfViewRootImpl.getMethod("attachFunctor", new Class[]{int.class});
+                mDetachFunctor = mClassTypeOfViewRootImpl.getMethod("detachFunctor", new Class[]{int.class});
+            }
             mCallDrawGLFunction = mClassTypeOfHardwareCanvas.getMethod("callDrawGLFunction", new Class[]{int.class});
-            mAttachFunctor = mClassTypeOfViewRootImpl.getMethod("attachFunctor", new Class[]{int.class});
-            mDetachFunctor = mClassTypeOfViewRootImpl.getMethod("detachFunctor", new Class[]{int.class});
         } catch (ClassNotFoundException exception) {
+            Log.e(TAG, "ClassNotFoundException occured: " + exception.getMessage());
         } catch (NoSuchMethodException exception) {
-
+            Log.e(TAG, "NoSuchMethodException occured: " + exception.getMessage());
         }
     }
 
@@ -85,26 +90,40 @@ public class DrawGLFunctor {
             throw new RuntimeException("requested DrawGL on already destroyed DrawGLFunctor");
         }
         try {
-            mDestroyRunnable.mViewRootImpl = (ViewParent)mGetViewRootImplMethod.invoke(view, new Object[]{});
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) {
+                View root = view.getRootView();
+                mDestroyRunnable.mViewRootImpl = root != null ? (ViewParent)root.getParent() : null;
+            } else {
+                mDestroyRunnable.mViewRootImpl = (ViewParent)mGetViewRootImplMethod.invoke(view, new Object[]{});
+            }
             if (canvas != null) {
-                Integer i = (Integer)mCallDrawGLFunction.invoke(canvas, new Object[]{Integer.valueOf(mDestroyRunnable.mNativeDrawGLFunctor)});
-                int ret =  i.intValue();
-                if (ret != 0) {
-                    Log.e(TAG, "callDrawGLFunction error: " + ret);
-                    return false;
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) {
+                    Boolean i = (Boolean)mCallDrawGLFunction.invoke(canvas, new Object[]{Integer.valueOf(mDestroyRunnable.mNativeDrawGLFunctor)});
+                    boolean ret =  i.booleanValue();
+                    if (!ret) {
+                        Log.e(TAG, "callDrawGLFunction error: " + ret);
+                        return false;
+                    }
+                } else {
+                    Integer i = (Integer)mCallDrawGLFunction.invoke(canvas, new Object[]{Integer.valueOf(mDestroyRunnable.mNativeDrawGLFunctor)});
+                    int ret =  i.intValue();
+                    if (ret != 0) {
+                        Log.e(TAG, "callDrawGLFunction error: " + ret);
+                        return false;
+                    }
                 }
             } else {
-                if (mDestroyRunnable.mViewRootImpl != null)
+                if (mDestroyRunnable.mViewRootImpl != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN)
                     mAttachFunctor.invoke(mDestroyRunnable.mViewRootImpl, new Object[]{Integer.valueOf(mDestroyRunnable.mNativeDrawGLFunctor)});
             }
         } catch (IllegalAccessException exception) {
-            Log.e(TAG, "illegalAccessException" );
+            Log.e(TAG, "IllegalAccessException:" + exception.getMessage());
             exception.printStackTrace();
         } catch (IllegalArgumentException exception) {
-            Log.e(TAG, "IllegalArgumentException" );
+            Log.e(TAG, "IllegalArgumentException:" + exception.getMessage());
             exception.printStackTrace();
         } catch (InvocationTargetException exception) {
-            Log.e(TAG, "InvocationTargetException" );
+            Log.e(TAG, "InvocationTargetException:" + exception.getMessage());
             exception.printStackTrace();
         }
         return true;
@@ -134,17 +153,17 @@ public class DrawGLFunctor {
         }
 
         void detachNativeFunctor() {
-            if (mNativeDrawGLFunctor != 0 && mViewRootImpl != null) {
+            if (mNativeDrawGLFunctor != 0 && mViewRootImpl != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
                 try {
                     mDetachFunctor.invoke(mViewRootImpl, new Object[]{Integer.valueOf(mNativeDrawGLFunctor)});
                 } catch (IllegalAccessException exception) {
-                    Log.e(TAG, "illegalAccessException" );
+                    Log.e(TAG, "illegalAccessException:" + exception.getMessage());
                     exception.printStackTrace();
                 } catch (IllegalArgumentException exception) {
-                    Log.e(TAG, "IllegalArgumentException" );
+                    Log.e(TAG, "IllegalArgumentException:" + exception.getMessage());
                     exception.printStackTrace();
                 } catch (InvocationTargetException exception) {
-                    Log.e(TAG, "InvocationTargetException" );
+                    Log.e(TAG, "InvocationTargetException:" + exception.getMessage());
                     exception.printStackTrace();
                 }
             }
