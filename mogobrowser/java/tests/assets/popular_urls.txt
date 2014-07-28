@@ -1,4 +1,0 @@
-http://google.com
-http://nytimes.com
-http://slashdot.org
-

@@ -1,2 +1,0 @@
-# Most of the classes in this package are fragments only referenced from XML
--keep class com.mogoweb.browser.preferences.*
