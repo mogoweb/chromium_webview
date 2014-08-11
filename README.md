@@ -23,6 +23,10 @@ hybrid apps can easily immigrate to chromium.
 You can use ChromiumWebView as the same as Android WebView except for different
 package name.
 
+## TintBrowser
+
+The [TintBrowser](https://github.com/mogoweb/TintBrowser) is forked from [https://github.com/Anasthase/TintBrowser](https://github.com/Anasthase/TintBrowser), but use Chromium WebView as web engine.
+
 ## Setting Up
 
 This section explains how to set up your Android project to use ChromiumWebView.
@@ -50,12 +54,11 @@ in the test folder. It is only a shell program that can navigate website.
 ### Environment
 
 1. Please set up your build environment by following the instructions on the Chromium wiki:
- * [Building on Linux](http://code.google.com/p/chromium/wiki/LinuxBuildInstructionsPrerequisites)
+    * [Building on Linux](http://code.google.com/p/chromium/wiki/LinuxBuildInstructionsPrerequisites)
 2. You need to install extra pre-requisites to build for Android, covered in [building Chrome for Android](http://code.google.com/p/chromium/wiki/AndroidBuildInstructions#Install_prerequisites).
 3. [depot_tools](http://www.chromium.org/developers/how-tos/install-depot-tools) contains the following tools, used to manage and build libchromeview from source:
-
- * *gclient* manages code and dependencies.
- * *ninja* is the recommended tool for building libchromeview on Android. Its [website](http://code.google.com/p/chromium/wiki/NinjaBuild) contains detailed usage instructions.
+   * *gclient* manages code and dependencies.
+   * *ninja* is the recommended tool for building libchromeview on Android. Its [website](http://code.google.com/p/chromium/wiki/NinjaBuild) contains detailed usage instructions.
 
 ### Download the source
 
