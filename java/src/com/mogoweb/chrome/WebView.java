@@ -28,6 +28,7 @@ import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Picture;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.net.http.SslCertificate;
@@ -879,6 +880,37 @@ public class WebView extends AbsoluteLayout {
         checkThread();
         if (DebugFlags.TRACE_API) Log.d(LOGTAG, "pageDown");
         return mProvider.pageDown(bottom);
+    }
+
+    /**
+     * Gets a new picture that captures the current contents of this WebView.
+     * The picture is of the entire document being displayed, and is not
+     * limited to the area currently displayed by this WebView. Also, the
+     * picture is a static copy and is unaffected by later changes to the
+     * content being displayed.
+     * <p>
+     * Note that due to internal changes, for API levels between
+     * {@link android.os.Build.VERSION_CODES#HONEYCOMB} and
+     * {@link android.os.Build.VERSION_CODES#ICE_CREAM_SANDWICH} inclusive, the
+     * picture does not include fixed position elements or scrollable divs.
+     * <p>
+     * Note that from {@link android.os.Build.VERSION_CODES#JELLY_BEAN_MR1} the returned picture
+     * should only be drawn into bitmap-backed Canvas - using any other type of Canvas will involve
+     * additional conversion at a cost in memory and performance. Also the
+     * {@link android.graphics.Picture#createFromStream} and
+     * {@link android.graphics.Picture#writeToStream} methods are not supported on the
+     * returned object.
+     *
+     * @deprecated Use {@link #onDraw} to obtain a bitmap snapshot of the WebView, or
+     * {@link #saveWebArchive} to save the content to a file.
+     *
+     * @return a picture that captures the current contents of this WebView
+     */
+    @Deprecated
+    public Picture capturePicture() {
+        checkThread();
+        if (DebugFlags.TRACE_API) Log.d(LOGTAG, "capturePicture");
+        return mProvider.capturePicture();
     }
 
     /**
