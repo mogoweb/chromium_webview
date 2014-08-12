@@ -31,4 +31,5 @@
     <string name="js_dialog_before_unload" msgid="3468816357095378590">"<xliff:g id="MESSAGE">%s</xliff:g>\n\n您确定要离开此页面吗？"</string>
     <string name="ok" msgid="5970060430562524910">"确定"</string>
     <string name="cancel" msgid="6442560571259935130">"取消"</string>
+    <string name="webviewchromium_private_browsing_warning">不支持该功能</string>
 </resources>

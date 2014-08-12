@@ -66,6 +66,7 @@ import android.widget.TextView;
 
 import com.mogoweb.chrome.DownloadListener;
 import com.mogoweb.chrome.JavascriptInterface;
+import com.mogoweb.chrome.R;
 import com.mogoweb.chrome.WebBackForwardList;
 import com.mogoweb.chrome.WebChromeClient;
 import com.mogoweb.chrome.WebSettings;
@@ -200,10 +201,10 @@ class WebViewChromium implements WebViewProvider,
                 throw new IllegalArgumentException(msg);
             } else {
                 Log.w(TAG, msg);
-//                TextView warningLabel = new TextView(mWebView.getContext());
-//                warningLabel.setText(mWebView.getContext().getString(
-//                        com.android.internal.R.string.webviewchromium_private_browsing_warning));
-//                mWebView.addView(warningLabel);
+                TextView warningLabel = new TextView(mWebView.getContext());
+                warningLabel.setText(mWebView.getContext().getString(
+                        R.string.webviewchromium_private_browsing_warning));
+                mWebView.addView(warningLabel);
             }
         }
 
@@ -1150,9 +1151,8 @@ class WebViewChromium implements WebViewProvider,
             });
             return ret;
         }
-//        return new WebBackForwardListChromium(
-//                mAwContents.getNavigationHistory());
-        return null;
+        return new WebBackForwardListChromium(
+                mAwContents.getNavigationHistory());
     }
 
     @Override

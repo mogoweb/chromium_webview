@@ -46,4 +46,6 @@
     <string name="ok">OK</string>
     <!-- Preference framework strings. -->
     <string name="cancel">Cancel</string>
+
+    <string name="webviewchromium_private_browsing_warning">This functionality is not supported.</string>
 </resources>
