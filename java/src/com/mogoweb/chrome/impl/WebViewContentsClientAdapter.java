@@ -20,6 +20,8 @@
 package com.mogoweb.chrome.impl;
 
 import java.lang.ref.SoftReference;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.URISyntaxException;
 
 import org.chromium.android_webview.AwContentsClient;
@@ -97,6 +99,9 @@ public class WebViewContentsClientAdapter extends AwContentsClient {
 
     private SoftReference<Bitmap> mCachedDefaultVideoPoster;
 
+    private static boolean sMethodsLoaded = false;
+    private static Method sErrorStringsGetString = null;
+
     private static final int NEW_WEBVIEW_CREATED = 100;
 
     /**
@@ -140,6 +145,9 @@ public class WebViewContentsClientAdapter extends AwContentsClient {
             }
         };
 
+        if (!sMethodsLoaded) {
+            loadMethods();
+        }
     }
 
     // WebViewClassic is coded in such a way that even if a null WebViewClient is set,
@@ -448,7 +456,7 @@ public class WebViewContentsClientAdapter extends AwContentsClient {
             // ErrorStrings is @hidden, so we can't do this in AwContents.
             // Normally the net/ layer will set a valid description, but for synthesized callbacks
             // (like in the case for intercepted requests) AwContents will pass in null.
-//            description = ErrorStrings.getString(errorCode, mWebView.getContext());
+            description = getErrorString(errorCode, mWebView.getContext());
         }
         TraceEvent.begin();
         if (TRACE) Log.d(TAG, "onReceivedError=" + failingUrl);
@@ -797,4 +805,37 @@ public class WebViewContentsClientAdapter extends AwContentsClient {
             return mAwHandler.isFirstAttempt();
         }
     }
+
+    private static void loadMethods() {
+        try {
+            ClassLoader classLoader = WebViewContentsClientAdapter.class.getClassLoader();
+            Class<?> errorStringsClass = classLoader.loadClass("android.net.http.ErrorStrings");
+            sErrorStringsGetString = errorStringsClass.getMethod("getString", new Class[] { Integer.class, Context.class });
+        } catch (NoSuchMethodException e) {
+            Log.e(TAG, "loadMethods(): " + e.getMessage());
+            sErrorStringsGetString = null;
+        } catch (ClassNotFoundException e) {
+            Log.e(TAG, "loadMethods(): " + e.getMessage());
+            sErrorStringsGetString = null;
+        }
+
+        sMethodsLoaded = true;
+    }
+
+    private static String getErrorString(int errorCode, Context context) {
+        String errorString = "unknown error";
+        if (sErrorStringsGetString != null) {
+            try {
+                errorString = (String)sErrorStringsGetString.invoke(null, errorCode, context);
+            } catch (IllegalArgumentException e) {
+                Log.e(TAG, "getErrorString(): " + e.getMessage());
+            } catch (IllegalAccessException e) {
+                Log.e(TAG, "getErrorString(): " + e.getMessage());
+            } catch (InvocationTargetException e) {
+                Log.e(TAG, "getErrorString(): " + e.getMessage());
+            }
+        }
+        return errorString;
+    }
+
 }
