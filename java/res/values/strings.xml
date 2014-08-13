@@ -25,7 +25,7 @@
 
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
 
-    <string name="app_name">CefAndroid</string>
+    <string name="app_name">ChromeView</string>
 
     <string name="default_encoding">text/plain</string>
 
