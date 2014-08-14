@@ -36,6 +36,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
 import android.os.Message;
+import android.os.StrictMode;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -1217,6 +1218,23 @@ public class WebView extends AbsoluteLayout {
     }
 
     /**
+     * Finds all instances of find on the page and highlights them.
+     * Notifies any registered {@link FindListener}.
+     *
+     * @param find the string to find
+     * @return the number of occurances of the String "find" that were found
+     * @deprecated {@link #findAllAsync} is preferred.
+     * @see #setFindListener
+     */
+    @Deprecated
+    public int findAll(String find) {
+        checkThread();
+        if (DebugFlags.TRACE_API) Log.d(LOGTAG, "findAll");
+        StrictMode.noteSlowCall("findAll blocks UI: prefer findAllAsync");
+        return mProvider.findAll(find);
+    }
+
+    /**
      * Finds all instances of find on the page and highlights them,
      * asynchronously. Notifies any registered {@link FindListener}.
      * Successive calls to this will cancel any pending searches.
@@ -1563,14 +1581,14 @@ public class WebView extends AbsoluteLayout {
     //-------------------------------------------------------------------------
 
     // Only used by android.webkit.FindActionModeCallback.
-    void setFindDialogFindListener(FindListener listener) {
+    public void setFindDialogFindListener(FindListener listener) {
         checkThread();
         setupFindListenerIfNeeded();
         mFindListener.mFindDialogFindListener = listener;
     }
 
     // Only used by android.webkit.FindActionModeCallback.
-    void notifyFindDialogDismissed() {
+    public void notifyFindDialogDismissed() {
         checkThread();
         mProvider.notifyFindDialogDismissed();
     }

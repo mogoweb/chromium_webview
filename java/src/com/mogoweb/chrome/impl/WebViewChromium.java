@@ -1204,21 +1204,21 @@ class WebViewChromium implements WebViewProvider,
             return false;
         }
 
-//        FindActionModeCallback findAction = new FindActionModeCallback(mWebView.getContext());
-//        if (findAction == null) {
-//            return false;
-//        }
-//
-//        mWebView.startActionMode(findAction);
-//        findAction.setWebView(mWebView);
-//        if (showIme) {
-//            findAction.showSoftInput();
-//        }
-//
-//        if (text != null) {
-//            findAction.setText(text);
-//            findAction.findAll();
-//        }
+        FindActionModeCallback findAction = new FindActionModeCallback(mWebView.getContext());
+        if (findAction == null) {
+            return false;
+        }
+
+        mWebView.startActionMode(findAction);
+        findAction.setWebView(mWebView);
+        if (showIme) {
+            findAction.showSoftInput();
+        }
+
+        if (text != null) {
+            findAction.setText(text);
+            findAction.findAll();
+        }
 
         return true;
     }

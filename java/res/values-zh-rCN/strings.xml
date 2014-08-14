@@ -35,4 +35,12 @@
     <string name="ok" msgid="5970060430562524910">"确定"</string>
     <string name="cancel" msgid="6442560571259935130">"取消"</string>
     <string name="webviewchromium_private_browsing_warning">不支持该功能</string>
+    <string name="no_matches">"无匹配项"</string>
+    <string name="find_on_page">"在网页上查找"</string>
+    <plurals name="matches_found">
+        <item quantity="one">"1 个匹配项"</item>
+        <item quantity="other">"第 <xliff:g id="index" example="2">%d</xliff:g> 项，共 <xliff:g id="total" example="137">%d</xliff:g> 项"</item>
+    </plurals>
+    <string name="find_next">"查找下一个"</string>
+    <string name="find_previous">"查找上一个"</string>
 </resources>
