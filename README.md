@@ -25,7 +25,7 @@ package name.
 
 ## TintBrowser
 
-The [TintBrowser](https://github.com/mogoweb/TintBrowser) is forked from [https://github.com/Anasthase/TintBrowser](https://github.com/Anasthase/TintBrowser), but use Chromium WebView as web engine.
+The [TintBrowser](https://github.com/mogoweb/TintBrowser) is forked from [https://github.com/Anasthase/TintBrowser](https://github.com/Anasthase/TintBrowser), but use Chromium WebView as web engine. The TintBrowser is a full functional browser that you can use it as start point.
 
 ## Setting Up
 
@@ -50,6 +50,8 @@ There is a sample project to illustrate the usage of ChromiumWebView
 in the test folder. It is only a shell program that can navigate website.
 
 ## How to build libchromeview
+
+A [blog](http://mogoweb.github.io/blog/2014/06/19/about-source-management-of-chromium-webview/) describes the source management of chromium which ChromiumWebView based on. It is written in chinese.
 
 ### Environment
 
