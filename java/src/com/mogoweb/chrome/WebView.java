@@ -456,8 +456,12 @@ public class WebView extends AbsoluteLayout {
 
         ensureProviderCreated();
         mProvider.init(null, false);
+
         // Post condition of creating a webview is the CookieSyncManager.getInstance() is allowed.
 //        CookieSyncManager.setGetInstanceIsAllowed();
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN)
+            setLayerType(View.LAYER_TYPE_SOFTWARE, null);
     }
 
     //// Methods from android.webkit.WebView
