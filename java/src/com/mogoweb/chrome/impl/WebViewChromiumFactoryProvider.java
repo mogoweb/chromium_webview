@@ -156,13 +156,6 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
             return;
         }
 
-        // Initialization lifted from
-        //     chromium/src/android_webview/test/shell/src/org/chromium/android_webview/shell/AwShellResourceProvider
-
-        AwResource.setResources(mContext.getResources());
-        AwResource.setErrorPageResources(R.raw.blank_html, R.raw.blank_html);
-        AwResource.setDefaultTextEncoding(R.string.default_encoding);
-
         CommandLine.initFromFile(COMMAND_LINE_FILE);
 
         CommandLine cl = CommandLine.getInstance();
@@ -251,6 +244,7 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
                 mWebViewsToStart.add(new WeakReference<WebViewChromium>(wvc));
             }
         }
+        ResourceProvider.registerResources(webView.getContext());
         return wvc;
     }
 
