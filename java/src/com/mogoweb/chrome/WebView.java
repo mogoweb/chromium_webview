@@ -460,7 +460,7 @@ public class WebView extends AbsoluteLayout {
         // Post condition of creating a webview is the CookieSyncManager.getInstance() is allowed.
 //        CookieSyncManager.setGetInstanceIsAllowed();
 
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN || Build.VERSION.SDK_INT > Build.VERSION_CODES.KITKAT)
             setLayerType(View.LAYER_TYPE_SOFTWARE, null);
     }
 
