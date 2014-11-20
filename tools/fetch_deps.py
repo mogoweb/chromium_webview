@@ -41,8 +41,7 @@ class DepsFetcher(object):
     # so src is at self/../../../
     self._src_dir = os.path.dirname(self._mogo_dir)
     self._root_dir = os.path.dirname(self._src_dir)
-    self._new_gclient_file = os.path.join(self._root_dir,
-                                          '.gclient-mogo')
+    self._new_gclient_file = '.gclient-mogo'
     if not os.path.isfile(self._new_gclient_file):
       raise IOError('%s was not found. Run generate_gclient-mogo.py.' %
                     self._new_gclient_file)
