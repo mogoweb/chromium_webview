@@ -99,11 +99,11 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
 //        Trace.traceBegin(Trace.TRACE_TAG_WEBVIEW, "AwBrowserProcess.loadLibrary()");
         AwBrowserProcess.loadLibrary();
 //        Trace.traceEnd(Trace.TRACE_TAG_WEBVIEW);
-        // Load glue-layer support library.
-        System.loadLibrary("webviewchromium_plat_support");
-
-        // TODO: temporary try/catch while framework builds catch up with WebView builds.
-        // Remove this.
+//        // Load glue-layer support library.
+//        System.loadLibrary("webviewchromium_plat_support");
+//
+//        // TODO: temporary try/catch while framework builds catch up with WebView builds.
+//        // Remove this.
 //        try {
 //            // Use shared preference to check for package downgrade.
 //            mWebViewPrefs = ActivityThread.currentApplication().getSharedPreferences(

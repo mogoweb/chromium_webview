@@ -275,7 +275,7 @@ public final class WebViewFactory {
 //            Log.e(LOGTAG, "Chromium WebView package does not exist", e);
 //            throw new AndroidRuntimeException(e);
 //        }
-        return null;
+        return (Class<WebViewFactoryProvider>) Class.forName(CHROMIUM_WEBVIEW_FACTORY);
     }
 
     /**
@@ -376,11 +376,11 @@ public final class WebViewFactory {
 //        }
 //        prepareWebViewInSystemServer(nativeLibs);
 //    }
-
-    private static String[] getWebViewNativeLibraryPaths()
-            throws PackageManager.NameNotFoundException {
-        final String NATIVE_LIB_FILE_NAME = "libwebviewchromium.so";
-
+//
+//    private static String[] getWebViewNativeLibraryPaths()
+//            throws PackageManager.NameNotFoundException {
+//        final String NATIVE_LIB_FILE_NAME = "libwebviewchromium.so";
+//
 //        PackageManager pm = AppGlobals.getInitialApplication().getPackageManager();
 //        ApplicationInfo ai = pm.getApplicationInfo(getWebViewPackageName(), 0);
 //
@@ -410,8 +410,7 @@ public final class WebViewFactory {
 //        if (!TextUtils.isEmpty(path32)) path32 += "/" + NATIVE_LIB_FILE_NAME;
 //        if (!TextUtils.isEmpty(path64)) path64 += "/" + NATIVE_LIB_FILE_NAME;
 //        return new String[] { path32, path64 };
-        return new String[] {};
-    }
+//    }
 
 //    private static void createRelroFile(final boolean is64Bit, String[] nativeLibraryPaths) {
 //        final String abi =
@@ -485,32 +484,32 @@ public final class WebViewFactory {
 //    }
 
     private static void loadNativeLibrary() {
-        if (!sAddressSpaceReserved) {
-            Log.e(LOGTAG, "can't load with relro file; address space not reserved");
-            return;
-        }
-
+//        if (!sAddressSpaceReserved) {
+//            Log.e(LOGTAG, "can't load with relro file; address space not reserved");
+//            return;
+//        }
+//
 //        try {
 //            getUpdateService().waitForRelroCreationCompleted(VMRuntime.getRuntime().is64Bit());
 //        } catch (RemoteException e) {
 //            Log.e(LOGTAG, "error waiting for relro creation, proceeding without", e);
 //            return;
 //        }
-
-        try {
-            String[] args = getWebViewNativeLibraryPaths();
-            boolean result = nativeLoadWithRelroFile(args[0] /* path32 */,
-                                                     args[1] /* path64 */,
-                                                     CHROMIUM_WEBVIEW_NATIVE_RELRO_32,
-                                                     CHROMIUM_WEBVIEW_NATIVE_RELRO_64);
-            if (!result) {
-                Log.w(LOGTAG, "failed to load with relro file, proceeding without");
-            } else if (DEBUG) {
-                Log.v(LOGTAG, "loaded with relro file");
-            }
-        } catch (PackageManager.NameNotFoundException e) {
-            Log.e(LOGTAG, "Failed to list WebView package libraries for loadNativeLibrary", e);
-        }
+//
+//        try {
+//            String[] args = getWebViewNativeLibraryPaths();
+//            boolean result = nativeLoadWithRelroFile(args[0] /* path32 */,
+//                                                     args[1] /* path64 */,
+//                                                     CHROMIUM_WEBVIEW_NATIVE_RELRO_32,
+//                                                     CHROMIUM_WEBVIEW_NATIVE_RELRO_64);
+//            if (!result) {
+//                Log.w(LOGTAG, "failed to load with relro file, proceeding without");
+//            } else if (DEBUG) {
+//                Log.v(LOGTAG, "loaded with relro file");
+//            }
+//        } catch (PackageManager.NameNotFoundException e) {
+//            Log.e(LOGTAG, "Failed to list WebView package libraries for loadNativeLibrary", e);
+//        }
     }
 
 //    private static IWebViewUpdateService getUpdateService() {
