@@ -104,6 +104,11 @@ public class ChildProcessService extends Service {
             }
             return Process.myPid();
         }
+
+        @Override
+        public void crashIntentionallyForTesting() {
+            Process.killProcess(Process.myPid());
+        }
     };
 
     /* package */ static Context getContext() {
@@ -141,7 +146,7 @@ public class ChildProcessService extends Service {
                         }
                     }
                     try {
-                        LibraryLoader.loadNow(getApplicationContext());
+                        LibraryLoader.loadNow(getApplicationContext(), false);
                     } catch (ProcessInitException e) {
                         Log.e(TAG, "Failed to load native library, exiting child process", e);
                         System.exit(-1);
@@ -278,9 +283,25 @@ public class ChildProcessService extends Service {
         }
 
         try {
-            return mCallback.getViewSurface(surfaceId);
+            return mCallback.getViewSurface(surfaceId).getSurface();
         } catch (RemoteException e) {
             Log.e(TAG, "Unable to call establishSurfaceTexturePeer: " + e);
+            return null;
+        }
+    }
+
+    @SuppressWarnings("unused")
+    @CalledByNative
+    private Surface getSurfaceTextureSurface(int primaryId, int secondaryId) {
+        if (mCallback == null) {
+            Log.e(TAG, "No callback interface has been provided.");
+            return null;
+        }
+
+        try {
+            return mCallback.getSurfaceTextureSurface(primaryId, secondaryId).getSurface();
+        } catch (RemoteException e) {
+            Log.e(TAG, "Unable to call getSurfaceTextureSurface: " + e);
             return null;
         }
     }

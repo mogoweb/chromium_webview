@@ -143,7 +143,7 @@ public class DefaultAndroidKeyStore implements AndroidKeyStore {
     }
 
     @Override
-    public int getOpenSSLHandleForPrivateKey(AndroidPrivateKey key) {
+    public long getOpenSSLHandleForPrivateKey(AndroidPrivateKey key) {
         PrivateKey javaKey = ((DefaultAndroidPrivateKey) key).getJavaKey();
         // Sanity checks
         if (javaKey == null) {
@@ -167,7 +167,7 @@ public class DefaultAndroidKeyStore implements AndroidKeyStore {
             Log.e(TAG, "Cannot find system OpenSSLRSAPrivateKey class: " + e);
             return 0;
         }
-        if (!superClass.isInstance(key)) {
+        if (!superClass.isInstance(javaKey)) {
             // This may happen if the PrivateKey was not created by the "AndroidOpenSSL"
             // provider, which should be the default. That could happen if an OEM decided
             // to implement a different default provider. Also highly unlikely.
@@ -197,7 +197,11 @@ public class DefaultAndroidKeyStore implements AndroidKeyStore {
 
             // Use reflection to invoke the 'getPkeyContext' method on the
             // result of the getOpenSSLKey(). This is an 32-bit integer
-            // which is the address of an EVP_PKEY object.
+            // which is the address of an EVP_PKEY object. Note that this
+            // method these days returns a 64-bit long, but since this code
+            // path is used for older Android versions, it may still return
+            // a 32-bit int here. To be on the safe side, we cast the return
+            // value via Number rather than directly to Integer or Long.
             Method getPkeyContext;
             try {
                 getPkeyContext = opensslKey.getClass().getDeclaredMethod("getPkeyContext");
@@ -207,9 +211,9 @@ public class DefaultAndroidKeyStore implements AndroidKeyStore {
                 return 0;
             }
             getPkeyContext.setAccessible(true);
-            int evp_pkey = 0;
+            long evp_pkey = 0;
             try {
-                evp_pkey = (Integer) getPkeyContext.invoke(opensslKey);
+                evp_pkey = ((Number) getPkeyContext.invoke(opensslKey)).longValue();
             } finally {
                 getPkeyContext.setAccessible(false);
             }

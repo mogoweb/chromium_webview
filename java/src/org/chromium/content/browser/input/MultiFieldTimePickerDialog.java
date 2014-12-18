@@ -8,7 +8,6 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnClickListener;
-import android.os.Build;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.NumberPicker;
@@ -259,18 +258,6 @@ public class MultiFieldTimePickerDialog
             hour += ampm * 12;
         }
         mListener.onTimeSet(hour, minute, sec, milli);
-    }
-
-    @Override
-    protected void onStop() {
-        if (Build.VERSION.SDK_INT >= 16) {
-            // The default behavior of dialogs changed in JellyBean and onwards.
-            // Dismissing a dialog (by pressing back for example)
-            // applies the chosen date. This code is added here so that the custom
-            // pickers behave the same as the internal DatePickerDialog.
-            notifyDateSet();
-        }
-        super.onStop();
     }
 
     private static class NumberFormatter implements NumberPicker.Formatter {

@@ -12,7 +12,6 @@ import org.chromium.base.JNINamespace;
  */
 @JNINamespace("content")
 public class MediaDrmCredentialManager {
-    private int mNativeMediaDrmCredentialManager;
 
     /**
      * Callback interface for getting notified from credential reset.

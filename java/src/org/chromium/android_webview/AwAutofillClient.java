@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,24 +13,24 @@ import org.chromium.ui.autofill.AutofillPopup;
 import org.chromium.ui.autofill.AutofillSuggestion;
 
 /**
- * Java counterpart to the AwAutofillManagerDelegate. This class is owned by AwContents and has
+ * Java counterpart to the AwAutofillClient. This class is owned by AwContents and has
  * a weak reference from native side.
  */
 @JNINamespace("android_webview")
-public class AwAutofillManagerDelegate {
+public class AwAutofillClient {
 
-    private final long mNativeAwAutofillManagerDelegate;
+    private final long mNativeAwAutofillClient;
     private AutofillPopup mAutofillPopup;
     private ViewGroup mContainerView;
     private ContentViewCore mContentViewCore;
 
     @CalledByNative
-    public static AwAutofillManagerDelegate create(long nativeDelegate) {
-        return new AwAutofillManagerDelegate(nativeDelegate);
+    public static AwAutofillClient create(long nativeClient) {
+        return new AwAutofillClient(nativeClient);
     }
 
-    private AwAutofillManagerDelegate(long nativeAwAutofillManagerDelegate) {
-        mNativeAwAutofillManagerDelegate = nativeAwAutofillManagerDelegate;
+    private AwAutofillClient(long nativeAwAutofillClient) {
+        mNativeAwAutofillClient = nativeAwAutofillClient;
     }
 
     public void init(ContentViewCore contentViewCore) {
@@ -53,12 +53,12 @@ public class AwAutofillManagerDelegate {
                     public void requestHide() { }
                     @Override
                     public void suggestionSelected(int listIndex) {
-                        nativeSuggestionSelected(mNativeAwAutofillManagerDelegate, listIndex);
+                        nativeSuggestionSelected(mNativeAwAutofillClient, listIndex);
                     }
                 });
         }
         mAutofillPopup.setAnchorRect(x, y, width, height);
-        mAutofillPopup.show(suggestions);
+        mAutofillPopup.filterAndShow(suggestions);
     }
 
     @CalledByNative
@@ -87,6 +87,6 @@ public class AwAutofillManagerDelegate {
         array[index] = new AutofillSuggestion(name, label, uniqueId);
     }
 
-    private native void nativeSuggestionSelected(long nativeAwAutofillManagerDelegate,
+    private native void nativeSuggestionSelected(long nativeAwAutofillClient,
             int position);
 }

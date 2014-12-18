@@ -157,7 +157,7 @@ public interface WebViewProvider {
 
     public Picture capturePicture();
 
-    public PrintDocumentAdapter createPrintDocumentAdapter();
+    public PrintDocumentAdapter createPrintDocumentAdapter(String documentName);
 
     public float getScale();
 
@@ -244,6 +244,8 @@ public interface WebViewProvider {
     public boolean canZoomIn();
 
     public boolean canZoomOut();
+
+    public boolean zoomBy(float zoomFactor);
 
     public boolean zoomIn();
 
@@ -365,6 +367,10 @@ public interface WebViewProvider {
         public void setLayerType(int layerType, Paint paint);
 
         public void preDispatchDraw(Canvas canvas);
+
+        public void onStartTemporaryDetach();
+
+        public void onFinishTemporaryDetach();
     }
 
     interface ScrollDelegate {
@@ -402,4 +408,3 @@ public interface WebViewProvider {
         public void computeScroll();
     }
 }
-

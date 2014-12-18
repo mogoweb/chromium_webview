@@ -9,9 +9,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
+import android.os.DeadObjectException;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
+import android.os.RemoteException;
 import android.util.Log;
+
+import com.google.common.annotations.VisibleForTesting;
 
 import org.chromium.base.CpuFeatures;
 import org.chromium.base.ThreadUtils;
@@ -36,11 +40,10 @@ public class ChildProcessConnectionImpl implements ChildProcessConnection {
 
     // Synchronization: While most internal flow occurs on the UI thread, the public API
     // (specifically start and stop) may be called from any thread, hence all entry point methods
-    // into the class are synchronized on the lock to protect access to these members. But see also
-    // the TODO where AsyncBoundServiceConnection is created.
+    // into the class are synchronized on the lock to protect access to these members.
     private final Object mLock = new Object();
     private IChildProcessService mService = null;
-    // Set to true when the service connect is finished, even if it fails.
+    // Set to true when the service connected successfully.
     private boolean mServiceConnectComplete = false;
     // Set to true when the service disconnects, as opposed to being properly closed. This happens
     // when the process crashes or gets killed by the system out-of-memory killer.
@@ -48,7 +51,7 @@ public class ChildProcessConnectionImpl implements ChildProcessConnection {
     // When the service disconnects (i.e. mServiceDisconnected is set to true), the status of the
     // oom bindings is stashed here for future inspection.
     private boolean mWasOomProtected = false;
-    private int mPID = 0;  // Process ID of the corresponding child process.
+    private int mPid = 0;  // Process ID of the corresponding child process.
     // Initial binding protects the newly spawned process from being killed before it is put to use,
     // it is maintained between calls to start() and removeInitialBinding().
     private ChildServiceConnection mInitialBinding = null;
@@ -83,13 +86,14 @@ public class ChildProcessConnectionImpl implements ChildProcessConnection {
         }
     }
 
-    // This is set by the consumer of the class in setupConnection() and is later used in
-    // doSetupConnection(), after which the variable is cleared. Therefore this is only valid while
-    // the connection is being set up.
+    // This is set in setupConnection() and is later used in doConnectionSetupLocked(), after which
+    // the variable is cleared. Therefore this is only valid while the connection is being set up.
     private ConnectionParams mConnectionParams;
 
-    // Callbacks used to notify the consumer about connection events. This is also provided in
-    // setupConnection(), but remains valid after setup.
+    // Callback provided in setupConnection() that will communicate the result to the caller. This
+    // has to be called exactly once after setupConnection(), even if setup fails, so that the
+    // caller can free up resources associated with the setup attempt. This is set to null after the
+    // call.
     private ChildProcessConnection.ConnectionCallback mConnectionCallback;
 
     private class ChildServiceConnection implements ServiceConnection {
@@ -110,6 +114,7 @@ public class ChildProcessConnectionImpl implements ChildProcessConnection {
 
         boolean bind(String[] commandLine) {
             if (!mBound) {
+                TraceEvent.begin();
                 final Intent intent = createServiceBindIntent();
                 if (commandLine != null) {
                     intent.putExtra(EXTRA_COMMAND_LINE, commandLine);
@@ -117,6 +122,7 @@ public class ChildProcessConnectionImpl implements ChildProcessConnection {
                 if (mLinkerParams != null)
                     mLinkerParams.addIntentExtras(intent);
                 mBound = mContext.bindService(intent, this, mBindFlags);
+                TraceEvent.end();
             }
             return mBound;
         }
@@ -143,10 +149,10 @@ public class ChildProcessConnectionImpl implements ChildProcessConnection {
                 TraceEvent.begin();
                 mServiceConnectComplete = true;
                 mService = IChildProcessService.Stub.asInterface(service);
-                // Make sure that the connection parameters have already been provided. If not,
-                // doConnectionSetup() will be called from setupConnection().
+                // Run the setup if the connection parameters have already been provided. If not,
+                // doConnectionSetupLocked() will be called from setupConnection().
                 if (mConnectionParams != null) {
-                    doConnectionSetup();
+                    doConnectionSetupLocked();
                 }
                 TraceEvent.end();
             }
@@ -165,17 +171,15 @@ public class ChildProcessConnectionImpl implements ChildProcessConnection {
                 mServiceDisconnected = true;
                 // Stash the status of the oom bindings, since stop() will release all bindings.
                 mWasOomProtected = mInitialBinding.isBound() || mStrongBinding.isBound();
-            }
-            int pid = mPID;  // Stash the pid for DeathCallback since stop() will clear it.
-            boolean disconnectedWhileBeingSetUp = mConnectionParams != null;
-            Log.w(TAG, "onServiceDisconnected (crash or killed by oom): pid=" + pid);
-            stop();  // We don't want to auto-restart on crash. Let the browser do that.
-            if (pid != 0) {
-                mDeathCallback.onChildProcessDied(pid);
-            }
-            // TODO(ppi): does anyone know why we need to do that?
-            if (disconnectedWhileBeingSetUp && mConnectionCallback != null) {
-                mConnectionCallback.onConnected(0);
+                Log.w(TAG, "onServiceDisconnected (crash or killed by oom): pid=" + mPid);
+                stop();  // We don't want to auto-restart on crash. Let the browser do that.
+                mDeathCallback.onChildProcessDied(ChildProcessConnectionImpl.this);
+                // If we have a pending connection callback, we need to communicate the failure to
+                // the caller.
+                if (mConnectionCallback != null) {
+                    mConnectionCallback.onConnected(0);
+                }
+                mConnectionCallback = null;
             }
         }
     }
@@ -217,7 +221,7 @@ public class ChildProcessConnectionImpl implements ChildProcessConnection {
     @Override
     public int getPid() {
         synchronized (mLock) {
-            return mPID;
+            return mPid;
         }
     }
 
@@ -226,9 +230,14 @@ public class ChildProcessConnectionImpl implements ChildProcessConnection {
         synchronized (mLock) {
             TraceEvent.begin();
             assert !ThreadUtils.runningOnUiThread();
+            assert mConnectionParams == null :
+                    "setupConnection() called before start() in ChildProcessConnectionImpl.";
 
             if (!mInitialBinding.bind(commandLine)) {
-                onBindFailed();
+                Log.e(TAG, "Failed to establish the service connection.");
+                // We have to notify the caller so that they can free-up associated resources.
+                // TODO(ppi): Can we hard-fail here?
+                mDeathCallback.onChildProcessDied(ChildProcessConnectionImpl.this);
             } else {
                 mWaivedBinding.bind(null);
             }
@@ -241,18 +250,24 @@ public class ChildProcessConnectionImpl implements ChildProcessConnection {
             String[] commandLine,
             FileDescriptorInfo[] filesToBeMapped,
             IChildProcessCallback processCallback,
-            ConnectionCallback connectionCallbacks,
+            ConnectionCallback connectionCallback,
             Bundle sharedRelros) {
         synchronized (mLock) {
-            TraceEvent.begin();
             assert mConnectionParams == null;
-            mConnectionCallback = connectionCallbacks;
+            if (mServiceDisconnected) {
+                Log.w(TAG, "Tried to setup a connection that already disconnected.");
+                connectionCallback.onConnected(0);
+                return;
+            }
+
+            TraceEvent.begin();
+            mConnectionCallback = connectionCallback;
             mConnectionParams = new ConnectionParams(
                     commandLine, filesToBeMapped, processCallback, sharedRelros);
-            // Make sure that the service is already connected. If not, doConnectionSetup() will be
-            // called from onServiceConnected().
+            // Run the setup if the service is already connected. If not, doConnectionSetupLocked()
+            // will be called from onServiceConnected().
             if (mServiceConnectComplete) {
-                doConnectionSetup();
+                doConnectionSetupLocked();
             }
             TraceEvent.end();
         }
@@ -267,89 +282,79 @@ public class ChildProcessConnectionImpl implements ChildProcessConnection {
             mStrongBindingCount = 0;
             if (mService != null) {
                 mService = null;
-                mPID = 0;
             }
             mConnectionParams = null;
-            mServiceConnectComplete = false;
-        }
-    }
-
-    // Called on the main thread to notify that the bindService() call failed (returned false).
-    private void onBindFailed() {
-        mServiceConnectComplete = true;
-        if (mConnectionParams != null) {
-            doConnectionSetup();
         }
     }
 
     /**
      * Called after the connection parameters have been set (in setupConnection()) *and* a
-     * connection has been established (as signaled by onServiceConnected()) or failed (as signaled
-     * by onBindFailed(), in this case mService will be null). These two events can happen in any
-     * order.
+     * connection has been established (as signaled by onServiceConnected()). These two events can
+     * happen in any order. Has to be called with mLock.
      */
-    private void doConnectionSetup() {
+    private void doConnectionSetupLocked() {
         TraceEvent.begin();
-        assert mServiceConnectComplete && mConnectionParams != null;
+        assert mServiceConnectComplete && mService != null;
+        assert mConnectionParams != null;
 
-        if (mService != null) {
-            Bundle bundle = new Bundle();
-            bundle.putStringArray(EXTRA_COMMAND_LINE, mConnectionParams.mCommandLine);
+        Bundle bundle = new Bundle();
+        bundle.putStringArray(EXTRA_COMMAND_LINE, mConnectionParams.mCommandLine);
 
-            FileDescriptorInfo[] fileInfos = mConnectionParams.mFilesToBeMapped;
-            ParcelFileDescriptor[] parcelFiles = new ParcelFileDescriptor[fileInfos.length];
-            for (int i = 0; i < fileInfos.length; i++) {
-                if (fileInfos[i].mFd == -1) {
-                    // If someone provided an invalid FD, they are doing something wrong.
-                    Log.e(TAG, "Invalid FD (id=" + fileInfos[i].mId + ") for process connection, "
-                          + "aborting connection.");
+        FileDescriptorInfo[] fileInfos = mConnectionParams.mFilesToBeMapped;
+        ParcelFileDescriptor[] parcelFiles = new ParcelFileDescriptor[fileInfos.length];
+        for (int i = 0; i < fileInfos.length; i++) {
+            if (fileInfos[i].mFd == -1) {
+                // If someone provided an invalid FD, they are doing something wrong.
+                Log.e(TAG, "Invalid FD (id=" + fileInfos[i].mId + ") for process connection, "
+                      + "aborting connection.");
+                return;
+            }
+            String idName = EXTRA_FILES_PREFIX + i + EXTRA_FILES_ID_SUFFIX;
+            String fdName = EXTRA_FILES_PREFIX + i + EXTRA_FILES_FD_SUFFIX;
+            if (fileInfos[i].mAutoClose) {
+                // Adopt the FD, it will be closed when we close the ParcelFileDescriptor.
+                parcelFiles[i] = ParcelFileDescriptor.adoptFd(fileInfos[i].mFd);
+            } else {
+                try {
+                    parcelFiles[i] = ParcelFileDescriptor.fromFd(fileInfos[i].mFd);
+                } catch (IOException e) {
+                    Log.e(TAG,
+                          "Invalid FD provided for process connection, aborting connection.",
+                          e);
                     return;
                 }
-                String idName = EXTRA_FILES_PREFIX + i + EXTRA_FILES_ID_SUFFIX;
-                String fdName = EXTRA_FILES_PREFIX + i + EXTRA_FILES_FD_SUFFIX;
-                if (fileInfos[i].mAutoClose) {
-                    // Adopt the FD, it will be closed when we close the ParcelFileDescriptor.
-                    parcelFiles[i] = ParcelFileDescriptor.adoptFd(fileInfos[i].mFd);
-                } else {
-                    try {
-                        parcelFiles[i] = ParcelFileDescriptor.fromFd(fileInfos[i].mFd);
-                    } catch (IOException e) {
-                        Log.e(TAG,
-                              "Invalid FD provided for process connection, aborting connection.",
-                              e);
-                        return;
-                    }
 
-                }
-                bundle.putParcelable(fdName, parcelFiles[i]);
-                bundle.putInt(idName, fileInfos[i].mId);
             }
-            // Add the CPU properties now.
-            bundle.putInt(EXTRA_CPU_COUNT, CpuFeatures.getCount());
-            bundle.putLong(EXTRA_CPU_FEATURES, CpuFeatures.getMask());
+            bundle.putParcelable(fdName, parcelFiles[i]);
+            bundle.putInt(idName, fileInfos[i].mId);
+        }
+        // Add the CPU properties now.
+        bundle.putInt(EXTRA_CPU_COUNT, CpuFeatures.getCount());
+        bundle.putLong(EXTRA_CPU_FEATURES, CpuFeatures.getMask());
 
-            bundle.putBundle(Linker.EXTRA_LINKER_SHARED_RELROS,
-                             mConnectionParams.mSharedRelros);
+        bundle.putBundle(Linker.EXTRA_LINKER_SHARED_RELROS,
+                         mConnectionParams.mSharedRelros);
 
-            try {
-                mPID = mService.setupConnection(bundle, mConnectionParams.mCallback);
-            } catch (android.os.RemoteException re) {
-                Log.e(TAG, "Failed to setup connection.", re);
+        try {
+            mPid = mService.setupConnection(bundle, mConnectionParams.mCallback);
+            assert mPid != 0 : "Child service claims to be run by a process of pid=0.";
+        } catch (android.os.RemoteException re) {
+            Log.e(TAG, "Failed to setup connection.", re);
+        }
+        // We proactively close the FDs rather than wait for GC & finalizer.
+        try {
+            for (ParcelFileDescriptor parcelFile : parcelFiles) {
+                if (parcelFile != null) parcelFile.close();
             }
-            // We proactively close the FDs rather than wait for GC & finalizer.
-            try {
-                for (ParcelFileDescriptor parcelFile : parcelFiles) {
-                    if (parcelFile != null) parcelFile.close();
-                }
-            } catch (IOException ioe) {
-                Log.w(TAG, "Failed to close FD.", ioe);
-            }
+        } catch (IOException ioe) {
+            Log.w(TAG, "Failed to close FD.", ioe);
         }
         mConnectionParams = null;
 
         if (mConnectionCallback != null) {
-            mConnectionCallback.onConnected(getPid());
+            mConnectionCallback.onConnected(mPid);
         }
+        mConnectionCallback = null;
         TraceEvent.end();
     }
 
@@ -399,7 +404,7 @@ public class ChildProcessConnectionImpl implements ChildProcessConnection {
     public void addStrongBinding() {
         synchronized (mLock) {
             if (mService == null) {
-                Log.w(TAG, "The connection is not bound for " + mPID);
+                Log.w(TAG, "The connection is not bound for " + mPid);
                 return;
             }
             if (mStrongBindingCount == 0) {
@@ -413,7 +418,7 @@ public class ChildProcessConnectionImpl implements ChildProcessConnection {
     public void removeStrongBinding() {
         synchronized (mLock) {
             if (mService == null) {
-                Log.w(TAG, "The connection is not bound for " + mPID);
+                Log.w(TAG, "The connection is not bound for " + mPid);
                 return;
             }
             assert mStrongBindingCount > 0;
@@ -422,5 +427,20 @@ public class ChildProcessConnectionImpl implements ChildProcessConnection {
                 mStrongBinding.unbind();
             }
         }
+    }
+
+    @VisibleForTesting
+    public boolean crashServiceForTesting() throws RemoteException {
+        try {
+            mService.crashIntentionallyForTesting();
+        } catch (DeadObjectException e) {
+            return true;
+        }
+        return false;
+    }
+
+    @VisibleForTesting
+    public boolean isConnected() {
+        return mService != null;
     }
 }

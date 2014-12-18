@@ -22,7 +22,7 @@ public interface ChildProcessConnection {
      * fully set up.
      */
     interface DeathCallback {
-        void onChildProcessDied(int pid);
+        void onChildProcessDied(ChildProcessConnection connection);
     }
 
     /**
@@ -59,7 +59,7 @@ public interface ChildProcessConnection {
     IChildProcessService getService();
 
     /**
-     * @return the connection PID, or 0 if not yet connected
+     * @return the connection pid, or 0 if not yet connected
      */
     int getPid();
 
@@ -78,13 +78,14 @@ public interface ChildProcessConnection {
      * @param commandLine (optional) will be ignored if the command line was already sent in start()
      * @param filesToBeMapped a list of file descriptors that should be registered
      * @param processCallback used for status updates regarding this process connection
-     * @param connectionCallbacks will notify the consumer about the connection being established
+     * @param connectionCallback will be called exactly once after the connection is set up or the
+     *                           setup fails
      */
     void setupConnection(
             String[] commandLine,
             FileDescriptorInfo[] filesToBeMapped,
             IChildProcessCallback processCallback,
-            ConnectionCallback connectionCallbacks,
+            ConnectionCallback connectionCallback,
             Bundle sharedRelros);
 
     /**

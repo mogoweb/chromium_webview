@@ -6,24 +6,20 @@ package org.chromium.content.browser;
 
 import android.content.Context;
 import android.os.Bundle;
-import android.util.AttributeSet;
 import android.view.accessibility.AccessibilityNodeProvider;
-
-import org.chromium.ui.base.WindowAndroid;
 
 /**
  * A version of {@link ContentView} that supports JellyBean features.
  */
 class JellyBeanContentView extends ContentView {
-    JellyBeanContentView(Context context, long nativeWebContents, WindowAndroid windowAndroid,
-            AttributeSet attrs, int defStyle) {
-        super(context, nativeWebContents, windowAndroid, attrs, defStyle);
+    JellyBeanContentView(Context context, ContentViewCore cvc) {
+        super(context, cvc);
     }
 
     @Override
     public boolean performAccessibilityAction(int action, Bundle arguments) {
-        if (getContentViewCore().supportsAccessibilityAction(action)) {
-            return getContentViewCore().performAccessibilityAction(action, arguments);
+        if (mContentViewCore.supportsAccessibilityAction(action)) {
+            return mContentViewCore.performAccessibilityAction(action, arguments);
         }
 
         return super.performAccessibilityAction(action, arguments);
@@ -31,7 +27,7 @@ class JellyBeanContentView extends ContentView {
 
     @Override
     public AccessibilityNodeProvider getAccessibilityNodeProvider() {
-        AccessibilityNodeProvider provider = getContentViewCore().getAccessibilityNodeProvider();
+        AccessibilityNodeProvider provider = mContentViewCore.getAccessibilityNodeProvider();
         if (provider != null) {
             return provider;
         } else {

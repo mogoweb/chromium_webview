@@ -47,7 +47,7 @@ public class ColorChooserAndroid {
 
     @CalledByNative
     public static ColorChooserAndroid createColorChooserAndroid(
-            int nativeColorChooserAndroid,
+            long nativeColorChooserAndroid,
             ContentViewCore contentViewCore,
             int initialColor,
             ColorSuggestion[] suggestions) {

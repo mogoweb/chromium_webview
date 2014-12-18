@@ -4,6 +4,8 @@
 
 package org.chromium.ui.base;
 
+import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.ContentResolver;
 import android.content.Context;
@@ -15,7 +17,9 @@ import android.widget.Toast;
 
 import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
+import org.chromium.ui.VSyncMonitor;
 
+import java.lang.ref.WeakReference;
 import java.util.HashMap;
 
 /**
@@ -27,6 +31,7 @@ public class WindowAndroid {
 
     // Native pointer to the c++ WindowAndroid object.
     private long mNativeWindowAndroid = 0;
+    private final VSyncMonitor mVSyncMonitor;
 
     // A string used as a key to store intent errors in a bundle
     static final String WINDOW_CALLBACK_ERRORS = "window_callback_errors";
@@ -36,16 +41,31 @@ public class WindowAndroid {
 
     protected Context mApplicationContext;
     protected SparseArray<IntentCallback> mOutstandingIntents;
+
+    // Ideally, this would be a SparseArray<String>, but there's no easy way to store a
+    // SparseArray<String> in a bundle during saveInstanceState(). So we use a HashMap and suppress
+    // the Android lint warning "UseSparseArrays".
     protected HashMap<Integer, String> mIntentErrors;
+
+    private final VSyncMonitor.Listener mVSyncListener = new VSyncMonitor.Listener() {
+        @Override
+        public void onVSync(VSyncMonitor monitor, long vsyncTimeMicros) {
+            if (mNativeWindowAndroid != 0) {
+                nativeOnVSync(mNativeWindowAndroid, vsyncTimeMicros);
+            }
+        }
+    };
 
     /**
      * @param context The application context.
      */
+    @SuppressLint("UseSparseArrays")
     public WindowAndroid(Context context) {
         assert context == context.getApplicationContext();
         mApplicationContext = context;
         mOutstandingIntents = new SparseArray<IntentCallback>();
         mIntentErrors = new HashMap<Integer, String>();
+        mVSyncMonitor = new VSyncMonitor(context, mVSyncListener);
     }
 
     /**
@@ -156,14 +176,12 @@ public class WindowAndroid {
     }
 
     /**
-     * TODO(nileshagrawal): Stop returning Activity Context crbug.com/233440.
-     * @return Activity context, it could be null. Note, in most cases, you probably
-     * just need Application Context returned by getApplicationContext().
-     * @see #getApplicationContext()
+     * @return A reference to owning Activity.  The returned WeakReference will never be null, but
+     *         the contained Activity can be null (either if it has been garbage collected or if
+     *         this is in the context of a WebView that was not created using an Activity).
      */
-    @Deprecated
-    public Context getContext() {
-        return null;
+    public WeakReference<Activity> getActivity() {
+        return new WeakReference<Activity>(null);
     }
 
     /**
@@ -209,6 +227,11 @@ public class WindowAndroid {
         return false;
     }
 
+    @CalledByNative
+    private void requestVSyncUpdate() {
+       mVSyncMonitor.requestUpdate();
+    }
+
     /**
      * An interface that intent callback objects have to implement.
      */
@@ -220,7 +243,7 @@ public class WindowAndroid {
          * @param contentResolver An instance of ContentResolver class for accessing returned data.
          * @param data The data returned by the intent.
          */
-        public void onIntentCompleted(WindowAndroid window, int resultCode,
+        void onIntentCompleted(WindowAndroid window, int resultCode,
                 ContentResolver contentResolver, Intent data);
     }
 
@@ -251,21 +274,13 @@ public class WindowAndroid {
      */
     public long getNativePointer() {
         if (mNativeWindowAndroid == 0) {
-            mNativeWindowAndroid = nativeInit();
+            mNativeWindowAndroid = nativeInit(mVSyncMonitor.getVSyncPeriodInMicroseconds());
         }
         return mNativeWindowAndroid;
     }
 
-    /**
-     * Returns a PNG-encoded screenshot of the the window region at (|windowX|,
-     * |windowY|) with the size |width| by |height| pixels.
-     */
-    @CalledByNative
-    public byte[] grabSnapshot(int windowX, int windowY, int width, int height) {
-        return null;
-    }
-
-    private native long nativeInit();
+    private native long nativeInit(long vsyncPeriod);
+    private native void nativeOnVSync(long nativeWindowAndroid, long vsyncTimeMicros);
     private native void nativeDestroy(long nativeWindowAndroid);
 
 }

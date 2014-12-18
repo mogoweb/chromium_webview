@@ -39,7 +39,7 @@ public class ContentSettings {
      * @param nativeContentSettings the native instance that is going away.
      */
     @CalledByNative
-    private void onNativeContentSettingsDestroyed(int nativeContentSettings) {
+    private void onNativeContentSettingsDestroyed(long nativeContentSettings) {
         assert mNativeContentSettings == nativeContentSettings;
         mNativeContentSettings = 0;
     }

@@ -52,7 +52,7 @@ public class DrawGLFunctor {
     Method mAttachFunctor;
     Method mDetachFunctor;
 
-    public DrawGLFunctor(int viewContext) {
+    public DrawGLFunctor(long viewContext) {
         mDestroyRunnable = new DestroyRunnable(nativeCreateGLFunctor(viewContext));
         mCleanupReference = new CleanupReference(this, mDestroyRunnable);
 
@@ -98,14 +98,14 @@ public class DrawGLFunctor {
             }
             if (canvas != null) {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) {
-                    Boolean i = (Boolean)mCallDrawGLFunction.invoke(canvas, new Object[]{Integer.valueOf(mDestroyRunnable.mNativeDrawGLFunctor)});
+                    Boolean i = (Boolean)mCallDrawGLFunction.invoke(canvas, new Object[]{Long.valueOf(mDestroyRunnable.mNativeDrawGLFunctor)});
                     boolean ret =  i.booleanValue();
                     if (!ret) {
                         Log.e(TAG, "callDrawGLFunction error: " + ret);
                         return false;
                     }
                 } else {
-                    Integer i = (Integer)mCallDrawGLFunction.invoke(canvas, new Object[]{Integer.valueOf(mDestroyRunnable.mNativeDrawGLFunctor)});
+                    Integer i = (Integer)mCallDrawGLFunction.invoke(canvas, new Object[]{Long.valueOf(mDestroyRunnable.mNativeDrawGLFunctor)});
                     int ret =  i.intValue();
                     if (ret != 0) {
                         Log.e(TAG, "callDrawGLFunction error: " + ret);
@@ -114,7 +114,7 @@ public class DrawGLFunctor {
                 }
             } else {
                 if (mDestroyRunnable.mViewRootImpl != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN)
-                    mAttachFunctor.invoke(mDestroyRunnable.mViewRootImpl, new Object[]{Integer.valueOf(mDestroyRunnable.mNativeDrawGLFunctor)});
+                    mAttachFunctor.invoke(mDestroyRunnable.mViewRootImpl, new Object[]{Long.valueOf(mDestroyRunnable.mNativeDrawGLFunctor)});
             }
         } catch (IllegalAccessException exception) {
             Log.e(TAG, "IllegalAccessException:" + exception.getMessage());
@@ -130,7 +130,7 @@ public class DrawGLFunctor {
 
     }
 
-    public static void setChromiumAwDrawGLFunction(int functionPointer) {
+    public static void setChromiumAwDrawGLFunction(long functionPointer) {
         nativeSetChromiumAwDrawGLFunction(functionPointer);
     }
 
@@ -139,8 +139,8 @@ public class DrawGLFunctor {
     // instance, as that will defeat GC of that object.
     private class DestroyRunnable implements Runnable {
         ViewParent mViewRootImpl;
-        int mNativeDrawGLFunctor;
-        DestroyRunnable(int nativeDrawGLFunctor) {
+        long mNativeDrawGLFunctor;
+        DestroyRunnable(long nativeDrawGLFunctor) {
             mNativeDrawGLFunctor = nativeDrawGLFunctor;
         }
 
@@ -155,7 +155,7 @@ public class DrawGLFunctor {
         void detachNativeFunctor() {
             if (mNativeDrawGLFunctor != 0 && mViewRootImpl != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
                 try {
-                    mDetachFunctor.invoke(mViewRootImpl, new Object[]{Integer.valueOf(mNativeDrawGLFunctor)});
+                    mDetachFunctor.invoke(mViewRootImpl, new Object[]{Long.valueOf(mNativeDrawGLFunctor)});
                 } catch (IllegalAccessException exception) {
                     Log.e(TAG, "illegalAccessException:" + exception.getMessage());
                     exception.printStackTrace();
@@ -171,7 +171,7 @@ public class DrawGLFunctor {
         }
     }
 
-    private static native int nativeCreateGLFunctor(int viewContext);
-    private static native void nativeDestroyGLFunctor(int functor);
-    private static native void nativeSetChromiumAwDrawGLFunction(int functionPointer);
+    private static native long nativeCreateGLFunctor(long viewContext);
+    private static native void nativeDestroyGLFunctor(long functor);
+    private static native void nativeSetChromiumAwDrawGLFunction(long functionPointer);
 }

@@ -10,6 +10,7 @@ import android.graphics.Picture;
 import android.net.http.SslError;
 import android.os.Looper;
 import android.os.Message;
+import android.util.ArrayMap;
 import android.view.KeyEvent;
 import android.view.View;
 import android.webkit.ConsoleMessage;
@@ -17,9 +18,12 @@ import android.webkit.GeolocationPermissions;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 
+import org.chromium.android_webview.permission.AwPermissionRequest;
 import org.chromium.content.browser.ContentViewCore;
 import org.chromium.content.browser.WebContentsObserverAndroid;
 import org.chromium.net.NetError;
+
+import java.security.Principal;
 
 /**
  * Base-class that an AwContents embedder derives from to receive callbacks.
@@ -58,7 +62,10 @@ public abstract class AwContentsClient {
 
         @Override
         public void didFinishLoad(long frameId, String validatedUrl, boolean isMainFrame) {
-            if (isMainFrame) {
+            String unreachableWebDataUrl = AwContentsStatics.getUnreachableWebDataUrl();
+            boolean isErrorUrl =
+                    unreachableWebDataUrl != null && unreachableWebDataUrl.equals(validatedUrl);
+            if (isMainFrame && !isErrorUrl) {
                 AwContentsClient.this.onPageFinished(validatedUrl);
             }
         }
@@ -86,10 +93,10 @@ public abstract class AwContentsClient {
 
         @Override
         public void didNavigateMainFrame(String url, String baseUrl,
-                boolean isNavigationToDifferentPage, boolean isNavigationInPage) {
+                boolean isNavigationToDifferentPage, boolean isFragmentNavigation) {
             // This is here to emulate the Classic WebView firing onPageFinished for main frame
             // navigations where only the hash fragment changes.
-            if (isNavigationInPage) {
+            if (isFragmentNavigation) {
                 AwContentsClient.this.onPageFinished(url);
             }
         }
@@ -142,13 +149,30 @@ public abstract class AwContentsClient {
         public boolean capture;
     }
 
+    /**
+     * Parameters for the {@link AwContentsClient#shouldInterceptRequest} method.
+     */
+    public static class ShouldInterceptRequestParams {
+        // Url of the request.
+        public String url;
+        // Is this for the main frame or a child iframe?
+        public boolean isMainFrame;
+        // Was a gesture associated with the request? Don't trust can easily be spoofed.
+        public boolean hasUserGesture;
+        // Method used (GET/POST/OPTIONS)
+        public String method;
+        // Headers that would have been sent to server.
+        public ArrayMap<String, String> requestHeaders;
+    }
+
     public abstract void getVisitedHistory(ValueCallback<String[]> callback);
 
     public abstract void doUpdateVisitedHistory(String url, boolean isReload);
 
     public abstract void onProgressChanged(int progress);
 
-    public abstract InterceptedRequestData shouldInterceptRequest(String url);
+    public abstract AwWebResourceResponse shouldInterceptRequest(
+            ShouldInterceptRequestParams params);
 
     public abstract boolean shouldOverrideKeyEvent(KeyEvent event);
 
@@ -165,6 +189,12 @@ public abstract class AwContentsClient {
 
     public abstract void onReceivedSslError(ValueCallback<Boolean> callback, SslError error);
 
+    // TODO(sgurun): Make abstract once this has rolled in downstream.
+    public void onReceivedClientCertRequest(
+            final AwContentsClientBridge.ClientCertificateRequestCallback callback,
+            final String[] keyTypes, final Principal[] principals, final String host,
+            final int port) { }
+
     public abstract void onReceivedLoginRequest(String realm, String account, String args);
 
     public abstract void onFormResubmission(Message dontResend, Message resend);
@@ -180,6 +210,13 @@ public abstract class AwContentsClient {
             GeolocationPermissions.Callback callback);
 
     public abstract void onGeolocationPermissionsHidePrompt();
+
+    // TODO(michaelbai): Change the abstract once merged
+    public /*abstract*/ void onPermissionRequest(AwPermissionRequest awPermissionRequest) {}
+
+    // TODO(michaelbai): Change the abstract once merged
+    public /*abstract*/ void onPermissionRequestCanceled(
+            AwPermissionRequest awPermissionRequest) {}
 
     public abstract void onScaleChangedScaled(float oldScale, float newScale);
 

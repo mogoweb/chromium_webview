@@ -7,7 +7,6 @@ package org.chromium.content.browser.test.util;
 import android.content.Context;
 
 import org.chromium.content.browser.ContentViewClient;
-import org.chromium.content.browser.test.util.TestCallbackHelperContainer.OnEvaluateJavaScriptResultHelper;
 import org.chromium.content.browser.test.util.TestCallbackHelperContainer.OnStartContentIntentHelper;
 
 /**
@@ -18,16 +17,10 @@ import org.chromium.content.browser.test.util.TestCallbackHelperContainer.OnStar
  */
 public class TestContentViewClient extends ContentViewClient {
 
-    private OnEvaluateJavaScriptResultHelper mOnEvaluateJavaScriptResultHelper;
-    private OnStartContentIntentHelper mOnStartContentIntentHelper;
+    private final OnStartContentIntentHelper mOnStartContentIntentHelper;
 
     public TestContentViewClient() {
-        mOnEvaluateJavaScriptResultHelper = new OnEvaluateJavaScriptResultHelper();
         mOnStartContentIntentHelper = new OnStartContentIntentHelper();
-    }
-
-    public OnEvaluateJavaScriptResultHelper getOnEvaluateJavaScriptResultHelper() {
-        return mOnEvaluateJavaScriptResultHelper;
     }
 
     public OnStartContentIntentHelper getOnStartContentIntentHelper() {

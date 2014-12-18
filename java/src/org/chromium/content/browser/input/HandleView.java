@@ -15,6 +15,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.ViewParent;
+import android.view.animation.AnimationUtils;
 import android.widget.PopupWindow;
 
 import org.chromium.content.browser.PositionObserver;
@@ -59,14 +60,6 @@ public class HandleView extends View {
     private final View mParent;
     private InsertionHandleController.PastePopupMenu mPastePopupWindow;
 
-    private final int mTextSelectHandleLeftRes;
-    private final int mTextSelectHandleRightRes;
-    private final int mTextSelectHandleRes;
-
-    private Drawable mSelectHandleLeft;
-    private Drawable mSelectHandleRight;
-    private Drawable mSelectHandleCenter;
-
     private final Rect mTempRect = new Rect();
 
     static final int LEFT = 0;
@@ -90,18 +83,13 @@ public class HandleView extends View {
     HandleView(CursorController controller, int pos, View parent,
             PositionObserver parentPositionObserver) {
         super(parent.getContext());
-        Context context = parent.getContext();
         mParent = parent;
+        Context context = mParent.getContext();
         mController = controller;
         mContainer = new PopupWindow(context, null, android.R.attr.textSelectHandleWindowStyle);
         mContainer.setSplitTouchEnabled(true);
         mContainer.setClippingEnabled(false);
-
-        TypedArray a = context.obtainStyledAttributes(TEXT_VIEW_HANDLE_ATTRS);
-        mTextSelectHandleLeftRes = a.getResourceId(a.getIndex(LEFT), 0);
-        mTextSelectHandleRes = a.getResourceId(a.getIndex(CENTER), 0);
-        mTextSelectHandleRightRes = a.getResourceId(a.getIndex(RIGHT), 0);
-        a.recycle();
+        mContainer.setAnimationStyle(0);
 
         setOrientation(pos);
 
@@ -121,45 +109,33 @@ public class HandleView extends View {
     }
 
     void setOrientation(int pos) {
-        int handleWidth;
+        Context context = mParent.getContext();
+        TypedArray a = context.getTheme().obtainStyledAttributes(TEXT_VIEW_HANDLE_ATTRS);
+        mDrawable = a.getDrawable(pos);
+        a.recycle();
+
+        mIsInsertionHandle = (pos == CENTER);
+
+        int handleWidth = mDrawable.getIntrinsicWidth();
         switch (pos) {
             case LEFT: {
-                if (mSelectHandleLeft == null) {
-                    mSelectHandleLeft = getContext().getResources().getDrawable(
-                            mTextSelectHandleLeftRes);
-                }
-                mDrawable = mSelectHandleLeft;
-                handleWidth = mDrawable.getIntrinsicWidth();
                 mHotspotX = (handleWidth * 3) / 4f;
                 break;
             }
 
             case RIGHT: {
-                if (mSelectHandleRight == null) {
-                    mSelectHandleRight = getContext().getResources().getDrawable(
-                            mTextSelectHandleRightRes);
-                }
-                mDrawable = mSelectHandleRight;
-                handleWidth = mDrawable.getIntrinsicWidth();
                 mHotspotX = handleWidth / 4f;
                 break;
             }
 
             case CENTER:
             default: {
-                if (mSelectHandleCenter == null) {
-                    mSelectHandleCenter = getContext().getResources().getDrawable(
-                            mTextSelectHandleRes);
-                }
-                mDrawable = mSelectHandleCenter;
-                handleWidth = mDrawable.getIntrinsicWidth();
                 mHotspotX = handleWidth / 2f;
-                mIsInsertionHandle = true;
                 break;
             }
         }
-
         mHotspotY = 0;
+
         invalidate();
     }
 
@@ -189,6 +165,9 @@ public class HandleView extends View {
     }
 
     private void onPositionChanged() {
+        // Deferring View invalidation while the handles are hidden prevents
+        // scheduling conflicts with the compositor.
+        if (getVisibility() != VISIBLE) return;
         mContainer.update(getContainerPositionX(), getContainerPositionY(),
                 getRight() - getLeft(), getBottom() - getTop());
     }
@@ -402,7 +381,8 @@ public class HandleView extends View {
 
     private void updateAlpha() {
         if (mAlpha == 1.f) return;
-        mAlpha = Math.min(1.f, (System.currentTimeMillis() - mFadeStartTime) / FADE_DURATION);
+        mAlpha = Math.min(1.f,
+                (AnimationUtils.currentAnimationTimeMillis() - mFadeStartTime) / FADE_DURATION);
         mDrawable.setAlpha((int) (255 * mAlpha));
         invalidate();
     }
@@ -413,8 +393,10 @@ public class HandleView extends View {
     void beginFadeIn() {
         if (getVisibility() == VISIBLE) return;
         mAlpha = 0.f;
-        mFadeStartTime = System.currentTimeMillis();
+        mFadeStartTime = AnimationUtils.currentAnimationTimeMillis();
         setVisibility(VISIBLE);
+        // Position updates may have been deferred while the handle was hidden.
+        onPositionChanged();
     }
 
     void showPastePopupWindow() {

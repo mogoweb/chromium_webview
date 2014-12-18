@@ -24,10 +24,6 @@ public abstract class ContentSwitches {
     // Whether Chromium should use a mobile user agent.
     public static final String USE_MOBILE_UA = "use-mobile-user-agent";
 
-    // tablet specific UI components.
-    // Native switch - chrome_switches::kTabletUI
-    public static final String TABLET_UI = "tablet-ui";
-
     // Change the url of the JavaScript that gets injected when accessibility mode is enabled.
     public static final String ACCESSIBILITY_JAVASCRIPT_URL = "accessibility-js-url";
 
@@ -35,10 +31,12 @@ public abstract class ContentSwitches {
     // SelfBrailleService.
     public static final String ACCESSIBILITY_DEBUG_BRAILLE_SERVICE = "debug-braille-service";
 
-    // Whether to always expose web content using Android's accessibility
-    // framework instead of injecting javascript for accessibility.
-    public static final String DISABLE_ACCESSIBILITY_SCRIPT_INJECTION =
-            "disable-accessibility-script-injection";
+    // Disables exposing web content using Android's accessibility
+    // framework and enables the (older) javascript injection accessibility.
+    // TODO(dmazzoni): remove this after native accessibility is in stable.
+    // http://crbug.com/356775
+    public static final String ENABLE_ACCESSIBILITY_SCRIPT_INJECTION =
+            "enable-accessibility-script-injection";
 
     // Sets the ISO country code that will be used for phone number detection.
     public static final String NETWORK_COUNTRY_ISO = "network-country-iso";
@@ -68,12 +66,13 @@ public abstract class ContentSwitches {
     // Native switch - chrome_switches::kDisablePopupBlocking
     public static final String DISABLE_POPUP_BLOCKING = "disable-popup-blocking";
 
-    // Whether to disable the click delay by sending click events during double tap
-    public static final String DISABLE_CLICK_DELAY = "disable-click-delay";
+    // Native switch - content_switches::kDisableOverlayFullscreenVideoSubtitle
+    public static final String DISABLE_OVERLAY_FULLSCREEN_VIDEO_SUBTITLE =
+            "disable-overlay-fullscreen-video-subtitle";
 
-    // Native switch - content_switches::kEnableOverlayFullscreenVideoSubtitle
-    public static final String ENABLE_OVERLAY_FULLSCREEN_VIDEO_SUBTITLE =
-            "enable-overlay-fullscreen-video-subtitle";
+    // Native switch - gfx_switches::kForceDeviceScaleFactor
+    public static final String FORCE_DEVICE_SCALE_FACTOR =
+            "force-device-scale-factor";
 
     // Prevent instantiation.
     private ContentSwitches() {}

@@ -23,10 +23,12 @@ import java.lang.ref.SoftReference;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URISyntaxException;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.chromium.android_webview.AwContentsClient;
 import org.chromium.android_webview.AwHttpAuthHandler;
-import org.chromium.android_webview.InterceptedRequestData;
+import org.chromium.android_webview.AwWebResourceResponse;
 import org.chromium.android_webview.JsPromptResultReceiver;
 import org.chromium.android_webview.JsResultReceiver;
 import org.chromium.base.TraceEvent;
@@ -41,6 +43,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Picture;
+import android.net.Uri;
 import android.net.http.SslError;
 import android.os.Handler;
 import android.os.Message;
@@ -52,6 +55,7 @@ import android.webkit.ConsoleMessage;
 import android.webkit.GeolocationPermissions;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient.CustomViewCallback;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 
 import com.mogoweb.chrome.DownloadListener;
@@ -269,20 +273,63 @@ public class WebViewContentsClientAdapter extends AwContentsClient {
         TraceEvent.end();
     }
 
+    private static class WebResourceRequestImpl implements WebResourceRequest {
+        private final ShouldInterceptRequestParams mParams;
+
+        public WebResourceRequestImpl(ShouldInterceptRequestParams params) {
+            mParams = params;
+        }
+
+        @Override
+        public Uri getUrl() {
+            return Uri.parse(mParams.url);
+        }
+
+        @Override
+        public boolean isForMainFrame() {
+            return mParams.isMainFrame;
+        }
+
+        @Override
+        public boolean hasGesture() {
+            return mParams.hasUserGesture;
+        }
+
+        @Override
+        public String getMethod() {
+            return mParams.method;
+        }
+
+        @Override
+        public Map<String, String> getRequestHeaders() {
+            return mParams.requestHeaders;
+        }
+    }
+
     /**
      * @see AwContentsClient#shouldInterceptRequest(java.lang.String)
      */
     @Override
-    public InterceptedRequestData shouldInterceptRequest(String url) {
+    public AwWebResourceResponse shouldInterceptRequest(ShouldInterceptRequestParams params) {
         TraceEvent.begin();
-        if (TRACE) Log.d(TAG, "shouldInterceptRequest=" + url);
-        WebResourceResponse response = mWebViewClient.shouldInterceptRequest(mWebView, url);
+        if (TRACE) Log.d(TAG, "shouldInterceptRequest=" + params.url);
+        WebResourceResponse response = mWebViewClient.shouldInterceptRequest(mWebView,
+                new WebResourceRequestImpl(params));
         TraceEvent.end();
         if (response == null) return null;
-        return new InterceptedRequestData(
+
+        // AwWebResourceResponse should support null headers. b/16332774.
+        Map<String, String> responseHeaders = response.getResponseHeaders();
+        if (responseHeaders == null)
+            responseHeaders = new HashMap<String, String>();
+
+        return new AwWebResourceResponse(
                 response.getMimeType(),
                 response.getEncoding(),
-                response.getData());
+                response.getData(),
+                response.getStatusCode(),
+                response.getReasonPhrase(),
+                responseHeaders);
     }
 
     /**
@@ -316,7 +363,7 @@ public class WebViewContentsClientAdapter extends AwContentsClient {
         TraceEvent.begin();
         boolean result;
         if (mWebChromeClient != null) {
-            if (TRACE) Log.d(TAG, "onConsoleMessage");
+            if (TRACE) Log.d(TAG, "onConsoleMessage: " + consoleMessage.message());
             result = mWebChromeClient.onConsoleMessage(consoleMessage);
             String message = consoleMessage.message();
             if (result && message != null && message.startsWith("[blocked]")) {

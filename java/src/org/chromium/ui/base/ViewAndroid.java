@@ -64,6 +64,7 @@ public class ViewAndroid {
         mKeepScreenOnCount++;
         if (mKeepScreenOnCount == 1) {
             mKeepScreenOnView = mViewAndroidDelegate.acquireAnchorView();
+            mViewAndroidDelegate.setAnchorViewPosition(mKeepScreenOnView, 0, 0, 0, 0);
             mKeepScreenOnView.setKeepScreenOn(true);
         }
     }

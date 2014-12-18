@@ -4,14 +4,20 @@
 
 package org.chromium.android_webview;
 
+import android.content.ContentResolver;
+import android.content.Context;
+import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.Message;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.webkit.ConsoleMessage;
 import android.webkit.ValueCallback;
 
+import org.chromium.base.ContentUriUtils;
 import org.chromium.base.ThreadUtils;
 import org.chromium.content.browser.ContentViewCore;
 
@@ -24,11 +30,17 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
     private static final String TAG = "AwWebContentsDelegateAdapter";
 
     final AwContentsClient mContentsClient;
-    final View mContainerView;
+    View mContainerView;
+    final Context mContext;
 
     public AwWebContentsDelegateAdapter(AwContentsClient contentsClient,
-            View containerView) {
+            View containerView, Context context) {
         mContentsClient = contentsClient;
+        setContainerView(containerView);
+        mContext = context;
+    }
+
+    public void setContainerView(View containerView) {
         mContainerView = containerView;
     }
 
@@ -110,7 +122,8 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
     }
 
     @Override
-    public void openNewTab(String url, String extraHeaders, byte[] postData, int disposition) {
+    public void openNewTab(String url, String extraHeaders, byte[] postData, int disposition,
+            boolean isRendererInitiated) {
         // This is only called in chrome layers.
         assert false;
     }
@@ -155,10 +168,10 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
     }
 
     @Override
-    public void runFileChooser(final int processId, final int renderId, final int mode_flags,
+    public void runFileChooser(final int processId, final int renderId, final int modeFlags,
             String acceptTypes, String title, String defaultFilename, boolean capture) {
         AwContentsClient.FileChooserParams params = new AwContentsClient.FileChooserParams();
-        params.mode = mode_flags;
+        params.mode = modeFlags;
         params.acceptTypes = acceptTypes;
         params.title = title;
         params.defaultFilename = defaultFilename;
@@ -172,7 +185,14 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
                     throw new IllegalStateException("Duplicate showFileChooser result");
                 }
                 completed = true;
-                nativeFilesSelectedInChooser(processId, renderId, mode_flags, results);
+                if (results == null) {
+                    nativeFilesSelectedInChooser(
+                            processId, renderId, modeFlags, null, null);
+                    return;
+                }
+                GetDisplayNameTask task = new GetDisplayNameTask(
+                        mContext.getContentResolver(), processId, renderId, modeFlags, results);
+                task.execute();
             }
         }, params);
     }
@@ -185,5 +205,47 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
     @Override
     public void activateContents() {
         mContentsClient.onRequestFocus();
+    }
+
+    private static class GetDisplayNameTask extends AsyncTask<Void, Void, String[]> {
+        final int mProcessId;
+        final int mRenderId;
+        final int mModeFlags;
+        final String[] mFilePaths;
+        final ContentResolver mContentResolver;
+
+        public GetDisplayNameTask(ContentResolver contentResolver, int processId, int renderId,
+                                  int modeFlags, String[] filePaths) {
+            mProcessId = processId;
+            mRenderId = renderId;
+            mModeFlags = modeFlags;
+            mFilePaths = filePaths;
+            mContentResolver = contentResolver;
+        }
+
+        @Override
+        protected String[] doInBackground(Void...voids) {
+            String[] displayNames = new String[mFilePaths.length];
+            for (int i = 0; i < mFilePaths.length; i++) {
+                displayNames[i] = resolveFileName(mFilePaths[i]);
+            }
+            return displayNames;
+        }
+
+        @Override
+        protected void onPostExecute(String[] result) {
+            nativeFilesSelectedInChooser(mProcessId, mRenderId, mModeFlags, mFilePaths, result);
+        }
+
+        /**
+         * @return the display name of a path if it is a content URI and is present in the database
+         * or an empty string otherwise.
+         */
+        private String resolveFileName(String filePath) {
+            if (mContentResolver == null || filePath == null) return "";
+            Uri uri = Uri.parse(filePath);
+            return ContentUriUtils.getDisplayName(
+                    uri, mContentResolver, MediaStore.MediaColumns.DISPLAY_NAME);
+        }
     }
 }

@@ -12,4 +12,7 @@ import android.os.Bundle;
 interface IChildProcessService {
   // Sets up the initial IPC channel and returns the pid of the child process.
   int setupConnection(in Bundle args, IChildProcessCallback callback);
+
+  // Asks the child service to crash so that we can test the termination logic.
+  void crashIntentionallyForTesting();
 }

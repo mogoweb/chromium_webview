@@ -7,7 +7,6 @@ package org.chromium.content.browser;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.RectF;
 import android.util.Log;
 import android.view.ActionMode;
 import android.view.KeyEvent;
@@ -54,27 +53,8 @@ public class ContentViewClient {
 
     public boolean shouldOverrideKeyEvent(KeyEvent event) {
         int keyCode = event.getKeyCode();
-        // We need to send almost every key to WebKit. However:
-        // 1. We don't want to block the device on the renderer for
-        // some keys like menu, home, call.
-        // 2. There are no WebKit equivalents for some of these keys
-        // (see app/keyboard_codes_win.h)
-        // Note that these are not the same set as KeyEvent.isSystemKey:
-        // for instance, AKEYCODE_MEDIA_* will be dispatched to webkit.
-        if (keyCode == KeyEvent.KEYCODE_MENU ||
-            keyCode == KeyEvent.KEYCODE_HOME ||
-            keyCode == KeyEvent.KEYCODE_BACK ||
-            keyCode == KeyEvent.KEYCODE_CALL ||
-            keyCode == KeyEvent.KEYCODE_ENDCALL ||
-            keyCode == KeyEvent.KEYCODE_POWER ||
-            keyCode == KeyEvent.KEYCODE_HEADSETHOOK ||
-            keyCode == KeyEvent.KEYCODE_CAMERA ||
-            keyCode == KeyEvent.KEYCODE_FOCUS ||
-            keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ||
-            keyCode == KeyEvent.KEYCODE_VOLUME_MUTE ||
-            keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
-            return true;
-        }
+
+        if (!shouldPropagateKey(keyCode)) return true;
 
         // We also have to intercept some shortcuts before we send them to the ContentView.
         if (event.isCtrlPressed() && (
@@ -142,6 +122,13 @@ public class ContentViewClient {
     }
 
     /**
+     * Notification that the selection has changed.
+     * @param selection The newly established selection.
+     */
+    public void onSelectionChanged(String selection) {
+    }
+
+    /**
      * Called when a new content intent is requested to be started.
      */
     public void onStartContentIntent(Context context, String intentUrl) {
@@ -161,12 +148,6 @@ public class ContentViewClient {
         }
     }
 
-    public void onExternalVideoSurfaceRequested(int playerId) {
-    }
-
-    public void onGeometryChanged(int playerId, RectF rect) {
-    }
-
     public ContentVideoViewClient getContentVideoViewClient() {
         return null;
     }
@@ -180,4 +161,31 @@ public class ContentViewClient {
         return false;
     }
 
+    /**
+     * Check whether a key should be propagated to the embedder or not.
+     * We need to send almost every key to Blink. However:
+     * 1. We don't want to block the device on the renderer for
+     * some keys like menu, home, call.
+     * 2. There are no WebKit equivalents for some of these keys
+     * (see app/keyboard_codes_win.h)
+     * Note that these are not the same set as KeyEvent.isSystemKey:
+     * for instance, AKEYCODE_MEDIA_* will be dispatched to webkit*.
+     */
+    public static boolean shouldPropagateKey(int keyCode) {
+        if (keyCode == KeyEvent.KEYCODE_MENU ||
+            keyCode == KeyEvent.KEYCODE_HOME ||
+            keyCode == KeyEvent.KEYCODE_BACK ||
+            keyCode == KeyEvent.KEYCODE_CALL ||
+            keyCode == KeyEvent.KEYCODE_ENDCALL ||
+            keyCode == KeyEvent.KEYCODE_POWER ||
+            keyCode == KeyEvent.KEYCODE_HEADSETHOOK ||
+            keyCode == KeyEvent.KEYCODE_CAMERA ||
+            keyCode == KeyEvent.KEYCODE_FOCUS ||
+            keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ||
+            keyCode == KeyEvent.KEYCODE_VOLUME_MUTE ||
+            keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+            return false;
+        }
+        return true;
+    }
 }

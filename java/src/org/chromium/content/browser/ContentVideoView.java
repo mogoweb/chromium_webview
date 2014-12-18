@@ -100,9 +100,13 @@ public class ContentVideoView extends FrameLayout
 
         @Override
         protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-            int width = getDefaultSize(mVideoWidth, widthMeasureSpec);
-            int height = getDefaultSize(mVideoHeight, heightMeasureSpec);
+            // set the default surface view size to (1, 1) so that it won't block
+            // the infobar. (0, 0) is not a valid size for surface view.
+            int width = 1;
+            int height = 1;
             if (mVideoWidth > 0 && mVideoHeight > 0) {
+                width = getDefaultSize(mVideoWidth, widthMeasureSpec);
+                height = getDefaultSize(mVideoHeight, heightMeasureSpec);
                 if (mVideoWidth * height  > width * mVideoHeight) {
                     height = width * mVideoHeight / mVideoWidth;
                 } else if (mVideoWidth * height  < width * mVideoHeight) {
@@ -149,7 +153,10 @@ public class ContentVideoView extends FrameLayout
         mVideoSurfaceView = new VideoSurfaceView(context);
         showContentVideoView();
         setVisibility(View.VISIBLE);
-        mClient.onShowCustomView(this);
+    }
+
+    protected ContentVideoViewClient getContentVideoViewClient() {
+        return mClient;
     }
 
     private void initResources(Context context) {
@@ -169,8 +176,8 @@ public class ContentVideoView extends FrameLayout
     protected void showContentVideoView() {
         mVideoSurfaceView.getHolder().addCallback(this);
         this.addView(mVideoSurfaceView, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.CENTER));
 
         mProgressView = mClient.getVideoLoadingProgressView();
@@ -360,7 +367,7 @@ public class ContentVideoView extends FrameLayout
         }
     }
 
-    protected boolean isPlaying() {
+    public boolean isPlaying() {
         return mNativeContentVideoView != 0 && nativeIsPlaying(mNativeContentVideoView);
     }
 
@@ -374,11 +381,17 @@ public class ContentVideoView extends FrameLayout
             Log.w(TAG, "Wrong type of context, can't create fullscreen video");
             return null;
         }
+        ContentVideoView videoView = null;
         if (legacy) {
-            return new ContentVideoViewLegacy(context, nativeContentVideoView, client);
+            videoView = new ContentVideoViewLegacy(context, nativeContentVideoView, client);
         } else {
-            return new ContentVideoView(context, nativeContentVideoView, client);
+            videoView = new ContentVideoView(context, nativeContentVideoView, client);
         }
+
+        if (videoView.getContentVideoViewClient().onShowCustomView(videoView)) {
+            return videoView;
+        }
+        return null;
     }
 
     public void removeSurfaceView() {

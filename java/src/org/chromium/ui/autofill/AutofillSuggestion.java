@@ -4,10 +4,12 @@
 
 package org.chromium.ui.autofill;
 
+import org.chromium.ui.DropdownItem;
+
 /**
  * Autofill suggestion container used to store information needed for each Autofill popup entry.
  */
-public class AutofillSuggestion {
+public class AutofillSuggestion implements DropdownItem {
     final String mLabel;
     final String mSublabel;
     final int mUniqueId;
@@ -22,5 +24,29 @@ public class AutofillSuggestion {
         mLabel = name;
         mSublabel = label;
         mUniqueId = uniqueId;
+    }
+
+    @Override
+    public String getLabel() {
+        return mLabel;
+    }
+
+    @Override
+    public String getSublabel() {
+        return mSublabel;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true;
+    }
+
+    @Override
+    public boolean isGroupHeader() {
+        return false;
+    }
+
+    public int getUniqueId() {
+        return mUniqueId;
     }
 }

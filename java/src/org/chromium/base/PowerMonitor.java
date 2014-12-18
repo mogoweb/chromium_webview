@@ -16,7 +16,7 @@ import android.os.Looper;
  * Integrates native PowerMonitor with the java side.
  */
 @JNINamespace("base::android")
-public class PowerMonitor implements ActivityStatus.StateListener {
+public class PowerMonitor implements ApplicationStatus.ApplicationStateListener {
     private static final long SUSPEND_DELAY_MS = 1 * 60 * 1000;  // 1 minute.
     private static class LazyHolder {
         private static final PowerMonitor INSTANCE = new PowerMonitor();
@@ -44,10 +44,16 @@ public class PowerMonitor implements ActivityStatus.StateListener {
         sInstance = LazyHolder.INSTANCE;
     }
 
+    /**
+     * Create a PowerMonitor instance if none exists.
+     * @param context The context to register broadcast receivers for.  The application context
+     *                will be used from this parameter.
+     */
     public static void create(Context context) {
+        context = context.getApplicationContext();
         if (sInstance == null) {
             sInstance = LazyHolder.INSTANCE;
-            ActivityStatus.registerStateListener(sInstance);
+            ApplicationStatus.registerApplicationStateListener(sInstance);
             IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
             Intent batteryStatusIntent = context.registerReceiver(null, ifilter);
             onBatteryChargingChanged(batteryStatusIntent);
@@ -71,12 +77,12 @@ public class PowerMonitor implements ActivityStatus.StateListener {
     }
 
     @Override
-    public void onActivityStateChange(int newState) {
-        if (newState == ActivityStatus.RESUMED) {
+    public void onApplicationStateChange(int newState) {
+        if (newState == ApplicationState.HAS_RUNNING_ACTIVITIES) {
             // Remove the callback from the message loop in case it hasn't been executed yet.
             mHandler.removeCallbacks(sSuspendTask);
             nativeOnMainActivityResumed();
-        } else if (newState == ActivityStatus.PAUSED) {
+        } else if (newState == ApplicationState.HAS_PAUSED_ACTIVITIES) {
             mHandler.postDelayed(sSuspendTask, SUSPEND_DELAY_MS);
         }
     }

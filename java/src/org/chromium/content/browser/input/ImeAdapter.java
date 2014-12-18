@@ -6,12 +6,20 @@ package org.chromium.content.browser.input;
 
 import android.os.Handler;
 import android.os.ResultReceiver;
+import android.os.SystemClock;
+import android.text.Editable;
+import android.text.SpannableString;
+import android.text.style.BackgroundColorSpan;
+import android.text.style.CharacterStyle;
+import android.text.style.UnderlineSpan;
 import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 
 import com.google.common.annotations.VisibleForTesting;
+
+import java.lang.CharSequence;
 
 import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
@@ -39,6 +47,7 @@ import org.chromium.base.JNINamespace;
  */
 @JNINamespace("content")
 public class ImeAdapter {
+
     /**
      * Interface for the delegate that needs to be notified of IME changes.
      */
@@ -47,9 +56,20 @@ public class ImeAdapter {
          * @param isFinish whether the event is occurring because input is finished.
          */
         void onImeEvent(boolean isFinish);
-        void onSetFieldValue();
+
+        /**
+         * Called when a request to hide the keyboard is sent to InputMethodManager.
+         */
         void onDismissInput();
+
+        /**
+         * @return View that the keyboard should be attached to.
+         */
         View getAttachedView();
+
+        /**
+         * @return Object that should be called for all keyboard show and hide requests.
+         */
         ResultReceiver getNewShowKeyboardReceiver();
     }
 
@@ -62,8 +82,7 @@ public class ImeAdapter {
 
         @Override
         public void run() {
-            attach(mNativeImeAdapter, sTextInputTypeNone, AdapterInputConnection.INVALID_SELECTION,
-                    AdapterInputConnection.INVALID_SELECTION);
+            attach(mNativeImeAdapter, sTextInputTypeNone);
             dismissInput(true);
         }
     }
@@ -105,8 +124,6 @@ public class ImeAdapter {
     private final Handler mHandler;
     private DelayedDismissInput mDismissInput = null;
     private int mTextInputType;
-    private int mInitialSelectionStart;
-    private int mInitialSelectionEnd;
 
     @VisibleForTesting
     boolean mIsShowWithoutHideOutstanding = false;
@@ -126,11 +143,17 @@ public class ImeAdapter {
      * Default factory for AdapterInputConnection classes.
      */
     public static class AdapterInputConnectionFactory {
-        public AdapterInputConnection get(View view, ImeAdapter imeAdapter, EditorInfo outAttrs) {
-            return new AdapterInputConnection(view, imeAdapter, outAttrs);
+        public AdapterInputConnection get(View view, ImeAdapter imeAdapter,
+                Editable editable, EditorInfo outAttrs) {
+            return new AdapterInputConnection(view, imeAdapter, editable, outAttrs);
         }
     }
 
+    /**
+     * Overrides the InputMethodManagerWrapper that ImeAdapter uses to make calls to
+     * InputMethodManager.
+     * @param immw InputMethodManagerWrapper that should be used to call InputMethodManager.
+     */
     @VisibleForTesting
     public void setInputMethodManagerWrapper(InputMethodManagerWrapper immw) {
         mInputMethodManagerWrapper = immw;
@@ -162,21 +185,8 @@ public class ImeAdapter {
     }
 
     /**
-     * Should be only used by AdapterInputConnection.
-     * @return The starting index of the initial text selection.
+     * @return Constant representing that a focused node is not an input field.
      */
-    int getInitialSelectionStart() {
-        return mInitialSelectionStart;
-    }
-
-    /**
-     * Should be only used by AdapterInputConnection.
-     * @return The ending index of the initial text selection.
-     */
-    int getInitialSelectionEnd() {
-        return mInitialSelectionEnd;
-    }
-
     public static int getTextInputTypeNone() {
         return sTextInputTypeNone;
     }
@@ -201,17 +211,14 @@ public class ImeAdapter {
         return modifiers;
     }
 
-    public boolean isActive() {
-        return mInputConnection != null && mInputConnection.isActive();
-    }
-
-    private boolean isFor(int nativeImeAdapter, int textInputType) {
-        return mNativeImeAdapterAndroid == nativeImeAdapter &&
-               mTextInputType == textInputType;
-    }
-
-    public void attachAndShowIfNeeded(int nativeImeAdapter, int textInputType,
-            int selectionStart, int selectionEnd, boolean showIfNeeded) {
+    /**
+     * Shows or hides the keyboard based on passed parameters.
+     * @param nativeImeAdapter Pointer to the ImeAdapterAndroid object that is sending the update.
+     * @param textInputType Text input type for the currently focused field in renderer.
+     * @param showIfNeeded Whether the keyboard should be shown if it is currently hidden.
+     */
+    public void updateKeyboardVisibility(long nativeImeAdapter, int textInputType,
+            boolean showIfNeeded) {
         mHandler.removeCallbacks(mDismissInput);
 
         // If current input type is none and showIfNeeded is false, IME should not be shown
@@ -220,7 +227,7 @@ public class ImeAdapter {
             return;
         }
 
-        if (!isFor(nativeImeAdapter, textInputType)) {
+        if (mNativeImeAdapterAndroid != nativeImeAdapter || mTextInputType != textInputType) {
             // Set a delayed task to perform unfocus. This avoids hiding the keyboard when tabbing
             // through text inputs or when JS rapidly changes focus to another text element.
             if (textInputType == sTextInputTypeNone) {
@@ -229,7 +236,7 @@ public class ImeAdapter {
                 return;
             }
 
-            attach(nativeImeAdapter, textInputType, selectionStart, selectionEnd);
+            attach(nativeImeAdapter, textInputType);
 
             mInputMethodManagerWrapper.restartInput(mViewEmbedder.getAttachedView());
             if (showIfNeeded) {
@@ -240,17 +247,17 @@ public class ImeAdapter {
         }
     }
 
-    public void attach(long nativeImeAdapter, int textInputType, int selectionStart,
-            int selectionEnd) {
+    public void attach(long nativeImeAdapter, int textInputType) {
         if (mNativeImeAdapterAndroid != 0) {
             nativeResetImeAdapter(mNativeImeAdapterAndroid);
         }
         mNativeImeAdapterAndroid = nativeImeAdapter;
         mTextInputType = textInputType;
-        mInitialSelectionStart = selectionStart;
-        mInitialSelectionEnd = selectionEnd;
         if (nativeImeAdapter != 0) {
             nativeAttachImeAdapter(mNativeImeAdapterAndroid);
+        }
+        if (mTextInputType == sTextInputTypeNone) {
+            dismissInput(false);
         }
     }
 
@@ -260,13 +267,7 @@ public class ImeAdapter {
      * @param nativeImeAdapter The pointer to the native ImeAdapter object.
      */
     public void attach(long nativeImeAdapter) {
-        if (mNativeImeAdapterAndroid != 0) {
-            nativeResetImeAdapter(mNativeImeAdapterAndroid);
-        }
-        mNativeImeAdapterAndroid = nativeImeAdapter;
-        if (nativeImeAdapter != 0) {
-            nativeAttachImeAdapter(mNativeImeAdapterAndroid);
-        }
+        attach(nativeImeAdapter, sTextInputTypeNone);
     }
 
     private void showKeyboard() {
@@ -297,6 +298,13 @@ public class ImeAdapter {
         return isTextInputType(mTextInputType);
     }
 
+    /**
+     * @return true if the selected text is of password.
+     */
+    public boolean isSelectionPassword() {
+        return mTextInputType == sTextInputTypePassword;
+    }
+
     public boolean dispatchKeyEvent(KeyEvent event) {
         return translateAndSendNativeEvents(event);
     }
@@ -310,12 +318,12 @@ public class ImeAdapter {
     }
 
     void sendKeyEventWithKeyCode(int keyCode, int flags) {
-        long eventTime = System.currentTimeMillis();
+        long eventTime = SystemClock.uptimeMillis();
         translateAndSendNativeEvents(new KeyEvent(eventTime, eventTime,
                 KeyEvent.ACTION_DOWN, keyCode, 0, 0,
                 KeyCharacterMap.VIRTUAL_KEYBOARD, 0,
                 flags));
-        translateAndSendNativeEvents(new KeyEvent(System.currentTimeMillis(), eventTime,
+        translateAndSendNativeEvents(new KeyEvent(SystemClock.uptimeMillis(), eventTime,
                 KeyEvent.ACTION_UP, keyCode, 0, 0,
                 KeyCharacterMap.VIRTUAL_KEYBOARD, 0,
                 flags));
@@ -323,15 +331,16 @@ public class ImeAdapter {
 
     // Calls from Java to C++
 
-    boolean checkCompositionQueueAndCallNative(String text, int newCursorPosition,
+    boolean checkCompositionQueueAndCallNative(CharSequence text, int newCursorPosition,
             boolean isCommit) {
         if (mNativeImeAdapterAndroid == 0) return false;
+        String textStr = text.toString();
 
         // Committing an empty string finishes the current composition.
-        boolean isFinish = text.isEmpty();
+        boolean isFinish = textStr.isEmpty();
         mViewEmbedder.onImeEvent(isFinish);
-        int keyCode = shouldSendKeyEventWithKeyCode(text);
-        long timeStampMs = System.currentTimeMillis();
+        int keyCode = shouldSendKeyEventWithKeyCode(textStr);
+        long timeStampMs = SystemClock.uptimeMillis();
 
         if (keyCode != COMPOSITION_KEY_CODE) {
             sendKeyEventWithKeyCode(keyCode,
@@ -340,9 +349,9 @@ public class ImeAdapter {
             nativeSendSyntheticKeyEvent(mNativeImeAdapterAndroid, sEventTypeRawKeyDown,
                     timeStampMs, keyCode, 0);
             if (isCommit) {
-                nativeCommitText(mNativeImeAdapterAndroid, text);
+                nativeCommitText(mNativeImeAdapterAndroid, textStr);
             } else {
-                nativeSetComposingText(mNativeImeAdapterAndroid, text, newCursorPosition);
+                nativeSetComposingText(mNativeImeAdapterAndroid, text, textStr, newCursorPosition);
             }
             nativeSendSyntheticKeyEvent(mNativeImeAdapterAndroid, sEventTypeKeyUp,
                     timeStampMs, keyCode, 0);
@@ -377,11 +386,10 @@ public class ImeAdapter {
         mViewEmbedder.onImeEvent(false);
         return nativeSendKeyEvent(mNativeImeAdapterAndroid, event, event.getAction(),
                 getModifiers(event.getMetaState()), event.getEventTime(), event.getKeyCode(),
-                                event.isSystem(), event.getUnicodeChar());
+                             /*isSystemKey=*/false, event.getUnicodeChar());
     }
 
-    boolean sendSyntheticKeyEvent(
-            int eventType, long timestampMs, int keyCode, int unicodeChar) {
+    boolean sendSyntheticKeyEvent(int eventType, long timestampMs, int keyCode, int unicodeChar) {
         if (mNativeImeAdapterAndroid == 0) return false;
 
         nativeSendSyntheticKeyEvent(
@@ -389,12 +397,26 @@ public class ImeAdapter {
         return true;
     }
 
+    /**
+     * Send a request to the native counterpart to delete a given range of characters.
+     * @param beforeLength Number of characters to extend the selection by before the existing
+     *                     selection.
+     * @param afterLength Number of characters to extend the selection by after the existing
+     *                    selection.
+     * @return Whether the native counterpart of ImeAdapter received the call.
+     */
     boolean deleteSurroundingText(int beforeLength, int afterLength) {
         if (mNativeImeAdapterAndroid == 0) return false;
         nativeDeleteSurroundingText(mNativeImeAdapterAndroid, beforeLength, afterLength);
         return true;
     }
 
+    /**
+     * Send a request to the native counterpart to set the selection to given range.
+     * @param start Selection start index.
+     * @param end Selection end index.
+     * @return Whether the native counterpart of ImeAdapter received the call.
+     */
     boolean setEditableSelectionOffsets(int start, int end) {
         if (mNativeImeAdapterAndroid == 0) return false;
         nativeSetEditableSelectionOffsets(mNativeImeAdapterAndroid, start, end);
@@ -502,6 +524,25 @@ public class ImeAdapter {
     }
 
     @CalledByNative
+    private void populateUnderlinesFromSpans(CharSequence text, long underlines) {
+        if (!(text instanceof SpannableString)) return;
+
+        SpannableString spannableString = ((SpannableString) text);
+        CharacterStyle spans[] =
+                spannableString.getSpans(0, text.length(), CharacterStyle.class);
+        for (CharacterStyle span : spans) {
+            if (span instanceof BackgroundColorSpan) {
+                nativeAppendBackgroundColorSpan(underlines, spannableString.getSpanStart(span),
+                        spannableString.getSpanEnd(span),
+                        ((BackgroundColorSpan) span).getBackgroundColor());
+            } else if (span instanceof UnderlineSpan) {
+                nativeAppendUnderlineSpan(underlines, spannableString.getSpanStart(span),
+                        spannableString.getSpanEnd(span));
+            }
+        }
+    }
+
+    @CalledByNative
     private void cancelComposition() {
         if (mInputConnection != null) mInputConnection.restartInput();
     }
@@ -520,10 +561,15 @@ public class ImeAdapter {
             int action, int modifiers, long timestampMs, int keyCode, boolean isSystemKey,
             int unicodeChar);
 
-    private native void nativeSetComposingText(long nativeImeAdapterAndroid, String text,
-            int newCursorPosition);
+    private static native void nativeAppendUnderlineSpan(long underlinePtr, int start, int end);
 
-    private native void nativeCommitText(long nativeImeAdapterAndroid, String text);
+    private static native void nativeAppendBackgroundColorSpan(long underlinePtr, int start,
+            int end, int backgroundColor);
+
+    private native void nativeSetComposingText(long nativeImeAdapterAndroid, CharSequence text,
+            String textStr, int newCursorPosition);
+
+    private native void nativeCommitText(long nativeImeAdapterAndroid, String textStr);
 
     private native void nativeFinishComposingText(long nativeImeAdapterAndroid);
 

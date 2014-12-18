@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * Java mirror of base/command_line.h.
  * Android applications don't have command line arguments. Instead, they're "simulated" by reading a
  * file at a specific location early during startup. Applications each define their own files, e.g.,
- * ContentShellActivity.COMMAND_LINE_FILE or ChromiumTestShellApplication.COMMAND_LINE_FILE.
+ * ContentShellActivity.COMMAND_LINE_FILE or ChromeShellApplication.COMMAND_LINE_FILE.
 **/
 public abstract class CommandLine {
     // Public abstract interface, implemented in derived classes.

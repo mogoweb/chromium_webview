@@ -6,6 +6,7 @@ package org.chromium.base;
 
 import android.content.ContentResolver;
 import android.content.Context;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
@@ -13,7 +14,7 @@ import android.util.Log;
 /**
  * This class provides methods to access content URI schemes.
  */
-abstract class ContentUriUtils {
+public abstract class ContentUriUtils {
     private static final String TAG = "ContentUriUtils";
 
     // Prevent instantiation.
@@ -70,5 +71,36 @@ abstract class ContentUriUtils {
             Log.w(TAG, "Cannot find content uri: " + uriString, e);
         }
         return pfd;
+    }
+
+    /**
+     * Method to resolve the display name of a content URI.
+     *
+     * @param uri the content URI to be resolved.
+     * @param contentResolver the content resolver to query.
+     * @param columnField the column field to query.
+     * @returns the display name of the @code uri if present in the database
+     *  or an empty string otherwise.
+     */
+    public static String getDisplayName(
+            Uri uri, ContentResolver contentResolver, String columnField) {
+        if (contentResolver == null || uri == null) return "";
+        Cursor cursor = null;
+        try {
+            cursor = contentResolver.query(uri, null, null, null, null);
+
+            if (cursor != null && cursor.getCount() >= 1) {
+                cursor.moveToFirst();
+                int index = cursor.getColumnIndex(columnField);
+                if (index > -1) return cursor.getString(index);
+            }
+        } catch (NullPointerException e) {
+            // Some android models don't handle the provider call correctly.
+            // see crbug.com/345393
+            return "";
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        return "";
     }
 }

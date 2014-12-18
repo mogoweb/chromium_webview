@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -47,12 +47,14 @@ public class WebContentsDelegateAndroid {
     }
 
     /**
-     * @param disposition The new tab disposition as per the constants in
-     *                    org.chromium.ui.WindowOpenDisposition (See window_open_disposition_list.h
-     *                    for the enumeration definitions).
+     * @param disposition         The new tab disposition as per the constants in
+     *                            org.chromium.ui.WindowOpenDisposition (See
+     *                            window_open_disposition_list.h for the enumeration definitions).
+     * @param isRendererInitiated Whether or not the renderer initiated this action.
      */
     @CalledByNative
-    public void openNewTab(String url, String extraHeaders, byte[] postData, int disposition) {
+    public void openNewTab(String url, String extraHeaders, byte[] postData, int disposition,
+            boolean isRendererInitiated) {
     }
 
     @CalledByNative
@@ -73,6 +75,10 @@ public class WebContentsDelegateAndroid {
 
     @CalledByNative
     public void navigationStateChanged(int flags) {
+    }
+
+    @CalledByNative
+    public void visibleSSLStateChanged() {
     }
 
     @SuppressWarnings("unused")

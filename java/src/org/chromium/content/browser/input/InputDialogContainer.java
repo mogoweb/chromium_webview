@@ -5,7 +5,6 @@
 package org.chromium.content.browser.input;
 
 import android.app.AlertDialog;
-import android.app.DatePickerDialog;
 import android.app.DatePickerDialog.OnDateSetListener;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -17,6 +16,7 @@ import android.widget.DatePicker;
 import android.widget.ListView;
 import android.widget.TimePicker;
 
+import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.content.R;
 import org.chromium.content.browser.input.DateTimePickerDialog.OnDateTimeSetListener;
 import org.chromium.content.browser.input.MultiFieldTimePickerDialog.OnMultiFieldTimeSetListener;
@@ -216,7 +216,7 @@ public class InputDialogContainer {
         int stepTime = (int) step;
 
         if (dialogType == sTextInputTypeDate) {
-            DatePickerDialog dialog = new DatePickerDialog(mContext,
+            ChromeDatePickerDialog dialog = new ChromeDatePickerDialog(mContext,
                     new DateListener(dialogType),
                     year, month, monthDay);
             DateDialogNormalizer.normalize(dialog.getDatePicker(), dialog,
@@ -247,10 +247,11 @@ public class InputDialogContainer {
             mDialog = new WeekPickerDialog(mContext, new MonthOrWeekListener(dialogType),
                     year, week, min, max);
         }
-
-        mDialog.setButton(DialogInterface.BUTTON_POSITIVE,
-                mContext.getText(R.string.date_picker_dialog_set),
-                (DialogInterface.OnClickListener) mDialog);
+        if (ApiCompatibilityUtils.datePickerRequiresAccept()) {
+            mDialog.setButton(DialogInterface.BUTTON_POSITIVE,
+                    mContext.getText(R.string.date_picker_dialog_set),
+                    (DialogInterface.OnClickListener) mDialog);
+        }
 
         mDialog.setButton(DialogInterface.BUTTON_NEGATIVE,
                 mContext.getText(android.R.string.cancel),

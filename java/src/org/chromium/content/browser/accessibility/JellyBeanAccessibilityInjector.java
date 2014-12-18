@@ -15,6 +15,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -142,7 +143,8 @@ class JellyBeanAccessibilityInjector extends AccessibilityInjector {
         }
 
         final String jsonString = mAccessibilityJSONObject.toString();
-        final String jsCode = String.format(ACCESSIBILITY_ANDROIDVOX_TEMPLATE, jsonString);
+        final String jsCode = String.format(Locale.US, ACCESSIBILITY_ANDROIDVOX_TEMPLATE,
+                jsonString);
         return mCallback.performAction(mContentViewCore, jsCode);
     }
 
@@ -181,8 +183,8 @@ class JellyBeanAccessibilityInjector extends AccessibilityInjector {
          */
         private boolean performAction(ContentViewCore contentView, String code) {
             final int resultId = mResultIdCounter.getAndIncrement();
-            final String js = String.format(JAVASCRIPT_ACTION_TEMPLATE, code, mInterfaceName,
-                    resultId);
+            final String js = String.format(Locale.US, JAVASCRIPT_ACTION_TEMPLATE, code,
+                    mInterfaceName, resultId);
             contentView.evaluateJavaScript(js, null);
 
             return getResultAndClear(resultId);

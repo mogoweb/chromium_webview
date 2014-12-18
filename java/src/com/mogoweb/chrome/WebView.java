@@ -19,9 +19,8 @@
 
 package com.mogoweb.chrome;
 
+import java.io.BufferedWriter;
 import java.util.Map;
-
-import org.chromium.content.browser.LoadUrlParams;
 
 import android.content.Context;
 import android.content.res.Configuration;
@@ -37,17 +36,20 @@ import android.os.Bundle;
 import android.os.Looper;
 import android.os.Message;
 import android.os.StrictMode;
+import android.security.KeyChain;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewDebug;
 import android.view.ViewGroup;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityNodeProvider;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
+import android.webkit.URLUtil;
 import android.webkit.ValueCallback;
 import android.widget.AbsoluteLayout;
 
@@ -62,9 +64,6 @@ import com.mogoweb.chrome.impl.WebViewProvider;
  * It uses the WebKit rendering engine to display
  * web pages and includes methods to navigate forward and backward
  * through a history, zoom in and out, perform text searches and more.</p>
- * <p>To enable the built-in zoom, set
- * {@link #getSettings() WebSettings}.{@link WebSettings#setBuiltInZoomControls(boolean)}
- * (introduced in API level {@link android.os.Build.VERSION_CODES#CUPCAKE}).
  * <p>Note that, in order for your Activity to access the Internet and load web pages
  * in a WebView, you must add the {@code INTERNET} permissions to your
  * Android Manifest file:</p>
@@ -94,7 +93,7 @@ import com.mogoweb.chrome.impl.WebViewProvider;
  * </pre>
  * <p>See {@link android.content.Intent} for more information.</p>
  *
- * <p>To provide a WebView in your own Activity, include a {@code <WebView>} in your layout,
+ * <p>To provide a WebView in your own Activity, include a {@code &lt;WebView&gt;} in your layout,
  * or set the entire Activity window as a WebView during {@link
  * android.app.Activity#onCreate(Bundle) onCreate()}:</p>
  * <pre class="prettyprint">
@@ -165,8 +164,17 @@ import com.mogoweb.chrome.impl.WebViewProvider;
  *   }
  * });
  *
- * webview.loadUrl("http://slashdot.org/");
+ * webview.loadUrl("http://developer.android.com/");
  * </pre>
+ *
+ * <h3>Zoom</h3>
+ *
+ * <p>To enable the built-in zoom, set
+ * {@link #getSettings() WebSettings}.{@link WebSettings#setBuiltInZoomControls(boolean)}
+ * (introduced in API level {@link android.os.Build.VERSION_CODES#CUPCAKE}).</p>
+ * <p>NOTE: Using zoom if either the height or width is set to
+ * {@link android.view.ViewGroup.LayoutParams#WRAP_CONTENT} may lead to undefined behavior
+ * and should be avoided.</p>
  *
  * <h3>Cookie and window management</h3>
  *
@@ -216,8 +224,7 @@ import com.mogoweb.chrome.impl.WebViewProvider;
  * and default scaling is not applied to the web page; if the value is "1.5", then the device is
  * considered a high density device (hdpi) and the page content is scaled 1.5x; if the
  * value is "0.75", then the device is considered a low density device (ldpi) and the content is
- * scaled 0.75x. However, if you specify the {@code "target-densitydpi"} meta property
- * (discussed below), then you can stop this default scaling behavior.</li>
+ * scaled 0.75x.</li>
  * <li>The {@code -webkit-device-pixel-ratio} CSS media query. Use this to specify the screen
  * densities for which this style sheet is to be used. The corresponding value should be either
  * "0.75", "1", or "1.5", to indicate that the styles are for devices with low density, medium
@@ -227,20 +234,6 @@ import com.mogoweb.chrome.impl.WebViewProvider;
  * <p>The {@code hdpi.css} stylesheet is only used for devices with a screen pixel ration of 1.5,
  * which is the high density pixel ratio.</p>
  * </li>
- * <li>The {@code target-densitydpi} property for the {@code viewport} meta tag. You can use
- * this to specify the target density for which the web page is designed, using the following
- * values:
- * <ul>
- * <li>{@code device-dpi} - Use the device's native dpi as the target dpi. Default scaling never
- * occurs.</li>
- * <li>{@code high-dpi} - Use hdpi as the target dpi. Medium and low density screens scale down
- * as appropriate.</li>
- * <li>{@code medium-dpi} - Use mdpi as the target dpi. High density screens scale up and
- * low density screens scale down. This is also the default behavior.</li>
- * <li>{@code low-dpi} - Use ldpi as the target dpi. Medium and high density screens scale up
- * as appropriate.</li>
- * <li><em>{@code <value>}</em> - Specify a dpi value to use as the target dpi (accepted
- * values are 70-400).</li>
  * </ul>
  * <p>Here's an example meta tag to specify the target density:</p>
  * <pre>&lt;meta name="viewport" content="target-densitydpi=device-dpi" /&gt;</pre></li>
@@ -260,14 +253,30 @@ import com.mogoweb.chrome.impl.WebViewProvider;
  * {@link WebChromeClient#getVideoLoadingProgressView()} is optional.
  * </p>
  */
+// Implementation notes.
+// The WebView is a thin API class that delegates its public API to a backend WebViewProvider
+// class instance. WebView extends {@link AbsoluteLayout} for backward compatibility reasons.
+// Methods are delegated to the provider implementation: all public API methods introduced in this
+// file are fully delegated, whereas public and protected methods from the View base classes are
+// only delegated where a specific need exists for them to do so.
+//@Widget
 public class WebView extends AbsoluteLayout {
+
+    /**
+     * Broadcast Action: Indicates the data reduction proxy setting changed.
+     * Sent by the settings app when user changes the data reduction proxy value. This intent will
+     * always stay as a hidden API.
+     * @hide
+     */
+    public static final String DATA_REDUCTION_PROXY_SETTING_CHANGED =
+            "android.webkit.DATA_REDUCTION_PROXY_SETTING_CHANGED";
 
     private static final String LOGTAG = "WebView";
 
     // Throwing an exception for incorrect thread usage if the
     // build target is JB MR2 or newer. Defaults to false, and is
     // set in the WebView constructor.
-    private static Boolean sEnforceThreadChecking = false;
+    private static volatile boolean sEnforceThreadChecking = false;
 
     /**
      *  Transportation object for returning WebView across thread boundaries.
@@ -440,10 +449,12 @@ public class WebView extends AbsoluteLayout {
      *
      * @param context a Context object used to access application assets
      * @param attrs an AttributeSet passed to our parent
-     * @param defStyle the default style resource ID
+     * @param defStyleAttr an attribute in the current theme that contains a
+     *        reference to a style resource that supplies default values for
+     *        the view. Can be 0 to not look for defaults.
      */
-    public WebView(Context context, AttributeSet attrs, int defStyle) {
-        super(context, attrs, defStyle);
+    public WebView(Context context, AttributeSet attrs, int defStyleAttr) {
+        super(context, attrs, defStyleAttr);
 
         if (context == null) {
             throw new IllegalArgumentException("Invalid context argument");
@@ -528,7 +539,7 @@ public class WebView extends AbsoluteLayout {
      * @param realm the realm to which the credentials apply
      * @param username the username
      * @param password the password
-     * @see getHttpAuthUsernamePassword
+     * @see #getHttpAuthUsernamePassword
      * @see WebViewDatabase#hasHttpAuthUsernamePassword
      * @see WebViewDatabase#clearHttpAuthUsernamePassword
      */
@@ -549,7 +560,7 @@ public class WebView extends AbsoluteLayout {
      * @return the credentials as a String array, if found. The first element
      *         is the username and the second element is the password. Null if
      *         no credentials are found.
-     * @see setHttpAuthUsernamePassword
+     * @see #setHttpAuthUsernamePassword
      * @see WebViewDatabase#hasHttpAuthUsernamePassword
      * @see WebViewDatabase#clearHttpAuthUsernamePassword
      */
@@ -630,7 +641,15 @@ public class WebView extends AbsoluteLayout {
      */
     public void loadUrl(String url, Map<String, String> additionalHttpHeaders) {
         checkThread();
-        if (DebugFlags.TRACE_API) Log.d(LOGTAG, "loadUrl(extra headers)=" + url);
+        if (DebugFlags.TRACE_API) {
+            StringBuilder headers = new StringBuilder();
+            if (additionalHttpHeaders != null) {
+                for (Map.Entry<String, String> entry : additionalHttpHeaders.entrySet()) {
+                    headers.append(entry.getKey() + ":" + entry.getValue() + "\n");
+                }
+            }
+            Log.d(LOGTAG, "loadUrl(extra headers)=" + url + "\n" + headers);
+        }
         mProvider.loadUrl(url, additionalHttpHeaders);
     }
 
@@ -647,16 +666,21 @@ public class WebView extends AbsoluteLayout {
 
     /**
      * Loads the URL with postData using "POST" method into this WebView. If url
-     * is not a network URL, it will be loaded with {link
-     * {@link #loadUrl(String)} instead.
+     * is not a network URL, it will be loaded with {@link #loadUrl(String)}
+     * instead, ignoring the postData param.
      *
      * @param url the URL of the resource to load
-     * @param postData the data will be passed to "POST" request
+     * @param postData the data will be passed to "POST" request, which must be
+     *     be "application/x-www-form-urlencoded" encoded.
      */
     public void postUrl(String url, byte[] postData) {
         checkThread();
         if (DebugFlags.TRACE_API) Log.d(LOGTAG, "postUrl=" + url);
-        mProvider.postUrl(url, postData);
+        if (URLUtil.isNetworkUrl(url)) {
+            mProvider.postUrl(url, postData);
+        } else {
+            mProvider.loadUrl(url);
+        }
     }
 
     /**
@@ -706,7 +730,10 @@ public class WebView extends AbsoluteLayout {
      * <p>
      * If the base URL uses the data scheme, this method is equivalent to
      * calling {@link #loadData(String,String,String) loadData()} and the
-     * historyUrl is ignored.
+     * historyUrl is ignored, and the data will be treated as part of a data: URL.
+     * If the base URL uses any other scheme, then the data will be loaded into
+     * the WebView as a plain string (i.e. not part of a data URL) and any URL-encoded
+     * entities in the string will not be decoded.
      *
      * @param baseUrl the URL to use as the page's base URL. If null defaults to
      *                'about:blank'.
@@ -719,9 +746,6 @@ public class WebView extends AbsoluteLayout {
      */
     public void loadDataWithBaseURL(String baseUrl, String data,
             String mimeType, String encoding, String historyUrl) {
-        LoadUrlParams loadUrlParams =
-                LoadUrlParams.createLoadDataParamsWithBaseUrl(data, mimeType,
-                        encoding.equals("base64"), baseUrl, historyUrl);
         checkThread();
         if (DebugFlags.TRACE_API) Log.d(LOGTAG, "loadDataWithBaseURL=" + baseUrl);
         mProvider.loadDataWithBaseURL(baseUrl, data, mimeType, encoding, historyUrl);
@@ -919,10 +943,18 @@ public class WebView extends AbsoluteLayout {
     }
 
     /**
-     * Sets the initial scale for this WebView. 0 means default. If
-     * {@link WebSettings#getUseWideViewPort()} is true, it zooms out all the
-     * way. Otherwise it starts with 100%. If initial scale is greater than 0,
-     * WebView starts with this value as initial scale.
+     * Sets the initial scale for this WebView. 0 means default.
+     * The behavior for the default scale depends on the state of
+     * {@link WebSettings#getUseWideViewPort()} and
+     * {@link WebSettings#getLoadWithOverviewMode()}.
+     * If the content fits into the WebView control by width, then
+     * the zoom is set to 100%. For wide content, the behavor
+     * depends on the state of {@link WebSettings#getLoadWithOverviewMode()}.
+     * If its value is true, the content will be zoomed out to be fit
+     * by width into the WebView control, otherwise not.
+     *
+     * If initial scale is greater than 0, WebView starts with this value
+     * as initial scale.
      * Please note that unlike the scale properties in the viewport meta tag,
      * this method doesn't take the screen density into account.
      *
@@ -1181,6 +1213,22 @@ public class WebView extends AbsoluteLayout {
     }
 
     /**
+     * Clears the client certificate preferences stored in response
+     * to proceeding/cancelling client cert requests. Note that Webview
+     * automatically clears these preferences when it receives a
+     * {@link KeyChain#ACTION_STORAGE_CHANGED} intent. The preferences are
+     * shared by all the webviews that are created by the embedder application.
+     *
+     * @param onCleared  A runnable to be invoked when client certs are cleared.
+     *                   The embedder can pass null if not interested in the
+     *                   callback. The runnable will be called in UI thread.
+     */
+    public static void clearClientCertPreferences(Runnable onCleared) {
+        if (DebugFlags.TRACE_API) Log.d(LOGTAG, "clearClientCertPreferences");
+        getFactory().getStatics().clearClientCertPreferences(onCleared);
+    }
+
+    /**
      * Gets the WebBackForwardList for this WebView. This contains the
      * back/forward list for use in querying each item in the history stack.
      * This is a copy of the private WebBackForwardList so it contains only a
@@ -1191,6 +1239,7 @@ public class WebView extends AbsoluteLayout {
     public WebBackForwardList copyBackForwardList() {
         checkThread();
         return mProvider.copyBackForwardList();
+
     }
 
     /**
@@ -1275,7 +1324,27 @@ public class WebView extends AbsoluteLayout {
      * @return the address, or if no address is found, null
      */
     public static String findAddress(String addr) {
+        // TODO: Rewrite this in Java so it is not needed to start up chromium
+        // Could also be deprecated
         return getFactory().getStatics().findAddress(addr);
+    }
+
+    /**
+     * For apps targeting the L release, WebView has a new default behavior that reduces
+     * memory footprint and increases performance by intelligently choosing
+     * the portion of the HTML document that needs to be drawn. These
+     * optimizations are transparent to the developers. However, under certain
+     * circumstances, an App developer may want to disable them:
+     * 1. When an app uses {@link #onDraw} to do own drawing and accesses portions
+     * of the page that is way outside the visible portion of the page.
+     * 2. When an app uses {@link #capturePicture} to capture a very large HTML document.
+     * Note that capturePicture is a deprecated API.
+     *
+     * Enabling drawing the entire HTML document has a significant performance
+     * cost. This method should be called before any WebViews are created.
+     */
+    public static void enableSlowWholeDocumentDraw() {
+        getFactory().getStatics().enableSlowWholeDocumentDraw();
     }
 
     /**
@@ -1361,9 +1430,12 @@ public class WebView extends AbsoluteLayout {
      * <ul>
      * <li> This method can be used to allow JavaScript to control the host
      * application. This is a powerful feature, but also presents a security
-     * risk for applications targeted to API level
-     * {@link android.os.Build.VERSION_CODES#JELLY_BEAN} or below, because
-     * JavaScript could use reflection to access an
+     * risk for apps targeting {@link android.os.Build.VERSION_CODES#JELLY_BEAN} or earlier.
+     * Apps that target a version later than {@link android.os.Build.VERSION_CODES#JELLY_BEAN}
+     * are still vulnerable if the app runs on a device running Android earlier than 4.2.
+     * The most secure way to use this method is to target {@link android.os.Build.VERSION_CODES#JELLY_BEAN_MR1}
+     * and to ensure the method is called only when running on Android 4.2 or later.
+     * With these older versions, JavaScript could use reflection to access an
      * injected object's public fields. Use of this method in a WebView
      * containing untrusted content could allow an attacker to manipulate the
      * host application in unintended ways, executing Java code with the
@@ -1371,8 +1443,12 @@ public class WebView extends AbsoluteLayout {
      * method in a WebView which could contain untrusted content.</li>
      * <li> JavaScript interacts with Java object on a private, background
      * thread of this WebView. Care is therefore required to maintain thread
-     * safety.</li>
+     * safety.
+     * </li>
      * <li> The Java object's fields are not accessible.</li>
+     * <li> For applications targeted to API level {@link android.os.Build.VERSION_CODES#LOLLIPOP}
+     * and above, methods of injected Java objects are enumerable from
+     * JavaScript.</li>
      * </ul>
      *
      * @param object the Java object to inject into this WebView's JavaScript
@@ -1429,6 +1505,22 @@ public class WebView extends AbsoluteLayout {
         checkThread();
         if (DebugFlags.TRACE_API) Log.d(LOGTAG, "flingScroll");
         mProvider.flingScroll(vx, vy);
+    }
+
+
+    /**
+     * Performs a zoom operation in this WebView.
+     *
+     * @param zoomFactor the zoom factor to apply. The zoom factor will be clamped to the Webview's
+     * zoom limits. This value must be in the range 0.01 to 100.0 inclusive.
+     */
+    public void zoomBy(float zoomFactor) {
+        checkThread();
+        if (zoomFactor < 0.01)
+            throw new IllegalArgumentException("zoomFactor must be greater than 0.01.");
+        if (zoomFactor > 100.0)
+            throw new IllegalArgumentException("zoomFactor must be less than 100.");
+        mProvider.zoomBy(zoomFactor);
     }
 
     /**
@@ -1661,6 +1753,7 @@ public class WebView extends AbsoluteLayout {
                     "(Expected Looper " + mWebViewThread + " called on " + Looper.myLooper() +
                     ", FYI main Looper is " + Looper.getMainLooper() + ")");
             Log.w(LOGTAG, Log.getStackTraceString(throwable));
+//            StrictMode.onWebViewMethodCalledOnWrongThread(throwable);
 
             if (sEnforceThreadChecking) {
                 throw new RuntimeException(throwable);
@@ -1916,5 +2009,17 @@ public class WebView extends AbsoluteLayout {
     protected void dispatchDraw(Canvas canvas) {
         mProvider.getViewDelegate().preDispatchDraw(canvas);
         super.dispatchDraw(canvas);
+    }
+
+    @Override
+    public void onStartTemporaryDetach() {
+        super.onStartTemporaryDetach();
+        mProvider.getViewDelegate().onStartTemporaryDetach();
+    }
+
+    @Override
+    public void onFinishTemporaryDetach() {
+        super.onFinishTemporaryDetach();
+        mProvider.getViewDelegate().onFinishTemporaryDetach();
     }
 }

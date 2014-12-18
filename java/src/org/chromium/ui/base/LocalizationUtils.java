@@ -4,10 +4,11 @@
 
 package org.chromium.ui.base;
 
-import android.os.Build;
-import android.text.TextUtils;
+import android.content.res.Configuration;
 import android.view.View;
 
+import org.chromium.base.ApiCompatibilityUtils;
+import org.chromium.base.ApplicationStatus;
 import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
 
@@ -23,6 +24,8 @@ public class LocalizationUtils {
     public static final int UNKNOWN_DIRECTION = 0;
     public static final int RIGHT_TO_LEFT = 1;
     public static final int LEFT_TO_RIGHT = 2;
+
+    private static Boolean sIsLayoutRtl;
 
     private LocalizationUtils() { /* cannot be instantiated */ }
 
@@ -61,24 +64,25 @@ public class LocalizationUtils {
     }
 
     /**
-     * @return true if the system default layout direction is RTL, false otherwise.
-     *         RTL layout support is from Jelly Bean MR1, so if the version is lower
-     *         than that, it is always false.
+     * Returns whether the Android layout direction is RTL.
+     *
+     * Note that the locale direction can be different from layout direction. Two known cases:
+     * - RTL languages on Android 4.1, due to the lack of RTL layout support on 4.1.
+     * - When user turned on force RTL layout option under developer options.
+     *
+     * Therefore, only this function should be used to query RTL for layout purposes.
      */
-    public static boolean isSystemLayoutDirectionRtl() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            return TextUtils.getLayoutDirectionFromLocale(Locale.getDefault())
-                    == View.LAYOUT_DIRECTION_RTL;
+    @CalledByNative
+    public static boolean isLayoutRtl() {
+        if (sIsLayoutRtl == null) {
+            Configuration configuration =
+                    ApplicationStatus.getApplicationContext().getResources().getConfiguration();
+            sIsLayoutRtl = Boolean.valueOf(
+                    ApiCompatibilityUtils.getLayoutDirection(configuration) ==
+                    View.LAYOUT_DIRECTION_RTL);
         }
-        return false;
-    }
 
-    /**
-     * Jni binding to base::i18n::IsRTL.
-     * @return true if the current locale is right to left.
-     */
-    public static boolean isRtl() {
-        return nativeIsRTL();
+        return sIsLayoutRtl.booleanValue();
     }
 
     /**
@@ -99,8 +103,6 @@ public class LocalizationUtils {
     public static String getDurationString(long timeInMillis) {
         return nativeGetDurationString(timeInMillis);
     }
-
-    private static native boolean nativeIsRTL();
 
     private static native int nativeGetFirstStrongCharacterDirection(String string);
 

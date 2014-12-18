@@ -7,7 +7,7 @@
 <resources>
     <color name="color_picker_border_color">#B0B0B0</color>
     <color name="color_picker_background_color">#FFFFFF</color>
-    <color name="autofill_divider_color">#E5E5E5</color>
-    <color name="autofill_dark_divider_color">#C0C0C0</color>
+    <color name="dropdown_divider_color">#E5E5E5</color>
+    <color name="dropdown_dark_divider_color">#C0C0C0</color>
 </resources>
 

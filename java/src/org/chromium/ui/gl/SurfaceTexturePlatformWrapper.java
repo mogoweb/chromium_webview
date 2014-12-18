@@ -26,6 +26,12 @@ class SurfaceTexturePlatformWrapper {
     }
 
     @CalledByNative
+    private static SurfaceTexture createSingleBuffered(int textureId) {
+        assert Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT;
+        return new SurfaceTexture(textureId, true);
+    }
+
+    @CalledByNative
     private static void destroy(SurfaceTexture surfaceTexture) {
         surfaceTexture.setOnFrameAvailableListener(null);
         surfaceTexture.release();
@@ -45,6 +51,12 @@ class SurfaceTexturePlatformWrapper {
         } catch (RuntimeException e) {
             Log.e(TAG, "Error calling updateTexImage", e);
         }
+    }
+
+    @CalledByNative
+    private static void releaseTexImage(SurfaceTexture surfaceTexture) {
+        assert Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT;
+        surfaceTexture.releaseTexImage();
     }
 
     @CalledByNative

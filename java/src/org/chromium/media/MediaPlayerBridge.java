@@ -8,6 +8,8 @@ import android.content.Context;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Build;
+import android.os.ParcelFileDescriptor;
 import android.text.TextUtils;
 import android.util.Base64;
 import android.util.Base64InputStream;
@@ -42,7 +44,7 @@ public class MediaPlayerBridge {
     private long mNativeMediaPlayerBridge;
 
     @CalledByNative
-    private static MediaPlayerBridge create(long  nativeMediaPlayerBridge) {
+    private static MediaPlayerBridge create(long nativeMediaPlayerBridge) {
         return new MediaPlayerBridge(nativeMediaPlayerBridge);
     }
 
@@ -143,10 +145,29 @@ public class MediaPlayerBridge {
         if (hideUrlLog) headersMap.put("x-hide-urls-from-log", "true");
         if (!TextUtils.isEmpty(cookies)) headersMap.put("Cookie", cookies);
         if (!TextUtils.isEmpty(userAgent)) headersMap.put("User-Agent", userAgent);
+        // The security origin check is enforced for devices above K. For devices below K,
+        // only anonymous media HTTP request (no cookies) may be considered same-origin.
+        // Note that if the server rejects the request we must not consider it same-origin.
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.KITKAT) {
+            headersMap.put("allow-cross-domain-redirect", "false");
+        }
         try {
             getLocalPlayer().setDataSource(context, uri, headersMap);
             return true;
         } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @CalledByNative
+    protected boolean setDataSourceFromFd(int fd, long offset, long length) {
+        try {
+            ParcelFileDescriptor parcelFd = ParcelFileDescriptor.adoptFd(fd);
+            getLocalPlayer().setDataSource(parcelFd.getFileDescriptor(), offset, length);
+            parcelFd.close();
+            return true;
+        } catch (IOException e) {
+            Log.e(TAG, "Failed to set data source from file descriptor: " + e);
             return false;
         }
     }

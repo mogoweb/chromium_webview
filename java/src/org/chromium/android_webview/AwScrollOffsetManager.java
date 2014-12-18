@@ -65,7 +65,8 @@ public class AwScrollOffsetManager {
     // Whether we're in the middle of processing a touch event.
     private boolean mProcessingTouchEvent;
 
-    private boolean mFlinging;
+    // Don't skip computeScrollAndAbsorbGlow just because isFling is called in between.
+    private boolean mWasFlinging;
 
     // Whether (and to what value) to update the native side scroll offset after we've finished
     // processing a touch event.
@@ -163,7 +164,9 @@ public class AwScrollOffsetManager {
     }
 
     public boolean isFlingActive() {
-        return mFlinging;
+        boolean flinging = mScroller.computeScrollOffset();
+        mWasFlinging |= flinging;
+        return flinging;
     }
 
     // Called by the native side to over-scroll the container view.
@@ -278,10 +281,10 @@ public class AwScrollOffsetManager {
 
     // Called immediately before the draw to update the scroll offset.
     public void computeScrollAndAbsorbGlow(OverScrollGlow overScrollGlow) {
-        mFlinging = mScroller.computeScrollOffset();
-        if (!mFlinging) {
+        if (!mScroller.computeScrollOffset() && !mWasFlinging) {
             return;
         }
+        mWasFlinging = false;
 
         final int oldX = mDelegate.getContainerViewScrollX();
         final int oldY = mDelegate.getContainerViewScrollY();

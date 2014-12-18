@@ -20,6 +20,8 @@ PROGDIR=$(dirname "$0")
 # Location of Chromium-top-level sources.
 CHROMIUM_SRC=$(cd "$PROGDIR"/.. && pwd 2>/dev/null)
 
+PATH=$PATH:$CHROMIUM_SRC/third_party/android_tools/ndk/toolchains/arm-linux-androideabi-4.8/prebuilt/linux-x86_64/bin
+
 BUILDTYPE=Debug
 CHROMIUMVIEW_PROJECT_ROOT=java
 SHELLVIEW_TEST_PROJECT_ROOT=testshell/javatests
@@ -78,7 +80,7 @@ rsync -avz ${CHROMIUM_SRC}/ui/android/java/resource_map/ ${CHROMIUMVIEW_PROJECT_
 # sync content resources
 sync_content_resources() {
     # Sync content resources such as drawable, layout, etc. Assume they are not duplicate.
-    local resfolders=(drawable drawable-hdpi drawable-xhdpi layout layout-land menu mipmap-hdpi mipmap-mdpi mipmap-xhdpi mipmap-xxhdpi)
+    local resfolders=(drawable-hdpi drawable-mdpi drawable-xhdpi drawable-xxhdpi layout layout-land menu mipmap-hdpi mipmap-mdpi mipmap-xhdpi mipmap-xxhdpi)
     for folder in ${resfolders[*]}
     do
         rsync -avz ${CHROMIUM_SRC}/content/public/android/java/res/$folder/ ${CHROMIUMVIEW_PROJECT_ROOT}/res/$folder/
@@ -92,11 +94,12 @@ sync_content_resources() {
     done
 
     # Sync content strings. They are generated form grit
-    local gritfolders=(values values-zh-rCN)
-    for gritfolder in ${gritfolders[*]}
-    do
-        rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/gen/content_java/res_grit/$gritfolder/ ${CHROMIUMVIEW_PROJECT_ROOT}/res/$gritfolder/
-    done
+    # not found?
+    #local gritfolders=(values values-zh-rCN)
+    #for gritfolder in ${gritfolders[*]}
+    #do
+    #    rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/gen/content_java/res_grit/$gritfolder/ ${CHROMIUMVIEW_PROJECT_ROOT}/res/$gritfolder/
+    #done
 }
 
 # sync ui resources
@@ -116,11 +119,12 @@ sync_ui_resources() {
     done
 
     # Sync ui strings. They are generated form grit
-    local gritfolders=(values values-zh-rCN)
-    for gritfolder in ${gritfolders[*]}
-    do
-        rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/gen/ui_java/res_grit/$gritfolder/ ${CHROMIUMVIEW_PROJECT_ROOT}/res/$gritfolder/
-    done
+    # not found?
+    #local gritfolders=(values values-zh-rCN)
+    #for gritfolder in ${gritfolders[*]}
+    #do
+    #    rsync -avz ${CHROMIUM_SRC}/out/${BUILDTYPE}/gen/ui_java/res_grit/$gritfolder/ ${CHROMIUMVIEW_PROJECT_ROOT}/res/$gritfolder/
+    #done
 }
 
 sync_content_resources

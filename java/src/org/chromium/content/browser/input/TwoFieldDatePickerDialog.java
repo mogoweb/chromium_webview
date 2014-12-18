@@ -8,7 +8,6 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnClickListener;
-import android.os.Build;
 
 import org.chromium.content.R;
 import org.chromium.content.browser.input.TwoFieldDatePicker.OnMonthOrWeekChangedListener;
@@ -95,18 +94,6 @@ public abstract class TwoFieldDatePickerDialog extends AlertDialog implements On
             mPicker.clearFocus();
             mCallBack.onValueSet(mPicker.getYear(), mPicker.getPositionInYear());
         }
-    }
-
-    @Override
-    protected void onStop() {
-        if (Build.VERSION.SDK_INT >= 16) {
-            // The default behavior of dialogs changed in JellyBean and onwards.
-            // Dismissing a dialog (by pressing back for example)
-            // applies the chosen date. This code is added here so that the custom
-            // pickers behave the same as the internal DatePickerDialog.
-            tryNotifyDateSet();
-        }
-        super.onStop();
     }
 
     @Override

@@ -1,0 +1,14 @@
+// Copyright 2014 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package org.chromium.base;
+
+// A simple auto-generated interface used to list the various
+// states of an application as used by both org.chromium.base.ApplicationStatus
+// and base/android/application_status.h
+public interface ApplicationState {
+#define DEFINE_APPLICATION_STATE(x,y) public final int x = y;
+#include "base/android/application_state_list.h"
+#undef DEFINE_APPLICATION_STATE
+}

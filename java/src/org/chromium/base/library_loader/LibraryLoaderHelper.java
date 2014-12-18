@@ -133,10 +133,7 @@ public class LibraryLoaderHelper {
         sLibrariesWereUnpacked = true;
 
         File libDir = getWorkaroundLibDir(context);
-        if (libDir.exists()) {
-            assert libDir.isDirectory();
-            deleteDirectorySync(libDir);
-        }
+        deleteDirectorySync(libDir);
 
         try {
             ApplicationInfo appInfo = context.getApplicationInfo();
@@ -210,19 +207,14 @@ public class LibraryLoaderHelper {
      *
      * @param context
      */
-    static void deleteWorkaroundLibrariesAsynchronously(Context context) {
+    static void deleteWorkaroundLibrariesAsynchronously(final Context context) {
         // Child process should not reach here.
-        final File libDir = getWorkaroundLibDir(context);
-        if (libDir.exists()) {
-            assert libDir.isDirectory();
-            // Async deletion
-            new Thread() {
-                @Override
-                public void run() {
-                    deleteDirectorySync(libDir);
-                }
-            }.start();
-        }
+        new Thread() {
+            @Override
+            public void run() {
+                deleteWorkaroundLibrariesSynchronously(context);
+            }
+        }.start();
     }
 
     /**
@@ -232,9 +224,7 @@ public class LibraryLoaderHelper {
      */
     public static void deleteWorkaroundLibrariesSynchronously(Context context) {
         File libDir = getWorkaroundLibDir(context);
-        if (libDir.exists()) {
-            deleteDirectorySync(libDir);
-        }
+        deleteDirectorySync(libDir);
     }
 
     private static void deleteDirectorySync(File dir) {

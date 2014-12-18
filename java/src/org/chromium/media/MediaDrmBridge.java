@@ -22,6 +22,7 @@ import org.chromium.base.JNINamespace;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.UUID;
@@ -31,7 +32,7 @@ import java.util.UUID;
  * sessions for a single MediaSourcePlayer.
  */
 @JNINamespace("media")
-class MediaDrmBridge {
+public class MediaDrmBridge {
     // Implementation Notes:
     // - A media crypto session (mMediaCryptoSession) is opened after MediaDrm
     //   is created. This session will be added to mSessionIds.
@@ -237,6 +238,15 @@ class MediaDrmBridge {
             Log.e(TAG, "Cannot open a new session", e);
             release();
             return null;
+        } catch (android.media.NotProvisionedException e) {
+            // Throw NotProvisionedException so that we can startProvisioning().
+            throw e;
+        } catch (android.media.MediaDrmException e) {
+            // Other MediaDrmExceptions (e.g. ResourceBusyException) are not
+            // recoverable.
+            Log.e(TAG, "Cannot open a new session", e);
+            release();
+            return null;
         }
     }
 
@@ -254,7 +264,6 @@ class MediaDrmBridge {
      * Check whether the crypto scheme is supported for the given container.
      * If |containerMimeType| is an empty string, we just return whether
      * the crypto scheme is supported.
-     * TODO(qinmin): Implement the checking for container.
      *
      * @return true if the container and the crypto scheme is supported, or
      * false otherwise.
@@ -262,7 +271,12 @@ class MediaDrmBridge {
     @CalledByNative
     private static boolean isCryptoSchemeSupported(byte[] schemeUUID, String containerMimeType) {
         UUID cryptoScheme = getUUIDFromBytes(schemeUUID);
-        return MediaDrm.isCryptoSchemeSupported(cryptoScheme);
+
+        if (containerMimeType.isEmpty()) {
+            return MediaDrm.isCryptoSchemeSupported(cryptoScheme);
+        }
+
+        return MediaDrm.isCryptoSchemeSupported(cryptoScheme, containerMimeType);
     }
 
     /**
@@ -273,7 +287,7 @@ class MediaDrmBridge {
      * @param nativeMediaDrmBridge Native object of this class.
      */
     @CalledByNative
-    private static MediaDrmBridge create(byte[] schemeUUID, int nativeMediaDrmBridge) {
+    private static MediaDrmBridge create(byte[] schemeUUID, long nativeMediaDrmBridge) {
         UUID cryptoScheme = getUUIDFromBytes(schemeUUID);
         if (cryptoScheme == null || !MediaDrm.isCryptoSchemeSupported(cryptoScheme)) {
             return null;
@@ -872,6 +886,15 @@ class MediaDrmBridge {
         }
     }
 
+    public static void addKeySystemUuidMapping(String keySystem, UUID uuid) {
+        ByteBuffer uuidBuffer = ByteBuffer.allocateDirect(16);
+        // MSB (byte) should be positioned at the first element.
+        uuidBuffer.order(ByteOrder.BIG_ENDIAN);
+        uuidBuffer.putLong(uuid.getMostSignificantBits());
+        uuidBuffer.putLong(uuid.getLeastSignificantBits());
+        nativeAddKeySystemUuidMapping(keySystem, uuidBuffer);
+    }
+
     private native void nativeOnMediaCryptoReady(long nativeMediaDrmBridge);
 
     private native void nativeOnSessionCreated(long nativeMediaDrmBridge, int sessionId,
@@ -888,4 +911,6 @@ class MediaDrmBridge {
 
     private native void nativeOnResetDeviceCredentialsCompleted(
             long nativeMediaDrmBridge, boolean success);
+
+    private static native void nativeAddKeySystemUuidMapping(String keySystem, ByteBuffer uuid);
 }

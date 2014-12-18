@@ -8,12 +8,12 @@ import java.util.ArrayList;
 
 /**
  * {@link NavigationHistory} captures a snapshot of the navigation history of a
- * {@link ContentView}. It is a copy and will not be updated as navigation
- * occurs on the source {@link ContentView}.
+ * {@link ContentViewCore}. It is a copy and will not be updated as navigation
+ * occurs on the source {@link ContentViewCore}.
  */
 public class NavigationHistory {
 
-    private ArrayList<NavigationEntry> mEntries = new ArrayList<NavigationEntry>();
+    private final ArrayList<NavigationEntry> mEntries = new ArrayList<NavigationEntry>();
     private int mCurrentEntryIndex;
 
     protected void addEntry(NavigationEntry entry) {
@@ -39,7 +39,7 @@ public class NavigationHistory {
     }
 
     /**
-     * Returns the index of the entry the {@link ContentView} was navigated to
+     * Returns the index of the entry the {@link ContentViewCore} was navigated to
      * when the history was fetched.
      */
     public int getCurrentEntryIndex() {

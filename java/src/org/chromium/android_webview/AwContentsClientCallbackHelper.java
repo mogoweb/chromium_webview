@@ -10,6 +10,8 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.SystemClock;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import java.util.concurrent.Callable;
 
 /**
@@ -18,7 +20,8 @@ import java.util.concurrent.Callable;
  * Most callbacks do no go through here, but get forwarded to AwContentsClient directly. The
  * messages processed here may originate from the IO or UI thread.
  */
-class AwContentsClientCallbackHelper {
+@VisibleForTesting
+public class AwContentsClientCallbackHelper {
 
     // TODO(boliu): Consider removing DownloadInfo and LoginRequestInfo by using native
     // MessageLoop to post directly to AwContents.

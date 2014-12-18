@@ -13,6 +13,10 @@ import org.chromium.content.browser.ContentViewCore;
 /**
  * Subclass of BrowserAccessibilityManager for KitKat that creates an
  * AccessibilityNodeProvider and delegates its implementation to this object.
+ *
+ * THIS CLASS IS NOT USED! A bug in the KitKat framework prevents us
+ * from using these new APIs. We can re-enable this class after the next
+ * Android system update. http://crbug.com/348088/
  */
 @JNINamespace("content")
 public class KitKatBrowserAccessibilityManager extends JellyBeanBrowserAccessibilityManager {

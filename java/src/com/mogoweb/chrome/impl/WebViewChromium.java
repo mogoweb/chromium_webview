@@ -31,11 +31,14 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 
 import org.chromium.android_webview.AwContents;
+import org.chromium.android_webview.AwContentsStatics;
 import org.chromium.android_webview.AwPrintDocumentAdapter;
 import org.chromium.android_webview.AwSettings;
 import org.chromium.base.ThreadUtils;
 import org.chromium.content.browser.LoadUrlParams;
 
+import android.content.Context;
+import android.content.ContextWrapper;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -62,6 +65,7 @@ import android.view.accessibility.AccessibilityNodeProvider;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient.CustomViewCallback;
 import android.widget.TextView;
 
 import com.mogoweb.chrome.DownloadListener;
@@ -140,6 +144,11 @@ class WebViewChromium implements WebViewProvider,
 
     private WebViewChromiumFactoryProvider mFactory;
 
+    private static boolean sRecordWholeDocumentEnabledByApi = false;
+    static void enableSlowWholeDocumentDraw() {
+        sRecordWholeDocumentEnabledByApi = true;
+    }
+
     // This does not touch any global / non-threadsafe state, but note that
     // init is ofter called right after and is NOT threadsafe.
     public WebViewChromium(WebViewChromiumFactoryProvider factory, WebView webView,
@@ -150,6 +159,8 @@ class WebViewChromium implements WebViewProvider,
         mAppTargetSdkVersion = mWebView.getContext().getApplicationInfo().targetSdkVersion;
         mFactory = factory;
         mRunQueue = new WebViewChromiumRunQueue();
+//        String webViewAssetPath = WebViewFactory.getLoadedPackageInfo().applicationInfo.sourceDir;
+//        mWebView.getContext().getAssets().addAssetPath(webViewAssetPath);
     }
 
     static void completeWindowCreation(WebView parent, WebView child) {
@@ -231,6 +242,13 @@ class WebViewChromium implements WebViewProvider,
                 mWebView.getContext(), isAccessFromFileURLsGrantedByDefault,
                 areLegacyQuirksEnabled));
 
+        if (mAppTargetSdkVersion <= Build.VERSION_CODES.KITKAT) {
+            mWebSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+            // On KK and older versions we always allowed third party cookies.
+            mWebSettings.setAcceptThirdPartyCookies(true);
+            mWebSettings.getAwSettings().setZeroLayoutHeightDisablesViewportQuirk(true);
+        }
+
         mRunQueue.addTask(new Runnable() {
                 @Override
                 public void run() {
@@ -246,16 +264,63 @@ class WebViewChromium implements WebViewProvider,
         });
     }
 
+    // Wrap Context so that we can use resources from the webview resource apk.
+    private static Context resourcesContextWrapper(final Context ctx) {
+        return new ContextWrapper(ctx) {
+            @Override
+            public ClassLoader getClassLoader() {
+                final ClassLoader appCl = getBaseContext().getClassLoader();
+                final ClassLoader webViewCl = this.getClass().getClassLoader();
+                return new ClassLoader() {
+                    @Override
+                    protected Class<?> findClass(String name) throws ClassNotFoundException {
+                        // First look in the WebViewProvider class loader.
+                        try {
+                            return webViewCl.loadClass(name);
+                        } catch (ClassNotFoundException e) {
+                            // Look in the app class loader; allowing it to throw ClassNotFoundException.
+                            return appCl.loadClass(name);
+                        }
+                    }
+                };
+            }
+
+//            @Override
+//            public Object getSystemService(String name) {
+//                if (name.equals(Context.LAYOUT_INFLATER_SERVICE)) {
+//                    LayoutInflater i = (LayoutInflater) getBaseContext().getSystemService(name);
+//                    return i.cloneInContext(this);
+//                } else {
+//                    return getBaseContext().getSystemService(name);
+//                }
+//            }
+
+        };
+    }
+
     private void initForReal() {
-        mAwContents = new AwContents(mFactory.getBrowserContext(), mWebView,
-                new InternalAccessAdapter(), mContentsClientAdapter,
-                mWebSettings.getAwSettings());
+        Context ctx = resourcesContextWrapper(mWebView.getContext());
+        mAwContents = new AwContents(mFactory.getBrowserContext(), mWebView, ctx,
+                new InternalAccessAdapter(), new WebViewNativeGLDelegate(),
+                mContentsClientAdapter, mWebSettings.getAwSettings());
 
         if (mAppTargetSdkVersion >= Build.VERSION_CODES.KITKAT) {
             // On KK and above, favicons are automatically downloaded as the method
             // old apps use to enable that behavior is deprecated.
             AwContents.setShouldDownloadFavicons();
         }
+
+        AwContentsStatics.setRecordFullDocument(sRecordWholeDocumentEnabledByApi ||
+                mAppTargetSdkVersion < Build.VERSION_CODES.L);
+
+        if (mAppTargetSdkVersion <= Build.VERSION_CODES.KITKAT) {
+            // On KK and older versions, JavaScript objects injected via addJavascriptInterface
+            // were not inspectable.
+            mAwContents.disableJavascriptInterfacesInspection();
+        }
+
+        // TODO: This assumes AwContents ignores second Paint param.
+        mAwContents.setLayerType(mWebView.getLayerType(), null);
     }
 
     void startYourEngine() {
@@ -596,16 +661,6 @@ class WebViewChromium implements WebViewProvider,
             }
         }
         loadUrlOnUiThread(loadUrlParams);
-
-        // Data url's with a base url will be resolved in Blink, and not cause an onPageStarted
-        // event to be sent. Sending the callback directly from here.
-        final String finalBaseUrl = loadUrlParams.getBaseUrl();
-        ThreadUtils.postOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                mContentsClientAdapter.onPageStarted(finalBaseUrl);
-            }
-        });
     }
 
     private void loadUrlOnUiThread(final LoadUrlParams loadUrlParams) {
@@ -831,12 +886,6 @@ class WebViewChromium implements WebViewProvider,
             return ret;
         }
         return mAwContents.capturePicture();
-    }
-
-    @Override
-    public PrintDocumentAdapter createPrintDocumentAdapter() {
-        checkThread();
-        return new AwPrintDocumentAdapter(mAwContents.getPdfExporter());
     }
 
     @Override
@@ -1277,8 +1326,50 @@ class WebViewChromium implements WebViewProvider,
 
     @Override
     public void setWebChromeClient(WebChromeClient client) {
+        mWebSettings.getAwSettings().setFullscreenSupported(doesSupportFullscreen(client));
         mContentsClientAdapter.setWebChromeClient(client);
     }
+
+    /**
+     * Returns true if the supplied {@link WebChromeClient} supports fullscreen.
+     *
+     * <p>For fullscreen support, implementations of {@link WebChromeClient#onShowCustomView}
+     * and {@link WebChromeClient#onHideCustomView()} are required.
+     */
+    private boolean doesSupportFullscreen(WebChromeClient client) {
+        if (client == null) {
+            return false;
+        }
+        // If client is not a subclass of WebChromeClient then the methods have not been
+        // implemented because WebChromeClient has empty implementations.
+        if (client.getClass().isAssignableFrom(WebChromeClient.class)) {
+            return false;
+        }
+        try {
+            client.getClass().getDeclaredMethod("onShowCustomView", View.class,
+                    CustomViewCallback.class);
+            client.getClass().getDeclaredMethod("onHideCustomView");
+            return true;
+        } catch (NoSuchMethodException e) {
+            return false;
+        }
+    }
+
+//    @Override
+//    public void setPictureListener(final WebView.PictureListener listener) {
+//        if (checkNeedsPost()) {
+//            mRunQueue.addTask(new Runnable() {
+//                @Override
+//                public void run() {
+//                    setPictureListener(listener);
+//                }
+//            });
+//            return;
+//        }
+//        mContentsClientAdapter.setPictureListener(listener);
+//        mAwContents.enableOnNewPicture(listener != null,
+//                mAppTargetSdkVersion >= Build.VERSION_CODES.JELLY_BEAN_MR2);
+//    }
 
     @Override
     public void addJavascriptInterface(final Object obj, final String interfaceName) {
@@ -1393,6 +1484,14 @@ class WebViewChromium implements WebViewProvider,
             return ret;
         }
         return mAwContents.zoomOut();
+    }
+
+    @Override
+    public boolean zoomBy(float factor) {
+        mFactory.startYourEngines(true);
+        // This is an L API and therefore we can enforce stricter threading constraints.
+        checkThread();
+        return mAwContents.zoomBy(factor);
     }
 
     @Override
@@ -1699,20 +1798,7 @@ class WebViewChromium implements WebViewProvider,
             return;
         }
 
-        Runnable detachAwContents = new Runnable() {
-            @Override
-            public void run() {
-                mAwContents.onDetachedFromWindow();
-            }
-        };
-
-        if (mGLfunctor == null /*|| !mWebView.executeHardwareAction(detachAwContents)*/) {
-            detachAwContents.run();
-        }
-
-        if (mGLfunctor != null) {
-            mGLfunctor.detach();
-        }
+        mAwContents.onDetachedFromWindow();
     }
 
     @Override
@@ -1914,14 +2000,34 @@ class WebViewChromium implements WebViewProvider,
     }
 
     @Override
-    public void setLayerType(int layerType, Paint paint) {
-        // Intentional no-op
+    public void setLayerType(final int layerType, final Paint paint) {
+        // This can be called from WebView constructor in which case mAwContents
+        // is still null. We set the layer type in initForReal in that case.
+        if (mAwContents == null) return;
+        if (checkNeedsPost()) {
+            ThreadUtils.postOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    setLayerType(layerType, paint);
+                }
+            });
+            return;
+        }
+        mAwContents.setLayerType(layerType, paint);
     }
 
     // Remove from superclass
     public void preDispatchDraw(Canvas canvas) {
         // TODO(leandrogracia): remove this method from WebViewProvider if we think
         // we won't need it again.
+    }
+
+    public void onStartTemporaryDetach() {
+        mAwContents.onStartTemporaryDetach();
+    }
+
+    public void onFinishTemporaryDetach() {
+        mAwContents.onFinishTemporaryDetach();
     }
 
     // WebViewProvider.ScrollDelegate implementation ----------------------------------------------
@@ -2016,6 +2122,39 @@ class WebViewChromium implements WebViewProvider,
         mAwContents.computeScroll();
     }
 
+    // TODO(sgurun) this is only to have master-gpl compiling.
+    public PrintDocumentAdapter createPrintDocumentAdapter() {
+         return createPrintDocumentAdapter("default");
+    }
+
+    //@Override TODO(sgurun) commenting this out to have master-gpl compiling.
+    public PrintDocumentAdapter createPrintDocumentAdapter(String documentName) {
+        checkThread();
+        return new AwPrintDocumentAdapter(mAwContents.getPdfExporter(), documentName);
+    }
+
+    // AwContents.NativeGLDelegate implementation --------------------------------------
+    private class WebViewNativeGLDelegate implements AwContents.NativeGLDelegate {
+        @Override
+        public boolean requestDrawGL(Canvas canvas, boolean waitForCompletion,
+                View containerView) {
+//            if (mGLfunctor == null) {
+//                mGLfunctor = new DrawGLFunctor(mAwContents.getAwDrawGLViewContext());
+//            }
+//            return mGLfunctor.requestDrawGL(
+//                    (HardwareCanvas) canvas, containerView.getViewRootImpl(), waitForCompletion);
+            // TODO
+            return false;
+        }
+
+        @Override
+        public void detachGLFunctor() {
+            if (mGLfunctor != null) {
+                mGLfunctor.detach();
+            }
+        }
+    }
+
     // AwContents.InternalAccessDelegate implementation --------------------------------------
     private class InternalAccessAdapter implements AwContents.InternalAccessDelegate {
         @Override
@@ -2072,9 +2211,9 @@ class WebViewChromium implements WebViewProvider,
 
         @Override
         public void onScrollChanged(int l, int t, int oldl, int oldt) {
-//            mWebViewPrivate.setScrollXRaw(l);
-//            mWebViewPrivate.setScrollYRaw(t);
-            mWebViewPrivate.onScrollChanged(l, t, oldl, oldt);
+            // Intentional no-op.
+            // Chromium calls this directly to trigger accessibility events. That isn't needed
+            // for WebView since super_scrollTo invokes onScrollChanged for us.
         }
 
         @Override
@@ -2097,12 +2236,9 @@ class WebViewChromium implements WebViewProvider,
             mWebViewPrivate.setMeasuredDimension(measuredWidth, measuredHeight);
         }
 
-        @Override
-        public boolean requestDrawGL(Canvas canvas) {
-            if (mGLfunctor == null) {
-                mGLfunctor = new DrawGLFunctor(mAwContents.getAwDrawGLViewContext());
-            }
-            return mGLfunctor.requestDrawGL(canvas, mWebView);
+        // @Override
+        public boolean super_onHoverEvent(MotionEvent event) {
+            return mWebViewPrivate.super_onHoverEvent(event);
         }
     }
 }

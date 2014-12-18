@@ -20,6 +20,8 @@
 package com.mogoweb.chrome.impl;
 
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
 
 import com.mogoweb.chrome.CookieManager;
 import com.mogoweb.chrome.GeolocationPermissions;
@@ -47,23 +49,39 @@ public interface WebViewFactoryProvider {
         String findAddress(String addr);
 
         /**
-         * Implements the API methods:
-         * {@link android.webkit.WebView#enablePlatformNotifications()}
-         * {@link android.webkit.WebView#disablePlatformNotifications()}
-         */
-        void setPlatformNotificationsEnabled(boolean enable);
-
-        /**
          * Implements the API method:
          * {@link android.webkit.WebSettings#getDefaultUserAgent(Context) }
          */
         String getDefaultUserAgent(Context context);
 
         /**
+         * Used for tests only.
+         */
+         void freeMemoryForTests();
+
+        /**
          * Implements the API method:
          * {@link android.webkit.WebView#setWebContentsDebuggingEnabled(boolean) }
          */
         void setWebContentsDebuggingEnabled(boolean enable);
+
+        /**
+         * Implements the API method:
+         * {@link android.webkit.WebView#clearClientCertPreferences(Runnable) }
+         */
+        void clearClientCertPreferences(Runnable onCleared);
+
+        /**
+         * Implements the API method:
+         * {@link android.webkit.WebView#setSlowWholeDocumentDrawEnabled(boolean) }
+         */
+        void enableSlowWholeDocumentDraw();
+
+        /**
+         * Implement the API method
+         * {@link android.webkit.WebChromeClient.FileChooserParams#parseResult(int, Intent)}
+         */
+        Uri[] parseFileChooserResult(int resultCode, Intent intent);
     }
 
     Statics getStatics();

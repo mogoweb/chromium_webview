@@ -23,6 +23,7 @@ import android.graphics.Bitmap;
 import android.net.http.SslError;
 import android.os.Message;
 import android.view.KeyEvent;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 
 public class WebViewClient {
@@ -34,6 +35,7 @@ public class WebViewClient {
      * proper handler for the url. If WebViewClient is provided, return true
      * means the host application handles the url, while return false means the
      * current WebView handles the url.
+     * This method is not called for requests using the POST "method".
      *
      * @param view The WebView that is initiating the callback.
      * @param url The url to be loaded.
@@ -85,9 +87,9 @@ public class WebViewClient {
      * Notify the host application of a resource request and allow the
      * application to return the data.  If the return value is null, the WebView
      * will continue to load the resource as usual.  Otherwise, the return
-     * response and data will be used.  NOTE: This method is called by the
-     * network thread so clients should exercise caution when accessing private
-     * data.
+     * response and data will be used.  NOTE: This method is called on a thread
+     * other than the UI thread so clients should exercise caution
+     * when accessing private data or the view system.
      *
      * @param view The {@link android.webkit.WebView} that is requesting the
      *             resource.
@@ -95,10 +97,51 @@ public class WebViewClient {
      * @return A {@link android.webkit.WebResourceResponse} containing the
      *         response information or null if the WebView should load the
      *         resource itself.
+     * @deprecated Use {@link #shouldInterceptRequest(WebView, WebResourceRequest)
+     *             shouldInterceptRequest(WebView, WebResourceRequest)} instead.
      */
+    @Deprecated
     public WebResourceResponse shouldInterceptRequest(WebView view,
             String url) {
         return null;
+    }
+
+    /**
+     * Notify the host application of a resource request and allow the
+     * application to return the data.  If the return value is null, the WebView
+     * will continue to load the resource as usual.  Otherwise, the return
+     * response and data will be used.  NOTE: This method is called on a thread
+     * other than the UI thread so clients should exercise caution
+     * when accessing private data or the view system.
+     *
+     * @param view The {@link android.webkit.WebView} that is requesting the
+     *             resource.
+     * @param request Object containing the details of the request.
+     * @return A {@link android.webkit.WebResourceResponse} containing the
+     *         response information or null if the WebView should load the
+     *         resource itself.
+     */
+    public WebResourceResponse shouldInterceptRequest(WebView view,
+            WebResourceRequest request) {
+        return shouldInterceptRequest(view, request.getUrl().toString());
+    }
+
+    /**
+     * Notify the host application that there have been an excessive number of
+     * HTTP redirects. As the host application if it would like to continue
+     * trying to load the resource. The default behavior is to send the cancel
+     * message.
+     *
+     * @param view The WebView that is initiating the callback.
+     * @param cancelMsg The message to send if the host wants to cancel
+     * @param continueMsg The message to send if the host wants to continue
+     * @deprecated This method is no longer called. When the WebView encounters
+     *             a redirect loop, it will cancel the load.
+     */
+    @Deprecated
+    public void onTooManyRedirects(WebView view, Message cancelMsg,
+            Message continueMsg) {
+        cancelMsg.sendToTarget();
     }
 
     // These ints must match up to the hidden values in EventHandler.

@@ -5,6 +5,7 @@
 package org.chromium.base;
 
 import android.os.Build;
+import android.os.StrictMode;
 import android.util.Log;
 
 import java.io.BufferedReader;
@@ -52,6 +53,8 @@ public class SysUtils {
         // complicated.
 
         Pattern pattern = Pattern.compile("^MemTotal:\\s+([0-9]+) kB$");
+        // Synchronously reading files in /proc in the UI thread is safe.
+        StrictMode.ThreadPolicy oldPolicy = StrictMode.allowThreadDiskReads();
         try {
             FileReader fileReader = new FileReader("/proc/meminfo");
             try {
@@ -85,6 +88,8 @@ public class SysUtils {
             }
         } catch (Exception e) {
             Log.w(TAG, "Cannot get total physical size from /proc/meminfo", e);
+        } finally {
+            StrictMode.setThreadPolicy(oldPolicy);
         }
 
         return 0;
@@ -99,13 +104,6 @@ public class SysUtils {
             sLowEndDevice = detectLowEndDevice();
         }
         return sLowEndDevice.booleanValue();
-    }
-
-    /**
-     * @return Whether isLowEndDevice() has ever been called.
-     */
-    public static boolean isLowEndStateInitialized() {
-        return (sLowEndDevice != null);
     }
 
     private static boolean detectLowEndDevice() {

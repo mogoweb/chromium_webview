@@ -121,7 +121,7 @@ class MediaPlayerListener implements MediaPlayer.OnPreparedListener,
     }
 
     @CalledByNative
-    private static MediaPlayerListener create(int nativeMediaPlayerListener,
+    private static MediaPlayerListener create(long nativeMediaPlayerListener,
             Context context, MediaPlayerBridge mediaPlayerBridge) {
         final MediaPlayerListener listener =
                 new MediaPlayerListener(nativeMediaPlayerListener, context);

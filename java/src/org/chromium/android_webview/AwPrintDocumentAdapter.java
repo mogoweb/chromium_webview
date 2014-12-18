@@ -23,24 +23,37 @@ public class AwPrintDocumentAdapter extends PrintDocumentAdapter {
 
     private AwPdfExporter mPdfExporter;
     private PrintAttributes mAttributes;
+    private String mDocumentName;
+
+    /**
+     * Constructor.
+     * TODO(sgurun) remove in favor of constructor below once the AOSP changes are in.
+     *
+     * @param pdfExporter The PDF exporter to export the webview contents to a PDF file.
+     */
+    public AwPrintDocumentAdapter(AwPdfExporter pdfExporter) {
+        this(pdfExporter, "default");
+    }
 
     /**
      * Constructor.
      *
      * @param pdfExporter The PDF exporter to export the webview contents to a PDF file.
+     * @param documentName  The name of the pdf document.
      */
-    public AwPrintDocumentAdapter(AwPdfExporter pdfExporter) {
+    public AwPrintDocumentAdapter(AwPdfExporter pdfExporter, String documentName) {
         mPdfExporter = pdfExporter;
+        mDocumentName = documentName;
     }
+
 
     @Override
     public void onLayout(PrintAttributes oldAttributes, PrintAttributes newAttributes,
             CancellationSignal cancellationSignal, LayoutResultCallback callback,
             Bundle metadata) {
         mAttributes = newAttributes;
-        // TODO(sgurun) pass a meaningful string once b/10705082 is resolved
         PrintDocumentInfo documentInfo = new PrintDocumentInfo
-                .Builder("webview")
+                .Builder(mDocumentName)
                 .build();
         // TODO(sgurun) once componentization is done, do layout changes and
         // generate PDF here, set the page range information to documentinfo

@@ -81,14 +81,14 @@ public class DefaultVideoPosterRequestHandler {
      * Used to get the image if the url is mDefaultVideoPosterURL.
      *
      * @param url the url requested
-     * @return InterceptedRequestData which caller can get the image if the url is
+     * @return AwWebResourceResponse which caller can get the image if the url is
      * the default video poster URL, otherwise null is returned.
      */
-    public InterceptedRequestData shouldInterceptRequest(final String url) {
+    public AwWebResourceResponse shouldInterceptRequest(final String url) {
         if (!mDefaultVideoPosterURL.equals(url)) return null;
 
         try {
-            return new InterceptedRequestData("image/png", null, getInputStream(mContentClient));
+            return new AwWebResourceResponse("image/png", null, getInputStream(mContentClient));
         } catch (IOException e) {
             Log.e(TAG, null, e);
             return null;

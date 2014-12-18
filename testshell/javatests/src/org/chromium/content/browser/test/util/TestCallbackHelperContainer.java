@@ -5,7 +5,7 @@
 package org.chromium.content.browser.test.util;
 
 
-import org.chromium.content.browser.ContentView;
+import org.chromium.base.ThreadUtils;
 import org.chromium.content.browser.ContentViewCore;
 
 import java.util.concurrent.TimeUnit;
@@ -15,13 +15,21 @@ import java.util.concurrent.TimeoutException;
  * This class is used to provide callback hooks for tests and related classes.
  */
 public class TestCallbackHelperContainer {
-    private TestContentViewClient mTestContentViewClient;
+    private final TestContentViewClient mTestContentViewClient;
     private TestWebContentsObserver mTestWebContentsObserver;
 
-    public TestCallbackHelperContainer(ContentView contentView) {
+    public TestCallbackHelperContainer(final ContentViewCore contentViewCore) {
         mTestContentViewClient = new TestContentViewClient();
-        contentView.getContentViewCore().setContentViewClient(mTestContentViewClient);
-        mTestWebContentsObserver = new TestWebContentsObserver(contentView.getContentViewCore());
+        contentViewCore.setContentViewClient(mTestContentViewClient);
+        // TODO(yfriedman): Change callers to be executed on the UI thread. Unfortunately this is
+        // super convenient as the caller is nearly always on the test thread which is fine to block
+        // and it's cumbersome to keep bouncing to the UI thread.
+        ThreadUtils.runOnUiThreadBlocking(new Runnable() {
+            @Override
+            public void run() {
+                mTestWebContentsObserver = new TestWebContentsObserver(contentViewCore);
+            }
+        });
     }
 
     protected TestCallbackHelperContainer(
@@ -30,6 +38,9 @@ public class TestCallbackHelperContainer {
         mTestWebContentsObserver = contentsObserver;
     }
 
+    /**
+     * CallbackHelper for OnPageFinished.
+     */
     public static class OnPageFinishedHelper extends CallbackHelper {
         private String mUrl;
         public void notifyCalled(String url) {
@@ -42,6 +53,9 @@ public class TestCallbackHelperContainer {
         }
     }
 
+    /**
+     * CallbackHelper for OnPageStarted.
+     */
     public static class OnPageStartedHelper extends CallbackHelper {
         private String mUrl;
         public void notifyCalled(String url) {
@@ -54,6 +68,9 @@ public class TestCallbackHelperContainer {
         }
     }
 
+    /**
+     * CallbackHelper for OnReceivedError.
+     */
     public static class OnReceivedErrorHelper extends CallbackHelper {
         private int mErrorCode;
         private String mDescription;
@@ -78,6 +95,11 @@ public class TestCallbackHelperContainer {
         }
     }
 
+    /**
+     * CallbackHelper for OnEvaluateJavaScriptResult.
+     * This class wraps the evaluation of JavaScript code allowing test code to
+     * synchronously evaluate JavaScript and then test the result.
+     */
     public static class OnEvaluateJavaScriptResultHelper extends CallbackHelper {
         private String mJsonResult;
 
@@ -152,6 +174,9 @@ public class TestCallbackHelperContainer {
         }
     }
 
+    /**
+     * CallbackHelper for OnStartContentIntent.
+     */
     public static class OnStartContentIntentHelper extends CallbackHelper {
         private String mIntentUrl;
         public void notifyCalled(String intentUrl) {
@@ -174,10 +199,6 @@ public class TestCallbackHelperContainer {
 
     public OnReceivedErrorHelper getOnReceivedErrorHelper() {
         return mTestWebContentsObserver.getOnReceivedErrorHelper();
-    }
-
-    public OnEvaluateJavaScriptResultHelper getOnEvaluateJavaScriptResultHelper() {
-        return mTestContentViewClient.getOnEvaluateJavaScriptResultHelper();
     }
 
     public OnStartContentIntentHelper getOnStartContentIntentHelper() {

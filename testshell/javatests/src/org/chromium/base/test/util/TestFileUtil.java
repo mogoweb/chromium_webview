@@ -44,7 +44,8 @@ public class TestFileUtil {
 
     public static void deleteFile(String name) {
         File file = new File(name);
-        file.delete();
+        boolean deleted = file.delete();
+        assert (deleted || !file.exists());
     }
 
     /**

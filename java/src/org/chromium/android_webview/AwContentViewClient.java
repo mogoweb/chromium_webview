@@ -9,10 +9,13 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.webkit.URLUtil;
 import android.webkit.WebChromeClient;
+import android.widget.FrameLayout;
 
+import org.chromium.base.CommandLine;
 import org.chromium.content.browser.ContentVideoView;
 import org.chromium.content.browser.ContentVideoViewClient;
 import org.chromium.content.browser.ContentViewClient;
+import org.chromium.content.common.ContentSwitches;
 
 /**
  * ContentViewClient implementation for WebView
@@ -21,7 +24,7 @@ public class AwContentViewClient extends ContentViewClient {
 
     private class AwContentVideoViewClient implements ContentVideoViewClient {
         @Override
-        public void onShowCustomView(View view) {
+        public boolean onShowCustomView(View view) {
             WebChromeClient.CustomViewCallback cb = new WebChromeClient.CustomViewCallback() {
                 @Override
                 public void onCustomViewHidden() {
@@ -30,11 +33,44 @@ public class AwContentViewClient extends ContentViewClient {
                         contentVideoView.exitFullscreen(false);
                 }
             };
+            // TODO(igsolla): remove the legacy path (kept as a fallback if things go awry).
+            if (!areHtmlControlsEnabled()) {
+                onShowCustomViewLegacy(view, cb);
+            } else {
+                onShowCustomView(view, cb);
+            }
+            return true;
+        }
+
+        private void onShowCustomViewLegacy(View view, WebChromeClient.CustomViewCallback cb) {
             mAwContentsClient.onShowCustomView(view, cb);
+        }
+
+        private void onShowCustomView(View view, WebChromeClient.CustomViewCallback cb) {
+            final FrameLayout viewGroup = new FrameLayout(mContext);
+            viewGroup.addView(view);
+            viewGroup.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+                @Override
+                public void onViewDetachedFromWindow(View v) {
+                    // Intentional no-op (see onDestroyContentVideoView).
+                }
+
+                @Override
+                public void onViewAttachedToWindow(View v) {
+                    if (mAwContents.isFullScreen()) {
+                        return;
+                    }
+                    viewGroup.addView(mAwContents.enterFullScreen());
+                }
+            });
+            mAwContentsClient.onShowCustomView(viewGroup, cb);
         }
 
         @Override
         public void onDestroyContentVideoView() {
+            if (areHtmlControlsEnabled()) {
+                mAwContents.exitFullScreen();
+            }
             mAwContentsClient.onHideCustomView();
         }
 
@@ -46,10 +82,16 @@ public class AwContentViewClient extends ContentViewClient {
 
     private AwContentsClient mAwContentsClient;
     private AwSettings mAwSettings;
+    private AwContents mAwContents;
+    private Context mContext;
 
-    public AwContentViewClient(AwContentsClient awContentsClient, AwSettings awSettings) {
+    public AwContentViewClient(
+            AwContentsClient awContentsClient, AwSettings awSettings, AwContents awContents,
+            Context context) {
         mAwContentsClient = awContentsClient;
         mAwSettings = awSettings;
+        mAwContents = awContents;
+        mContext = context;
     }
 
     @Override
@@ -82,5 +124,10 @@ public class AwContentViewClient extends ContentViewClient {
     public boolean shouldBlockMediaRequest(String url) {
         return mAwSettings != null ?
                 mAwSettings.getBlockNetworkLoads() && URLUtil.isNetworkUrl(url) : true;
+    }
+
+    private static boolean areHtmlControlsEnabled() {
+        return !CommandLine.getInstance().hasSwitch(
+                ContentSwitches.DISABLE_OVERLAY_FULLSCREEN_VIDEO_SUBTITLE);
     }
 }

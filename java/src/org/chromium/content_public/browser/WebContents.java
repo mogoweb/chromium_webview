@@ -12,4 +12,19 @@ public interface WebContents {
      * @return The navigation controller associated with this WebContents.
      */
     NavigationController getNavigationController();
+
+    /**
+     * @return The title for the current visible page.
+     */
+    String getTitle();
+
+    /**
+     * @return The URL for the current visible page.
+     */
+    String getVisibleUrl();
+
+    /**
+     * Stop any pending navigation.
+     */
+    void stop();
 }

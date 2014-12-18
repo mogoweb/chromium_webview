@@ -71,12 +71,18 @@ public class SelectActionModeCallback implements ActionMode.Callback {
          * @return Whether or not web search is available.
          */
         boolean isWebSearchAvailable();
+
+        /**
+         * @return true if the current selection is of password type.
+         */
+        boolean isSelectionPassword();
     }
 
     private final Context mContext;
     private final ActionHandler mActionHandler;
     private final boolean mIncognito;
     private boolean mEditable;
+    private boolean mIsPasswordType;
 
     protected SelectActionModeCallback(
             Context context, ActionHandler actionHandler, boolean incognito) {
@@ -94,6 +100,7 @@ public class SelectActionModeCallback implements ActionMode.Callback {
         mode.setTitle(null);
         mode.setSubtitle(null);
         mEditable = mActionHandler.isSelectionEditable();
+        mIsPasswordType = mActionHandler.isSelectionPassword();
         createActionMenu(mode, menu);
         return true;
     }
@@ -101,8 +108,10 @@ public class SelectActionModeCallback implements ActionMode.Callback {
     @Override
     public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
         boolean isEditableNow = mActionHandler.isSelectionEditable();
-        if (mEditable != isEditableNow) {
+        boolean isPasswordNow = mActionHandler.isSelectionPassword();
+        if (mEditable != isEditableNow || mIsPasswordType != isPasswordNow) {
             mEditable = isEditableNow;
+            mIsPasswordType = isPasswordNow;
             menu.clear();
             createActionMenu(mode, menu);
             return true;
@@ -126,6 +135,10 @@ public class SelectActionModeCallback implements ActionMode.Callback {
 
         if (mEditable || mIncognito || !mActionHandler.isWebSearchAvailable()) {
             menu.removeItem(R.id.select_action_menu_web_search);
+        }
+        if (mIsPasswordType) {
+            menu.removeItem(R.id.select_action_menu_copy);
+            menu.removeItem(R.id.select_action_menu_cut);
         }
     }
 

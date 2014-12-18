@@ -13,6 +13,7 @@ package org.chromium.content.browser;
  * Unless stated otherwise, all coordinates are in CSS (document) coordinate space.
  */
 public class RenderCoordinates {
+
     // Scroll offset from the native in CSS.
     private float mScrollXCss;
     private float mScrollYCss;
@@ -264,19 +265,6 @@ public class RenderCoordinates {
      * @return Current device scale factor (maps DIP pixels to physical pixels).
      */
     public float getDeviceScaleFactor() { return mDeviceScaleFactor; }
-
-    /**
-     * @return True if the page doesn't allow zoom-in/zoom-out.
-     */
-    public boolean hasFixedPageScale() { return mMinPageScaleFactor == mMaxPageScaleFactor; }
-
-    /**
-     * @return True if the page has a width=device-width or narrower viewport.
-     */
-    public boolean hasMobileViewport() {
-        float windowWidthDip = mPageScaleFactor * mLastFrameViewportWidthCss;
-        return mContentWidthCss <= windowWidthDip;
-    }
 
     /**
      * @return Maximum possible horizontal scroll in physical pixels.

@@ -4,6 +4,7 @@
 
 package org.chromium.content.common;
 
+import org.chromium.content.common.SurfaceWrapper;
 import android.view.Surface;
 
 interface IChildProcessCallback {
@@ -12,5 +13,7 @@ interface IChildProcessCallback {
   void establishSurfacePeer(
       int pid, in Surface surface, int primaryID, int secondaryID);
 
-  Surface getViewSurface(int surfaceId);
+  SurfaceWrapper getViewSurface(int surfaceId);
+
+  SurfaceWrapper getSurfaceTextureSurface(int primaryId, int secondaryId);
 }

@@ -30,6 +30,31 @@ public class UiUtils {
     /** The minimum size of the bottom margin below the app to detect a keyboard. */
     private static final float KEYBOARD_DETECT_BOTTOM_THRESHOLD_DP = 100;
 
+    /** A delegate that allows disabling keyboard visibility detection. */
+    private static KeyboardShowingDelegate sKeyboardShowingDelegate;
+
+    /**
+     * A delegate that can be implemented to override whether or not keyboard detection will be
+     * used.
+     */
+    public interface KeyboardShowingDelegate {
+        /**
+         * Will be called to determine whether or not to detect if the keyboard is visible.
+         * @param context A {@link Context} instance.
+         * @param view    A {@link View}.
+         * @return        Whether or not the keyboard check should be disabled.
+         */
+        boolean disableKeyboardCheck(Context context, View view);
+    }
+
+    /**
+     * Allows setting a delegate to override the default software keyboard visibility detection.
+     * @param delegate A {@link KeyboardShowingDelegate} instance.
+     */
+    public static void setKeyboardShowingDelegate(KeyboardShowingDelegate delegate) {
+        sKeyboardShowingDelegate = delegate;
+    }
+
     /**
      * Shows the software keyboard if necessary.
      * @param view The currently focused {@link View}, which would receive soft keyboard input.
@@ -54,15 +79,27 @@ public class UiUtils {
         return imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
     }
 
+    /**
+     * Detects whether or not the keyboard is showing.  This is a best guess as there is no
+     * standardized/foolproof way to do this.
+     * @param context A {@link Context} instance.
+     * @param view    A {@link View}.
+     * @return        Whether or not the software keyboard is visible and taking up screen space.
+     */
     public static boolean isKeyboardShowing(Context context, View view) {
+        if (sKeyboardShowingDelegate != null
+                && sKeyboardShowingDelegate.disableKeyboardCheck(context, view)) {
+            return false;
+        }
+
         View rootView = view.getRootView();
         if (rootView == null) return false;
         Rect appRect = new Rect();
         rootView.getWindowVisibleDisplayFrame(appRect);
-        final float screenHeight = context.getResources().getDisplayMetrics().heightPixels;
-        final float bottomMargin = Math.abs(appRect.bottom - screenHeight);
+
         final float density = context.getResources().getDisplayMetrics().density;
-        return bottomMargin > KEYBOARD_DETECT_BOTTOM_THRESHOLD_DP * density;
+        final float bottomMarginDp = Math.abs(rootView.getHeight() - appRect.height()) / density;
+        return bottomMarginDp > KEYBOARD_DETECT_BOTTOM_THRESHOLD_DP;
     }
 
     /**

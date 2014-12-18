@@ -5,6 +5,7 @@
 package org.chromium.android_webview;
 
 import android.content.res.Resources;
+import android.util.SparseArray;
 
 import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
@@ -12,8 +13,6 @@ import org.chromium.base.JNINamespace;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.ref.SoftReference;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 
@@ -36,19 +35,22 @@ public class AwResource {
     // String resource ID for the default text encoding to use.
     private static int STRING_DEFAULT_TEXT_ENCODING;
 
+    // Array resource ID for the configuration of platform specific key-systems.
+    private static int STRING_ARRAY_CONFIG_KEY_SYSTEM_UUID_MAPPING;
+
     // The embedder should inject a Resources object that will be used
     // to resolve Resource IDs into the actual resources.
     private static Resources sResources;
 
     // Loading some resources is expensive, so cache the results.
-    private static Map<Integer, SoftReference<String> > sResourceCache;
+    private static SparseArray<SoftReference<String>> sResourceCache;
 
     private static final int TYPE_STRING = 0;
     private static final int TYPE_RAW = 1;
 
     public static void setResources(Resources resources) {
         sResources = resources;
-        sResourceCache = new HashMap<Integer, SoftReference<String> >();
+        sResourceCache = new SparseArray<SoftReference<String>>();
     }
 
     public static void setErrorPageResources(int loaderror, int nodomain) {
@@ -58,6 +60,10 @@ public class AwResource {
 
     public static void setDefaultTextEncoding(int encoding) {
         STRING_DEFAULT_TEXT_ENCODING = encoding;
+    }
+
+    public static void setConfigKeySystemUuidMapping(int config) {
+        STRING_ARRAY_CONFIG_KEY_SYSTEM_UUID_MAPPING = config;
     }
 
     @CalledByNative
@@ -75,13 +81,18 @@ public class AwResource {
         return getResource(RAW_LOAD_ERROR, TYPE_RAW);
     }
 
+    public static String[] getConfigKeySystemUuidMapping() {
+        // No need to cache, since this should be called only once.
+        return sResources.getStringArray(STRING_ARRAY_CONFIG_KEY_SYSTEM_UUID_MAPPING);
+    }
+
     private static String getResource(int resid, int type) {
         assert resid != 0;
         assert sResources != null;
         assert sResourceCache != null;
 
-        String result = sResourceCache.get(resid) == null ?
-                null : sResourceCache.get(resid).get();
+        SoftReference<String> stringRef = sResourceCache.get(resid);
+        String result = stringRef == null ? null : stringRef.get();
         if (result == null) {
             switch (type) {
                 case TYPE_STRING:

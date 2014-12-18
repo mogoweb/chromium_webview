@@ -60,7 +60,11 @@ public class SelectPopupAdapter extends ArrayAdapter<SelectPopupItem> {
             if (mItems.get(position).getType() == PopupItemType.GROUP) {
                 // Currently select_dialog_multichoice uses CheckedTextViews.
                 // If that changes, the class cast will no longer be valid.
-                ((CheckedTextView) convertView).setCheckMarkDrawable(null);
+                // The WebView build cannot rely on this being the case, so
+                // we must check.
+                if (convertView instanceof CheckedTextView) {
+                    ((CheckedTextView) convertView).setCheckMarkDrawable(null);
+                }
             } else {
                 // Draw the disabled element in a disabled state.
                 convertView.setEnabled(false);

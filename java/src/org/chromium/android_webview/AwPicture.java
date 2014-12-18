@@ -6,7 +6,6 @@ package org.chromium.android_webview;
 
 import android.graphics.Canvas;
 import android.graphics.Picture;
-import android.graphics.Rect;
 
 import org.chromium.base.JNINamespace;
 import org.chromium.content.common.CleanupReference;
@@ -65,18 +64,13 @@ class AwPicture extends Picture {
         return nativeGetHeight(mNativeAwPicture);
     }
 
-    // Effectively a local variable of draw(), but held as a member to avoid GC churn.
-    private Rect mClipBoundsTemporary = new Rect();
-
     @Override
     public void draw(Canvas canvas) {
-        canvas.getClipBounds(mClipBoundsTemporary);
-        nativeDraw(mNativeAwPicture, canvas,
-                mClipBoundsTemporary.left, mClipBoundsTemporary.top,
-                mClipBoundsTemporary.right, mClipBoundsTemporary.bottom);
+        nativeDraw(mNativeAwPicture, canvas);
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public void writeToStream(OutputStream stream) {
         unsupportedOperation();
     }
@@ -88,7 +82,6 @@ class AwPicture extends Picture {
     private static native void nativeDestroy(long nativeAwPicture);
     private native int nativeGetWidth(long nativeAwPicture);
     private native int nativeGetHeight(long nativeAwPicture);
-    private native void nativeDraw(long nativeAwPicture, Canvas canvas,
-            int left, int top, int right, int bottom);
+    private native void nativeDraw(long nativeAwPicture, Canvas canvas);
 }
 

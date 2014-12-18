@@ -135,7 +135,7 @@ public interface AndroidKeyStore {
      * @return The EVP_PKEY handle, as a 32-bit integer (0 if not available)
      */
     @CalledByNative
-    int getOpenSSLHandleForPrivateKey(AndroidPrivateKey key);
+    long getOpenSSLHandleForPrivateKey(AndroidPrivateKey key);
 
     /**
      * Called when the native OpenSSL engine no longer needs access to the underlying key.

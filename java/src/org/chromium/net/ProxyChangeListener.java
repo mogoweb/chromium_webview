@@ -9,6 +9,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.Proxy;
+import android.os.Build;
+import android.util.Log;
 
 import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
@@ -92,18 +94,27 @@ public class ProxyChangeListener {
         // tne Android SDK, so we have to use reflection to get at it and invoke
         // methods on it. If we fail, return an empty proxy config (meaning
         // 'direct').
-        // TODO(ellyjones): once android.net.ProxyProperties is exported,
-        // rewrite this.
+        // TODO(sgurun): once android.net.ProxyInfo is public, rewrite this.
         private ProxyConfig extractNewProxy(Intent intent) {
             try {
-                final String CLASS_NAME = "android.net.ProxyProperties";
                 final String GET_HOST_NAME = "getHost";
                 final String GET_PORT_NAME = "getPort";
-                Object props = intent.getExtras().get("proxy");
+                String className;
+                String proxyInfo;
+                if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.KITKAT) {
+                    className = "android.net.ProxyProperties";
+                    proxyInfo = "proxy";
+                } else {
+                    className = "android.net.ProxyInfo";
+                    proxyInfo = "android.intent.extra.PROXY_INFO";
+                }
+
+                Object props = intent.getExtras().get(proxyInfo);
                 if (props == null) {
                     return null;
                 }
-                Class<?> cls = Class.forName(CLASS_NAME);
+
+                Class<?> cls = Class.forName(className);
                 Method getHostMethod = cls.getDeclaredMethod(GET_HOST_NAME);
                 Method getPortMethod = cls.getDeclaredMethod(GET_PORT_NAME);
 
@@ -112,14 +123,19 @@ public class ProxyChangeListener {
 
                 return new ProxyConfig(host, port);
             } catch (ClassNotFoundException ex) {
+                Log.e(TAG, "Using no proxy configuration due to exception:" + ex);
                 return null;
             } catch (NoSuchMethodException ex) {
+                Log.e(TAG, "Using no proxy configuration due to exception:" + ex);
                 return null;
             } catch (IllegalAccessException ex) {
+                Log.e(TAG, "Using no proxy configuration due to exception:" + ex);
                 return null;
             } catch (InvocationTargetException ex) {
+                Log.e(TAG, "Using no proxy configuration due to exception:" + ex);
                 return null;
             } catch (NullPointerException ex) {
+                Log.e(TAG, "Using no proxy configuration due to exception:" + ex);
                 return null;
             }
         }

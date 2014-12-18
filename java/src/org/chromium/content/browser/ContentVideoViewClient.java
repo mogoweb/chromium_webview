@@ -21,8 +21,9 @@ public interface ContentVideoViewClient {
     /**
      * Called when the video view is ready to be shown. Must be implemented.
      * @param view The view to show.
+     * @return whether the video is actually shown.
      */
-    public void onShowCustomView(View view);
+    public boolean onShowCustomView(View view);
 
     /**
      * Called when it's time to destroy the video view. Must be implemented.

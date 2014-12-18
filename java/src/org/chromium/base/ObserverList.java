@@ -45,6 +45,7 @@ public class ObserverList<E> implements Iterable<E> {
 
     public final List<E> mObservers = new ArrayList<E>();
     private int mIterationDepth = 0;
+    private int mCount = 0;
 
     public ObserverList() {}
 
@@ -53,34 +54,49 @@ public class ObserverList<E> implements Iterable<E> {
      * <p/>
      * An observer should not be added to the same list more than once. If an iteration is already
      * in progress, this observer will be not be visible during that iteration.
+     *
+     * @return true if the observer list changed as a result of the call.
      */
-    public void addObserver(E obs) {
+    public boolean addObserver(E obs) {
         // Avoid adding null elements to the list as they may be removed on a compaction.
         if (obs == null || mObservers.contains(obs)) {
-            assert false;
-            return;
+            return false;
         }
 
         // Structurally modifying the underlying list here. This means we
         // cannot use the underlying list's iterator to iterate over the list.
-        mObservers.add(obs);
+        boolean result = mObservers.add(obs);
+        assert result == true;
+
+        ++mCount;
+        return true;
     }
 
     /**
      * Remove an observer from the list if it is in the list.
+     *
+     * @return true if an element was removed as a result of this call.
      */
-    public void removeObserver(E obs) {
-        int index = mObservers.indexOf(obs);
+    public boolean removeObserver(E obs) {
+        if (obs == null) {
+            return false;
+        }
 
-        if (index == -1)
-            return;
+        int index = mObservers.indexOf(obs);
+        if (index == -1) {
+            return false;
+        }
 
         if (mIterationDepth == 0) {
             // No one is iterating over the list.
-            mObservers.remove(obs);
+            mObservers.remove(index);
         } else {
             mObservers.set(index, null);
         }
+        --mCount;
+        assert mCount >= 0;
+
+        return true;
     }
 
     public boolean hasObserver(E obs) {
@@ -88,6 +104,8 @@ public class ObserverList<E> implements Iterable<E> {
     }
 
     public void clear() {
+        mCount = 0;
+
         if (mIterationDepth == 0) {
             mObservers.clear();
             return;
@@ -114,6 +132,21 @@ public class ObserverList<E> implements Iterable<E> {
     }
 
     /**
+     * Returns the number of observers currently registered in the ObserverList.
+     * This is equivalent to the number of non-empty spaces in |mObservers|.
+     */
+    public int size() {
+        return mCount;
+    }
+
+    /**
+     * Returns true if the ObserverList contains no observers.
+     */
+    public boolean isEmpty() {
+        return mCount == 0;
+    }
+
+    /**
      * Compact the underlying list be removing null elements.
      * <p/>
      * Should only be called when mIterationDepth is zero.
@@ -134,11 +167,14 @@ public class ObserverList<E> implements Iterable<E> {
     private void decrementIterationDepthAndCompactIfNeeded() {
         mIterationDepth--;
         assert mIterationDepth >= 0;
-        if (mIterationDepth == 0)
-            compact();
+        if (mIterationDepth == 0) compact();
     }
 
-    private int getSize() {
+    /**
+     * Returns the size of the underlying storage of the ObserverList.
+     * It will take into account the empty spaces inside |mObservers|.
+     */
+    private int capacity() {
         return mObservers.size();
     }
 
@@ -153,14 +189,14 @@ public class ObserverList<E> implements Iterable<E> {
 
         private ObserverListIterator() {
             ObserverList.this.incrementIterationDepth();
-            mListEndMarker = ObserverList.this.getSize();
+            mListEndMarker = ObserverList.this.capacity();
         }
 
         @Override
         public void rewind() {
             compactListIfNeeded();
             ObserverList.this.incrementIterationDepth();
-            mListEndMarker = ObserverList.this.getSize();
+            mListEndMarker = ObserverList.this.capacity();
             mIsExhausted = false;
             mIndex = 0;
         }

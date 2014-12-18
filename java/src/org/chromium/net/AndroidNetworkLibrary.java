@@ -8,6 +8,7 @@ import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.security.KeyChain;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 
 import org.chromium.base.CalledByNative;
@@ -238,4 +239,32 @@ class AndroidNetworkLibrary {
             CertificateException, KeyStoreException {
         X509Util.clearTestRootCertificates();
     }
+
+    /**
+     * Returns the ISO country code equivalent of the current MCC.
+     */
+    @CalledByNative
+    private static String getNetworkCountryIso(Context context) {
+      TelephonyManager telephonyManager =
+          (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+      if (telephonyManager != null) {
+        return telephonyManager.getNetworkCountryIso();
+      }
+      return "";
+    }
+
+    /**
+     * Returns the MCC+MNC (mobile country code + mobile network code) as
+     * the numeric name of the current registered operator.
+     */
+    @CalledByNative
+    private static String getNetworkOperator(Context context) {
+      TelephonyManager telephonyManager =
+          (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+      if (telephonyManager != null) {
+        return telephonyManager.getNetworkOperator();
+      }
+      return "";
+    }
+
 }

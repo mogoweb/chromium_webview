@@ -14,7 +14,8 @@ import android.net.wifi.WifiManager;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 
-import org.chromium.base.ActivityStatus;
+import org.chromium.base.ApplicationState;
+import org.chromium.base.ApplicationStatus;
 
 /**
  * Used by the NetworkChangeNotifier to listens to platform changes in connectivity.
@@ -22,7 +23,7 @@ import org.chromium.base.ActivityStatus;
  * ACCESS_NETWORK_STATE permission.
  */
 public class NetworkChangeNotifierAutoDetect extends BroadcastReceiver
-        implements ActivityStatus.StateListener {
+        implements ApplicationStatus.ApplicationStateListener {
 
     /** Queries the ConnectivityManager for information about the current connection. */
     static class ConnectivityManagerDelegate {
@@ -107,7 +108,7 @@ public class NetworkChangeNotifierAutoDetect extends BroadcastReceiver
         mWifiManagerDelegate = new WifiManagerDelegate(context);
         mConnectionType = getCurrentConnectionType();
         mWifiSSID = getCurrentWifiSSID();
-        ActivityStatus.registerStateListener(this);
+        ApplicationStatus.registerApplicationStateListener(this);
     }
 
     /**
@@ -162,6 +163,8 @@ public class NetworkChangeNotifierAutoDetect extends BroadcastReceiver
                 return NetworkChangeNotifier.CONNECTION_WIFI;
             case ConnectivityManager.TYPE_WIMAX:
                 return NetworkChangeNotifier.CONNECTION_4G;
+            case ConnectivityManager.TYPE_BLUETOOTH:
+                return NetworkChangeNotifier.CONNECTION_BLUETOOTH;
             case ConnectivityManager.TYPE_MOBILE:
                 // Use information from TelephonyManager to classify the connection.
                 switch (mConnectivityManagerDelegate.getNetworkSubtype()) {
@@ -203,19 +206,13 @@ public class NetworkChangeNotifierAutoDetect extends BroadcastReceiver
         connectionTypeChanged();
     }
 
-    // ActivityStatus.StateListener
+    // ApplicationStatus.ApplicationStateListener
     @Override
-    public void onActivityStateChange(int state) {
-        if (state == ActivityStatus.RESUMED) {
-            // Note that this also covers the case where the main activity is created. The CREATED
-            // event is always followed by the RESUMED event. This is a temporary "hack" until
-            // http://crbug.com/176837 is fixed. The CREATED event can't be used reliably for now
-            // since its notification is deferred. This means that it can immediately follow a
-            // DESTROYED/STOPPED/... event which is problematic.
-            // TODO(pliard): fix http://crbug.com/176837.
+    public void onApplicationStateChange(int newState) {
+        if (newState == ApplicationState.HAS_RUNNING_ACTIVITIES) {
             connectionTypeChanged();
             registerReceiver();
-        } else if (state == ActivityStatus.PAUSED) {
+        } else if (newState == ApplicationState.HAS_PAUSED_ACTIVITIES) {
             unregisterReceiver();
         }
     }

@@ -271,7 +271,7 @@ public class BrowserStartupController {
 
         // Normally Main.java will have already loaded the library asynchronously, we only need
         // to load it here if we arrived via another flow, e.g. bookmark access & sync setup.
-        LibraryLoader.ensureInitialized(mContext);
+        LibraryLoader.ensureInitialized(mContext, true);
 
         // TODO(yfriedman): Remove dependency on a command line flag for this.
         DeviceUtils.addDeviceSpecificUserAgentSwitch(mContext);

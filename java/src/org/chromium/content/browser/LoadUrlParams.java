@@ -6,7 +6,9 @@ package org.chromium.content.browser;
 
 import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
+import org.chromium.content_public.Referrer;
 
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -17,39 +19,56 @@ import java.util.Map;
 @JNINamespace("content")
 public class LoadUrlParams {
     // Should match NavigationController::LoadUrlType exactly. See comments
-    // there for proper usage. Values are initialized in initializeConstants.
-    public static int LOAD_TYPE_DEFAULT;
-    public static int LOAD_TYPE_BROWSER_INITIATED_HTTP_POST;
-    public static int LOAD_TYPE_DATA;
+    // there for proper usage. initializeConstants() checks that the values
+    // are correct.
+    public static final int LOAD_TYPE_DEFAULT = 0;
+    public static final int LOAD_TYPE_BROWSER_INITIATED_HTTP_POST = 1;
+    public static final int LOAD_TYPE_DATA = 2;
 
     // Should match NavigationController::UserAgentOverrideOption exactly.
-    // See comments there for proper usage. Values are initialized in
-    // initializeConstants.
-    public static int UA_OVERRIDE_INHERIT;
-    public static int UA_OVERRIDE_FALSE;
-    public static int UA_OVERRIDE_TRUE;
+    // See comments there for proper usage. initializeConstants() checks that
+    // the values are correct.
+    public static final int UA_OVERRIDE_INHERIT = 0;
+    public static final int UA_OVERRIDE_FALSE = 1;
+    public static final int UA_OVERRIDE_TRUE = 2;
 
     // Fields with counterparts in NavigationController::LoadURLParams.
     // Package private so that ContentViewCore.loadUrl can pass them down to
     // native code. Should not be accessed directly anywhere else outside of
     // this class.
-    final String mUrl;
+    String mUrl;
     int mLoadUrlType;
     int mTransitionType;
-    int mUaOverrideOption;
+    Referrer mReferrer;
     private Map<String, String> mExtraHeaders;
+    private String mVerbatimHeaders;
+    int mUaOverrideOption;
     byte[] mPostData;
     String mBaseUrlForDataUrl;
     String mVirtualUrlForDataUrl;
     boolean mCanLoadLocalResources;
+    boolean mIsRendererInitiated;
 
+    /**
+     * Creates an instance with default page transition type.
+     * @param url the url to be loaded
+     */
     public LoadUrlParams(String url) {
-        // Check initializeConstants was called.
-        assert LOAD_TYPE_DEFAULT != LOAD_TYPE_BROWSER_INITIATED_HTTP_POST;
+        this(url, PageTransitionTypes.PAGE_TRANSITION_LINK);
+    }
 
+    /**
+     * Creates an instance with the given page transition type.
+     * @param url the url to be loaded
+     * @param transitionType the PageTransitionType constant corresponding to the load
+     */
+    public LoadUrlParams(String url, int transitionType) {
         mUrl = url;
+        mTransitionType = transitionType;
+
+        // Initialize other fields to defaults matching defaults of the native
+        // NavigationController::LoadUrlParams.
         mLoadUrlType = LOAD_TYPE_DEFAULT;
-        mTransitionType = PageTransitionTypes.PAGE_TRANSITION_LINK;
         mUaOverrideOption = UA_OVERRIDE_INHERIT;
         mPostData = null;
         mBaseUrlForDataUrl = null;
@@ -138,7 +157,7 @@ public class LoadUrlParams {
         // baseUrl and historyUrl.
         // TODO(joth): we should just append baseURL and historyURL here, and move the
         // WebView specific transform up to a wrapper factory function in android_webview/.
-        if (baseUrl == null || !baseUrl.toLowerCase().startsWith("data:")) {
+        if (baseUrl == null || !baseUrl.toLowerCase(Locale.US).startsWith("data:")) {
             params.setBaseUrlForDataUrl(baseUrl != null ? baseUrl : "about:blank");
             params.setVirtualUrlForDataUrl(historyUrl != null ? historyUrl : "about:blank");
         }
@@ -157,6 +176,13 @@ public class LoadUrlParams {
         params.setTransitionType(PageTransitionTypes.PAGE_TRANSITION_TYPED);
         params.setPostData(postData);
         return params;
+    }
+
+    /**
+     * Sets the url.
+     */
+    public void setUrl(String url) {
+        mUrl = url;
     }
 
     /**
@@ -197,11 +223,17 @@ public class LoadUrlParams {
     }
 
     /**
-     * Set user agent override option of this load. Defaults to UA_OVERRIDE_INHERIT.
-     * @param uaOption One of UA_OVERRIDE static constants above.
+     * @return the referrer of this load
      */
-    public void setOverrideUserAgent(int uaOption) {
-        mUaOverrideOption = uaOption;
+    public void setReferrer(Referrer referrer) {
+        mReferrer = referrer;
+    }
+
+    /**
+     * Sets the referrer of this load.
+     */
+    public Referrer getReferrer() {
+        return mReferrer;
     }
 
     /**
@@ -214,9 +246,18 @@ public class LoadUrlParams {
     }
 
     /**
-     * Return the extra headers as a single String separated by "\n", or null if no extra header
-     * is set. This form is suitable for passing to native
-     * NavigationController::LoadUrlParams::extra_headers.
+     * Return the extra headers as a map.
+     */
+    public Map<String, String> getExtraHeaders() {
+        return mExtraHeaders;
+    }
+
+    /**
+     * Return the extra headers as a single String separated by "\n", or null if no extra header is
+     * set. This form is suitable for passing to native
+     * NavigationController::LoadUrlParams::extra_headers. This will return the headers set in an
+     * exploded form through setExtraHeaders(). Embedders that work with extra headers in opaque
+     * collapsed form can use the setVerbatimHeaders() / getVerbatimHeaders() instead.
      */
     String getExtraHeadersString() {
         return getExtraHeadersString("\n", false);
@@ -239,7 +280,7 @@ public class LoadUrlParams {
             if (headerBuilder.length() > 0) headerBuilder.append(delimiter);
 
             // Header name should be lower case.
-            headerBuilder.append(header.getKey().toLowerCase());
+            headerBuilder.append(header.getKey().toLowerCase(Locale.US));
             headerBuilder.append(":");
             headerBuilder.append(header.getValue());
         }
@@ -250,12 +291,42 @@ public class LoadUrlParams {
     }
 
     /**
+     * Sets the verbatim extra headers string. This is an alternative to storing the headers in
+     * a map (setExtraHeaders()) for the embedders that use collapsed headers strings.
+     */
+    public void setVerbatimHeaders(String headers) {
+        mVerbatimHeaders = headers;
+    }
+
+    /**
+     * @return the verbatim extra headers string
+     */
+    public String getVerbatimHeaders() {
+        return mVerbatimHeaders;
+    }
+
+    /**
+     * Set user agent override option of this load. Defaults to UA_OVERRIDE_INHERIT.
+     * @param uaOption One of UA_OVERRIDE static constants above.
+     */
+    public void setOverrideUserAgent(int uaOption) {
+        mUaOverrideOption = uaOption;
+    }
+
+    /**
      * Set the post data of this load. This field is ignored unless load type is
      * LOAD_TYPE_BROWSER_INITIATED_HTTP_POST.
      * @param postData Post data for this http post load.
      */
     public void setPostData(byte[] postData) {
         mPostData = postData;
+    }
+
+    /**
+     * @return the data to be sent through POST
+     */
+    public byte[] getPostData() {
+        return mPostData;
     }
 
     /**
@@ -289,6 +360,20 @@ public class LoadUrlParams {
         return mLoadUrlType;
     }
 
+    /**
+     * @param rendererInitiated Whether or not this load was initiated from a renderer.
+     */
+    public void setIsRendererInitiated(boolean rendererInitiated) {
+        mIsRendererInitiated = rendererInitiated;
+    }
+
+    /**
+     * @return Whether or not this load was initiated from a renderer or not.
+     */
+    public boolean getIsRendererInitiated() {
+        return mIsRendererInitiated;
+    }
+
     public boolean isBaseUrlDataScheme() {
         // If there's no base url set, but this is a data load then
         // treat the scheme as data:.
@@ -307,12 +392,12 @@ public class LoadUrlParams {
             int ua_override_inherit,
             int ua_override_false,
             int ua_override_true) {
-        LOAD_TYPE_DEFAULT = load_type_default;
-        LOAD_TYPE_BROWSER_INITIATED_HTTP_POST = load_type_browser_initiated_http_post;
-        LOAD_TYPE_DATA = load_type_data;
-        UA_OVERRIDE_INHERIT = ua_override_inherit;
-        UA_OVERRIDE_FALSE = ua_override_false;
-        UA_OVERRIDE_TRUE = ua_override_true;
+        assert LOAD_TYPE_DEFAULT == load_type_default;
+        assert LOAD_TYPE_BROWSER_INITIATED_HTTP_POST == load_type_browser_initiated_http_post;
+        assert LOAD_TYPE_DATA == load_type_data;
+        assert UA_OVERRIDE_INHERIT == ua_override_inherit;
+        assert UA_OVERRIDE_FALSE == ua_override_false;
+        assert UA_OVERRIDE_TRUE == ua_override_true;
     }
 
     /**

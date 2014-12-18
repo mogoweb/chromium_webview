@@ -9,6 +9,7 @@ import org.chromium.content.browser.WebContentsObserverAndroid;
 import org.chromium.content.browser.test.util.TestCallbackHelperContainer.OnPageFinishedHelper;
 import org.chromium.content.browser.test.util.TestCallbackHelperContainer.OnPageStartedHelper;
 import org.chromium.content.browser.test.util.TestCallbackHelperContainer.OnReceivedErrorHelper;
+import org.chromium.content_public.browser.WebContents;
 
 /**
  * The default WebContentsObserverAndroid used by ContentView tests. The below callbacks can be
@@ -16,12 +17,17 @@ import org.chromium.content.browser.test.util.TestCallbackHelperContainer.OnRece
  */
 public class TestWebContentsObserver extends WebContentsObserverAndroid {
 
-    private OnPageStartedHelper mOnPageStartedHelper;
-    private OnPageFinishedHelper mOnPageFinishedHelper;
-    private OnReceivedErrorHelper mOnReceivedErrorHelper;
+    private final OnPageStartedHelper mOnPageStartedHelper;
+    private final OnPageFinishedHelper mOnPageFinishedHelper;
+    private final OnReceivedErrorHelper mOnReceivedErrorHelper;
 
+    // TODO(yfriedman): Switch everyone to use the WebContents constructor.
     public TestWebContentsObserver(ContentViewCore contentViewCore) {
-        super(contentViewCore);
+        this(contentViewCore.getWebContents());
+    }
+
+    public TestWebContentsObserver(WebContents webContents) {
+        super(webContents);
         mOnPageStartedHelper = new OnPageStartedHelper();
         mOnPageFinishedHelper = new OnPageFinishedHelper();
         mOnReceivedErrorHelper = new OnReceivedErrorHelper();

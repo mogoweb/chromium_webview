@@ -61,4 +61,18 @@ public class InputMethodManagerWrapper {
         getInputMethodManager().updateSelection(view, selStart, selEnd, candidatesStart,
                 candidatesEnd);
     }
+
+    /**
+     * @see android.view.inputmethod.InputMethodManager#isWatchingCursor(View)
+     */
+    public boolean isWatchingCursor(View view) {
+        return getInputMethodManager().isWatchingCursor(view);
+    }
+
+    /**
+     * @see android.view.inputmethod.InputMethodManager#updateCursor(View, int, int, int, int)
+     */
+    public void updateCursor(View view, int left, int top, int right, int bottom) {
+        getInputMethodManager().updateCursor(view, left, top, right, bottom);
+    }
 }

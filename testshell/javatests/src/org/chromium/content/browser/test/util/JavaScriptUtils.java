@@ -4,13 +4,13 @@
 
 package org.chromium.content.browser.test.util;
 
-import junit.framework.Assert;
-
 import static org.chromium.base.test.util.ScalableTimeout.scaleTimeout;
 
+import junit.framework.Assert;
+
 import org.chromium.base.ThreadUtils;
-import org.chromium.content.browser.ContentView;
 import org.chromium.content.browser.ContentViewCore;
+import org.chromium.content.browser.test.util.TestCallbackHelperContainer.OnEvaluateJavaScriptResultHelper;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -26,12 +26,9 @@ public class JavaScriptUtils {
      * Returns the result of its execution in JSON format.
      */
     public static String executeJavaScriptAndWaitForResult(
-            final ContentView view, TestCallbackHelperContainer viewClient,
-            final String code) throws InterruptedException, TimeoutException {
+            ContentViewCore viewCore, String code) throws InterruptedException, TimeoutException {
         return executeJavaScriptAndWaitForResult(
-                view.getContentViewCore(),
-                viewClient.getOnEvaluateJavaScriptResultHelper(),
-                code);
+                viewCore, code, EVALUATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     }
 
     /**
@@ -41,23 +38,11 @@ public class JavaScriptUtils {
      */
     public static String executeJavaScriptAndWaitForResult(
             final ContentViewCore viewCore,
-            final TestCallbackHelperContainer.OnEvaluateJavaScriptResultHelper helper,
-            final String code) throws InterruptedException, TimeoutException {
-        return executeJavaScriptAndWaitForResult(
-                viewCore, helper, code, EVALUATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-    }
-
-    /**
-     * Executes the given snippet of JavaScript code within the given ContentViewCore.
-     * Does not depend on ContentView and TestCallbackHelperContainer.
-     * Returns the result of its execution in JSON format.
-     */
-    public static String executeJavaScriptAndWaitForResult(
-            final ContentViewCore viewCore,
-            final TestCallbackHelperContainer.OnEvaluateJavaScriptResultHelper helper,
             final String code,
-            final long timeout, final TimeUnit timeoutUnits)
+            final long timeout,
+            final TimeUnit timeoutUnits)
                     throws InterruptedException, TimeoutException {
+        final OnEvaluateJavaScriptResultHelper helper = new OnEvaluateJavaScriptResultHelper();
         // Calling this from the UI thread causes it to time-out: the UI thread being blocked won't
         // have a chance to process the JavaScript eval response).
         Assert.assertFalse("Executing JavaScript should be done from the test thread, "
@@ -76,11 +61,11 @@ public class JavaScriptUtils {
     /**
      * Executes the given snippet of JavaScript code but does not wait for the result.
      */
-    public static void executeJavaScript(final ContentView view, final String code) {
+    public static void executeJavaScript(final ContentViewCore viewCore, final String code) {
         ThreadUtils.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                view.evaluateJavaScript(code);
+                viewCore.evaluateJavaScript(code, null);
             }
         });
     }

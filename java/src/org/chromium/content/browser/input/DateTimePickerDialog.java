@@ -8,7 +8,6 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnClickListener;
-import android.os.Build;
 import android.text.format.Time;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -104,18 +103,6 @@ class DateTimePickerDialog extends AlertDialog implements OnClickListener,
                     mDatePicker.getMonth(), mDatePicker.getDayOfMonth(),
                     mTimePicker.getCurrentHour(), mTimePicker.getCurrentMinute());
         }
-    }
-
-    @Override
-    protected void onStop() {
-        if (Build.VERSION.SDK_INT >= 16) {
-            // The default behavior of dialogs changed in JellyBean and onwards.
-            // Dismissing a dialog (by pressing back for example)
-            // applies the chosen date. This code is added here so that the custom
-            // pickers behave the same as the internal DatePickerDialog.
-            tryNotifyDateTimeSet();
-        }
-        super.onStop();
     }
 
     @Override

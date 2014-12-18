@@ -36,9 +36,9 @@ public final class R {
         public static int color_picker_button_white;
     }
     public static final class id {
-        public static int autofill_label;
-        public static int autofill_popup_window;
-        public static int autofill_sublabel;
+        public static int dropdown_label;
+        public static int dropdown_popup_window;
+        public static int dropdown_sublabel;
         public static int selected_color_view;
         public static int title;
         public static int more_colors_button;
@@ -46,13 +46,12 @@ public final class R {
         public static int color_picker_simple;
         public static int color_button_swatch;
         public static int more_colors_button_border;
-        public static int color_picker_simple_border;
         public static int gradient;
         public static int text;
         public static int seek_bar;
     }
     public static final class layout {
-        public static int autofill_text;
+        public static int dropdown_item;
         public static int color_picker_dialog_title;
         public static int color_picker_dialog_content;
         public static int color_picker_advanced_component;
@@ -62,16 +61,18 @@ public final class R {
         public static int color_picker_advanced_select_handle;
     }
     public static final class style {
-        public static int AutofillPopupWindow;
+        public static int DropdownPopupWindow;
     }
     public static final class color {
-        public static int autofill_dark_divider_color;
-        public static int autofill_divider_color;
+        public static int dropdown_dark_divider_color;
+        public static int dropdown_divider_color;
         public static int color_picker_border_color;
     }
     public static final class dimen {
-        public static int autofill_text_height;
-        public static int autofill_text_divider_height;
+        public static int dropdown_item_height;
+        public static int dropdown_item_divider_height;
         public static int color_button_height;
+        public static int config_min_scaling_span;
+        public static int config_min_scaling_touch_major;
     }
 }

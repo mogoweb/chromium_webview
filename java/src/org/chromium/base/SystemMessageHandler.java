@@ -9,11 +9,12 @@ import android.os.Message;
 
 class SystemMessageHandler extends Handler {
 
-    private static final int TIMER_MESSAGE = 1;
-    private static final int DELAYED_TIMER_MESSAGE = 2;
+    private static final int SCHEDULED_WORK = 1;
+    private static final int DELAYED_SCHEDULED_WORK = 2;
 
     // Native class pointer set by the constructor of the SharedClient native class.
     private long mMessagePumpDelegateNative = 0;
+    private long mDelayedScheduledTimeTicks = 0;
 
     private SystemMessageHandler(long messagePumpDelegateNative) {
         mMessagePumpDelegateNative = messagePumpDelegateNative;
@@ -21,26 +22,33 @@ class SystemMessageHandler extends Handler {
 
     @Override
     public void handleMessage(Message msg) {
-        nativeDoRunLoopOnce(mMessagePumpDelegateNative);
+        if (msg.what == DELAYED_SCHEDULED_WORK) {
+            mDelayedScheduledTimeTicks = 0;
+        }
+        nativeDoRunLoopOnce(mMessagePumpDelegateNative, mDelayedScheduledTimeTicks);
     }
 
     @SuppressWarnings("unused")
     @CalledByNative
-    private void setTimer() {
-        sendEmptyMessage(TIMER_MESSAGE);
+    private void scheduleWork() {
+        sendEmptyMessage(SCHEDULED_WORK);
     }
 
     @SuppressWarnings("unused")
     @CalledByNative
-    private void setDelayedTimer(long millis) {
-        removeMessages(DELAYED_TIMER_MESSAGE);
-        sendEmptyMessageDelayed(DELAYED_TIMER_MESSAGE, millis);
+    private void scheduleDelayedWork(long delayedTimeTicks, long millis) {
+        if (mDelayedScheduledTimeTicks != 0) {
+            removeMessages(DELAYED_SCHEDULED_WORK);
+        }
+        mDelayedScheduledTimeTicks = delayedTimeTicks;
+        sendEmptyMessageDelayed(DELAYED_SCHEDULED_WORK, millis);
     }
 
     @SuppressWarnings("unused")
     @CalledByNative
-    private void removeTimer() {
-        removeMessages(TIMER_MESSAGE);
+    private void removeAllPendingMessages() {
+        removeMessages(SCHEDULED_WORK);
+        removeMessages(DELAYED_SCHEDULED_WORK);
     }
 
     @CalledByNative
@@ -48,5 +56,6 @@ class SystemMessageHandler extends Handler {
         return new SystemMessageHandler(messagePumpDelegateNative);
     }
 
-    private native void nativeDoRunLoopOnce(long messagePumpDelegateNative);
+    private native void nativeDoRunLoopOnce(
+            long messagePumpDelegateNative, long delayedScheduledTimeTicks);
 }

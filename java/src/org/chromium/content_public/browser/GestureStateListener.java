@@ -61,4 +61,10 @@ public class GestureStateListener {
      * Called when the scroll offsets or extents may have changed.
      */
     public void onScrollOffsetOrExtentChanged(int scrollOffsetY, int scrollExtentY) {}
+
+    /*
+     * Called after a single-tap gesture event was dispatched to the renderer,
+     * indicating whether or not the gesture was consumed.
+     */
+    public void onSingleTap(boolean consumed, int x, int y) {}
 }

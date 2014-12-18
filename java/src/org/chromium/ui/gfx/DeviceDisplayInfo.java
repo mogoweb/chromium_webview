@@ -4,14 +4,13 @@
 
 package org.chromium.ui.gfx;
 
-import android.content.ComponentCallbacks;
 import android.content.Context;
-import android.content.res.Configuration;
 import android.graphics.PixelFormat;
 import android.graphics.Point;
 import android.os.Build;
 import android.util.DisplayMetrics;
 import android.view.Display;
+import android.view.Surface;
 import android.view.WindowManager;
 
 import org.chromium.base.CalledByNative;
@@ -27,10 +26,10 @@ import org.chromium.base.JNINamespace;
 @JNINamespace("gfx")
 public class DeviceDisplayInfo {
 
-
     private final Context mAppContext;
     private final WindowManager mWinManager;
     private Point mTempPoint = new Point();
+    private DisplayMetrics mTempMetrics = new DisplayMetrics();
 
     private DeviceDisplayInfo(Context context) {
         mAppContext = context.getApplicationContext();
@@ -42,7 +41,8 @@ public class DeviceDisplayInfo {
      */
     @CalledByNative
     public int getDisplayHeight() {
-        return getMetrics().heightPixels;
+        getDisplay().getSize(mTempPoint);
+        return mTempPoint.y;
     }
 
     /**
@@ -50,7 +50,8 @@ public class DeviceDisplayInfo {
      */
     @CalledByNative
     public int getDisplayWidth() {
-        return getMetrics().widthPixels;
+        getDisplay().getSize(mTempPoint);
+        return mTempPoint.x;
     }
 
     /**
@@ -140,7 +141,8 @@ public class DeviceDisplayInfo {
      */
     @CalledByNative
     public double getDIPScale() {
-        return getMetrics().density;
+        getDisplay().getMetrics(mTempMetrics);
+        return mTempMetrics.density;
     }
 
     /**
@@ -152,34 +154,44 @@ public class DeviceDisplayInfo {
         return mAppContext.getResources().getConfiguration().smallestScreenWidthDp;
     }
 
-    private void registerListener() {
-        mAppContext.registerComponentCallbacks(
-                new ComponentCallbacks() {
-                    @Override
-                    public void onConfigurationChanged(Configuration configuration) {
-                        updateNativeSharedDisplayInfo();
-                    }
+    /**
+     * @return the screen's rotation angle from its 'natural' orientation.
+     * Expected values are one of { 0, 90, 180, 270 }.
+     * See http://developer.android.com/reference/android/view/Display.html#getRotation()
+     * for more information about Display.getRotation() behavior.
+     */
+    @CalledByNative
+    private int getRotationDegrees() {
+        switch (getDisplay().getRotation()) {
+            case Surface.ROTATION_0:
+                return 0;
+            case Surface.ROTATION_90:
+                return 90;
+            case Surface.ROTATION_180:
+                return 180;
+            case Surface.ROTATION_270:
+                return 270;
+        }
 
-                    @Override
-                    public void onLowMemory() {
-                    }
-                });
+        // This should not happen.
+        assert false;
+        return 0;
     }
 
-    private void updateNativeSharedDisplayInfo() {
+    /**
+     * Inform the native implementation to update its cached representation of
+     * the DeviceDisplayInfo values.
+     */
+    public void updateNativeSharedDisplayInfo() {
         nativeUpdateSharedDeviceDisplayInfo(
                 getDisplayHeight(), getDisplayWidth(),
                 getPhysicalDisplayHeight(), getPhysicalDisplayWidth(),
                 getBitsPerPixel(), getBitsPerComponent(),
-                getDIPScale(), getSmallestDIPWidth());
+                getDIPScale(), getSmallestDIPWidth(), getRotationDegrees());
     }
 
     private Display getDisplay() {
         return mWinManager.getDefaultDisplay();
-    }
-
-    private DisplayMetrics getMetrics() {
-        return mAppContext.getResources().getDisplayMetrics();
     }
 
     /**
@@ -188,21 +200,15 @@ public class DeviceDisplayInfo {
      * @param context A context to use.
      * @return DeviceDisplayInfo associated with a given Context.
      */
+    @CalledByNative
     public static DeviceDisplayInfo create(Context context) {
         return new DeviceDisplayInfo(context);
-    }
-
-    @CalledByNative
-    private static DeviceDisplayInfo createWithListener(Context context) {
-        DeviceDisplayInfo deviceDisplayInfo = new DeviceDisplayInfo(context);
-        deviceDisplayInfo.registerListener();
-        return deviceDisplayInfo;
     }
 
     private native void nativeUpdateSharedDeviceDisplayInfo(
             int displayHeight, int displayWidth,
             int physicalDisplayHeight, int physicalDisplayWidth,
             int bitsPerPixel, int bitsPerComponent, double dipScale,
-            int smallestDIPWidth);
+            int smallestDIPWidth, int rotationDegrees);
 
 }

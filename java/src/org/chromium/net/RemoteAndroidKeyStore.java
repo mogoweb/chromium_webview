@@ -110,7 +110,7 @@ public class RemoteAndroidKeyStore implements AndroidKeyStore {
     }
 
     @Override
-    public int getOpenSSLHandleForPrivateKey(AndroidPrivateKey privateKey) {
+    public long getOpenSSLHandleForPrivateKey(AndroidPrivateKey privateKey) {
         // This should not be called as it's only for older versions of Android.
         assert false;
         return 0;

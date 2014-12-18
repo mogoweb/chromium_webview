@@ -11,10 +11,12 @@ import android.os.Parcelable;
 import android.util.Log;
 
 import org.chromium.base.SysUtils;
+import org.chromium.base.ThreadUtils;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 /*
@@ -394,6 +396,7 @@ public class Linker {
         if (DEBUG) Log.i(TAG, "finishLibraryLoad() called");
         synchronized (Linker.class) {
             if (DEBUG) Log.i(TAG, String.format(
+                    Locale.US,
                     "sInBrowserProcess=%s sBrowserUsesSharedRelro=%s sWaitForSharedRelros=%s",
                     sInBrowserProcess ? "true" : "false",
                     sBrowserUsesSharedRelro ? "true" : "false",
@@ -471,15 +474,25 @@ public class Linker {
     public static void useSharedRelros(Bundle bundle) {
         // Ensure the bundle uses the application's class loader, not the framework
         // one which doesn't know anything about LibInfo.
-        if (bundle != null)
+        // Also, hold a fresh copy of it so the caller can't recycle it.
+        Bundle clonedBundle = null;
+        if (bundle != null) {
             bundle.setClassLoader(LibInfo.class.getClassLoader());
-
-        if (DEBUG) Log.i(TAG, "useSharedRelros() called with " + bundle);
-
+            clonedBundle = new Bundle(LibInfo.class.getClassLoader());
+            Parcel parcel = Parcel.obtain();
+            bundle.writeToParcel(parcel, 0);
+            parcel.setDataPosition(0);
+            clonedBundle.readFromParcel(parcel);
+            parcel.recycle();
+        }
+        if (DEBUG) {
+            Log.i(TAG, "useSharedRelros() called with " + bundle +
+                    ", cloned " + clonedBundle);
+        }
         synchronized (Linker.class) {
             // Note that in certain cases, this can be called before
             // initServiceProcess() in service processes.
-            sSharedRelros = bundle;
+            sSharedRelros = clonedBundle;
             // Tell any listener blocked in finishLibraryLoad() about it.
             Linker.class.notifyAll();
         }
@@ -526,7 +539,10 @@ public class Linker {
      * @param baseLoadAddress the base library load address to use.
      */
     public static void initServiceProcess(long baseLoadAddress) {
-        if (DEBUG) Log.i(TAG, String.format("initServiceProcess(0x%x) called", baseLoadAddress));
+        if (DEBUG) {
+            Log.i(TAG, String.format(
+                    Locale.US, "initServiceProcess(0x%x) called", baseLoadAddress));
+        }
         synchronized (Linker.class) {
             ensureInitializedLocked();
             sInBrowserProcess = false;
@@ -555,7 +571,7 @@ public class Linker {
             }
 
             setupBaseLoadAddressLocked();
-            if (DEBUG) Log.i(TAG, String.format("getBaseLoadAddress() returns 0x%x",
+            if (DEBUG) Log.i(TAG, String.format(Locale.US, "getBaseLoadAddress() returns 0x%x",
                                                 sBaseLoadAddress));
             return sBaseLoadAddress;
         }
@@ -610,7 +626,7 @@ public class Linker {
 
         if (DEBUG) {
             final int maxValue = (1 << numBits) - 1;
-            Log.i(TAG, String.format("offsetLimit=%d numBits=%d maxValue=%d (0x%x)",
+            Log.i(TAG, String.format(Locale.US, "offsetLimit=%d numBits=%d maxValue=%d (0x%x)",
                 offsetLimit, numBits, maxValue, maxValue));
         }
 
@@ -622,7 +638,7 @@ public class Linker {
 
         if (DEBUG) {
             Log.i(TAG,
-                  String.format("Linker.computeRandomBaseLoadAddress() return 0x%x",
+                  String.format(Locale.US, "Linker.computeRandomBaseLoadAddress() return 0x%x",
                                 address));
         }
         return address;
@@ -669,7 +685,7 @@ public class Linker {
 
         if (DEBUG) {
             Log.i(TAG, String.format(
-                    "getRandomBits(%d) returned %d", numBits, result));
+                    Locale.US, "getRandomBits(%d) returned %d", numBits, result));
         }
 
         return result;
@@ -799,6 +815,7 @@ public class Linker {
             // address.
             if (NativeLibraries.ENABLE_LINKER_TESTS) {
                 Log.i(TAG, String.format(
+                        Locale.US,
                         "%s_LIBRARY_ADDRESS: %s %x",
                         sInBrowserProcess ? "BROWSER" : "RENDERER",
                         libName,
@@ -808,11 +825,13 @@ public class Linker {
             if (sInBrowserProcess) {
                 // Create a new shared RELRO section at the 'current' fixed load address.
                 if (!nativeCreateSharedRelro(libName, sCurrentLoadAddress, libInfo)) {
-                    Log.w(TAG, String.format("Could not create shared RELRO for %s at %x",
-                            libName, sCurrentLoadAddress));
+                    Log.w(TAG, String.format(Locale.US,
+                            "Could not create shared RELRO for %s at %x", libName,
+                            sCurrentLoadAddress));
                 } else {
                     if (DEBUG) Log.i(TAG,
                         String.format(
+                            Locale.US,
                             "Created shared RELRO for %s at %x: %s",
                             libName,
                             sCurrentLoadAddress,
@@ -832,6 +851,29 @@ public class Linker {
             if (DEBUG) Log.i(TAG, "Library details " + libInfo.toString());
         }
     }
+
+    /**
+     * Move activity from the native thread to the main UI thread.
+     * Called from native code on its own thread.  Posts a callback from
+     * the UI thread back to native code.
+     *
+     * @param opaque Opaque argument.
+     */
+    public static void postCallbackOnMainThread(final long opaque) {
+        ThreadUtils.postOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                nativeRunCallbackOnUiThread(opaque);
+            }
+        });
+    }
+
+    /**
+     * Native method to run callbacks on the main UI thread.
+     * Supplied by the crazy linker and called by postCallbackOnMainThread.
+     * @param opaque Opaque crazy linker arguments.
+     */
+    private static native void nativeRunCallbackOnUiThread(long opaque);
 
     /**
      * Native method used to load a library.
@@ -960,7 +1002,8 @@ public class Linker {
 
         @Override
         public String toString() {
-            return String.format("[load=0x%x-0x%x relro=0x%x-0x%x fd=%d]",
+            return String.format(Locale.US,
+                                 "[load=0x%x-0x%x relro=0x%x-0x%x fd=%d]",
                                  mLoadAddress,
                                  mLoadAddress + mLoadSize,
                                  mRelroStart,
