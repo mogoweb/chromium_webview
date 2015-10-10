@@ -21,7 +21,7 @@ package com.mogoweb.chrome;
 
 import java.util.Map;
 
-import org.chromium.content.browser.LoadUrlParams;
+//import org.chromium.content.browser.LoadUrlParams;
 
 import android.content.Context;
 import android.content.res.Configuration;
@@ -719,9 +719,9 @@ public class WebView extends AbsoluteLayout {
      */
     public void loadDataWithBaseURL(String baseUrl, String data,
             String mimeType, String encoding, String historyUrl) {
-        LoadUrlParams loadUrlParams =
-                LoadUrlParams.createLoadDataParamsWithBaseUrl(data, mimeType,
-                        encoding.equals("base64"), baseUrl, historyUrl);
+//        LoadUrlParams loadUrlParams =
+//                LoadUrlParams.createLoadDataParamsWithBaseUrl(data, mimeType,
+//                        encoding.equals("base64"), baseUrl, historyUrl);
         checkThread();
         if (DebugFlags.TRACE_API) Log.d(LOGTAG, "loadDataWithBaseURL=" + baseUrl);
         mProvider.loadDataWithBaseURL(baseUrl, data, mimeType, encoding, historyUrl);
