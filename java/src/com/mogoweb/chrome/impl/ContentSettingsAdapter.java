@@ -213,13 +213,13 @@ public class ContentSettingsAdapter extends com.mogoweb.chrome.WebSettings {
     @Override
     public synchronized void setLayoutAlgorithm(LayoutAlgorithm l) {
         // TODO: Remove the upstream enum and mapping once the new value is in the public API.
-        final AwSettings.LayoutAlgorithm[] chromiumValues = {
-            AwSettings.LayoutAlgorithm.NORMAL,
-            AwSettings.LayoutAlgorithm.SINGLE_COLUMN,
-            AwSettings.LayoutAlgorithm.NARROW_COLUMNS,
-            AwSettings.LayoutAlgorithm.TEXT_AUTOSIZING
-        };
-        mAwSettings.setLayoutAlgorithm(chromiumValues[l.ordinal()]);
+        // final AwSettings.LayoutAlgorithm[] chromiumValues = {
+        //     AwSettings.LayoutAlgorithm.NORMAL,
+        //     AwSettings.LayoutAlgorithm.SINGLE_COLUMN,
+        //     AwSettings.LayoutAlgorithm.NARROW_COLUMNS,
+        //     AwSettings.LayoutAlgorithm.TEXT_AUTOSIZING
+        // };
+        // mAwSettings.setLayoutAlgorithm(chromiumValues[l.ordinal()]);
     }
 
     @Override
@@ -384,6 +384,11 @@ public class ContentSettingsAdapter extends com.mogoweb.chrome.WebSettings {
     }
 
     @Override
+    public synchronized void setPluginState(PluginState state) {
+//        mAwSettings.setPluginState(state);
+    }
+
+    @Override
     public synchronized void setDatabasePath(String databasePath) {
         // Intentional no-op.
     }
@@ -457,6 +462,12 @@ public class ContentSettingsAdapter extends com.mogoweb.chrome.WebSettings {
     @Override
     public synchronized boolean getPluginsEnabled() {
         return mAwSettings.getPluginsEnabled();
+    }
+
+    @Override
+    public synchronized PluginState getPluginState() {
+//        return mAwSettings.getPluginState();
+    	return null;
     }
 
     @Override

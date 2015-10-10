@@ -19,7 +19,7 @@
 
 package com.mogoweb.chrome.impl;
 
-import org.chromium.content.browser.NavigationEntry;
+import org.chromium.content_public.browser.NavigationEntry;
 
 import android.graphics.Bitmap;
 

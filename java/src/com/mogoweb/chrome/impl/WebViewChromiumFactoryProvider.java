@@ -37,7 +37,7 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.ProcessInitException;
 import org.chromium.content.browser.ContentViewStatics;
-import org.chromium.content.browser.ResourceExtractor;
+import org.chromium.base.ResourceExtractor;
 
 import android.content.Context;
 import android.os.Build;
@@ -105,7 +105,9 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
     }
 
     private void initPlatSupportLibrary() {
-        DrawGLFunctor.setChromiumAwDrawGLFunction(AwContents.getAwDrawGLFunction());
+        DrawGLFunctor.setChromiumAwDrawGLFunction((int)AwContents.getAwDrawGLFunction());
+//        AwContents.setAwDrawSWFunctionTable(GraphicsUtils.getDrawSWFunctionTable());
+//        AwContents.setAwDrawGLFunctionTable(GraphicsUtils.getDrawGLFunctionTable());
     }
 
     private void ensureChromiumStartedLocked(boolean onMainThread) {
@@ -178,7 +180,7 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
         ResourceExtractor.setExtractImplicitLocaleForTesting(false);
 
         try {
-            LibraryLoader.ensureInitialized(null);
+            LibraryLoader.get(3).ensureInitialized();
         } catch (ProcessInitException e) {
             throw new RuntimeException("Error initializing WebView library", e);
         }

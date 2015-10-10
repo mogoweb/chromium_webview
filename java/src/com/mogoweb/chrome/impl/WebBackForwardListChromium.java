@@ -22,7 +22,7 @@ package com.mogoweb.chrome.impl;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.chromium.content.browser.NavigationHistory;
+import org.chromium.content_public.browser.NavigationHistory;
 
 import com.mogoweb.chrome.WebBackForwardList;
 import com.mogoweb.chrome.WebHistoryItem;
@@ -39,8 +39,9 @@ public class WebBackForwardListChromium extends WebBackForwardList {
         mCurrentIndex = nav_history.getCurrentEntryIndex();
         mHistoryItemList = new ArrayList<WebHistoryItemChromium>(nav_history.getEntryCount());
         for (int i = 0; i < nav_history.getEntryCount(); ++i) {
-            mHistoryItemList.add(
-                    new WebHistoryItemChromium(nav_history.getEntryAtIndex(i)));
+//~: TODO(alex)
+//            mHistoryItemList.add(
+//                    new WebHistoryItemChromium(nav_history.getEntryAtIndex(i)));
         }
     }
 

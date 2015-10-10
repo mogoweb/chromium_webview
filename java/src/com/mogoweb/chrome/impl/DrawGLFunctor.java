@@ -137,7 +137,7 @@ public class DrawGLFunctor {
     // Holds the core resources of the class, everything required to correctly cleanup.
     // IMPORTANT: this class must not hold any reference back to the outer DrawGLFunctor
     // instance, as that will defeat GC of that object.
-    private class DestroyRunnable implements Runnable {
+    private final class DestroyRunnable implements Runnable {
         ViewParent mViewRootImpl;
         int mNativeDrawGLFunctor;
         DestroyRunnable(int nativeDrawGLFunctor) {
