@@ -1,112 +1,16 @@
-# Source code dependencies required for building ChromeView.
-#
-# This file is used as a template to generate .gclient-mogo, which is a
-# regular .gclient file pointing to additional source code repositories that
-# need to be checked out in order to build ChromeView.
-#
-# These dependencies are not specified in DEPS for historical compatibility
-# reasons and also to allow us to perform some additional manipulation on some
-# entries (such as setting a custom value for "deps_file" in certain
-# solutions).
-#
-# If you are doing a DEPS roll, you should only need to worry about the *_rev
-# variables below.
+''' This file indicate the dependencies ChromeView lays on.
+    DO NOT use this DEPS to checkout code, it's for tools/generate_gclient-mogo.py.
+'''
 
-# -----------------------------------
-# Crosswalk dependencies.
-# Edit these when rolling DEPS.xwalk.
-# -----------------------------------
-
-chromium_mogo_rev = '119d7ada6dfbbdcbea3dd411420d29055d8c8278'
-blink_mogo_rev = 'bedd163c98e445596b3fc033fc5680b511f24083'
-
-mogo_git = 'https://github.com/mogoweb'
-
-# ------------------------------------------------------
-# gclient solutions.
-# You do not need to worry about these most of the time.
-# ------------------------------------------------------
-
-solutions = [
-  { 'name': 'src',
-    'url': mogo_git + '/chromium-crosswalk.git@' + chromium_mogo_rev,
-    'deps_file': '.DEPS.git',
-    'custom_deps': {
-      'src':
-        mogo_git + '/chromium-crosswalk.git@' + chromium_mogo_rev,
-      'src/third_party/WebKit':
-        mogo_git + '/blink-crosswalk.git@' + blink_mogo_rev,
-
-      # These directories are not relevant to ChromeView and can be safely ignored
-      # in a checkout. It avoids creating additional directories outside src/ that
-      # are not used and also saves some bandwidth.
-      'build': None,
-      'build/scripts/command_wrapper/bin': None,
-      'build/scripts/gsd_generate_index': None,
-      'build/scripts/private/data/reliability': None,
-      'build/scripts/tools/deps2git': None,
-      'build/third_party/cbuildbot_chromite': None,
-      'build/third_party/gsutil': None,
-      'build/third_party/lighttpd': None,
-      'build/third_party/swarm_client': None,
-      'build/third_party/xvfb': None,
-      'build/xvfb': None,
-      'commit-queue': None,
-      'depot_tools': None,
-      'src/webkit/data/layout_tests/LayoutTests': None,
-      'src/third_party/WebKit/LayoutTests': None,
-      'src/content/test/data/layout_tests/LayoutTests': None,
-      'src/chrome/tools/test/reference_build/chrome_win': None,
-      'src/chrome_frame/tools/test/reference_build/chrome_win': None,
-      'src/chrome/tools/test/reference_build/chrome_linux': None,
-      'src/chrome/tools/test/reference_build/chrome_mac': None,
-      'src/third_party/chromite': None,
-      'src/third_party/cros_system_api': None,
-      'src/third_party/hunspell_dictionaries': None,
-      'src/third_party/pyelftools': None,
-      'src/native_client': None,
-      'src/chrome/test/data/perf/third_party/octane': None,
-      'src/media/cdm/ppapi/api': None,
-      'src/chrome/tools/test/reference_build/chrome_linux': None,
-      'src/chrome/test/data/perf/frame_rate/content': None,
-      'src/chrome/test/data/perf/canvas_bench': None,
-      'src/chrome/test/data/extensions/api_test/permissions/nacl_enabled/bin': None,
-      'src/third_party/bidichecker': None,
-      'src/third_party/aosp': None,
-      'src/third_party/chromite': None,
-      'src/third_party/cld_2/src': None,
-      'src/third_party/findbugs': None,
-      'src/third_party/cros_dbus_cplusplus/source': None,
-      'src/third_party/cros_system_api': None,
-      'src/third_party/gold': None,
-      'src/third_party/freetype2/src': None,
-      'src/third_party/jsoncpp/source/src/lib_json': None,
-      'src/third_party/jsoncpp/source/include': None,
-      'src/third_party/libexif/sources': None,
-      'src/third_party/libmtp': None,
-      'src/third_party/mtpd/source': None,
-      'src/third_party/pyelftools': None,
-      'src/third_party/pyftpdlib/src': None,
-      'src/third_party/pywebsocket/src': None,
-      'src/third_party/undoview': None,
-      'src/third_party/swig/linux': None,
-      'src/third_party/swig/Lib': None,
-      'src/third_party/webpagereplay': None,
-      'src/third_party/webgl_conformance': None,
-      'src/third_party/webdriver/pylib': None,
-      'src/third_party/speex': None,
-      'src/third_party/safe_browsing/testing': None,
-      'src/tools/page_cycler/acid3': None,
-      'src/third_party/yasm/source/patched-yasm': None,
-      'src/third_party/xdg-utils': None,
-      'src/third_party/scons-2.0.1': None,
-      'src/third_party/WebKit/LayoutTests/w3c/web-platform-tests': None,
-      'src/third_party/WebKit/LayoutTests/w3c/csswg-test': None
-    },
-  },
-]
-
-# -------------------------------------------------
-# This area is edited by generate_gclient-mogo.py.
-# -------------------------------------------------
-
+# chromium_branch is the version of chromium ChromeView based.
+# Use 'Trunk' for trunk.
+# If using trunk, will use '.DEPS.git' for gclient.
+chromium_branch = '1847'
+chromium_crosswalk_point = '8fcd11b712d73ff5332d9e397cb430ce7ba21d21'
+blink_crosswalk_point = '729e2d7bb71af2e0ed323ad6850806547bdb2bb3'
+deps_mogo = {
+    'src': 'https://github.com/mogoweb/chromium-crosswalk.git@%s' % chromium_crosswalk_point,
+    'src/third_party/WebKit': 'https://github.com/mogoweb/blink-crosswalk.git@%s' % blink_crosswalk_point,
+}
+vars_mogo = {
+}
