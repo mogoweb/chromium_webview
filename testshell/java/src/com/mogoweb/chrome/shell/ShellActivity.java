@@ -4,6 +4,13 @@
 
 package com.mogoweb.chrome.shell;
 
+import org.chromium.base.VisibleForTesting;
+
+import com.mogoweb.chrome.HttpAuthHandler;
+import com.mogoweb.chrome.WebChromeClient;
+import com.mogoweb.chrome.WebView;
+import com.mogoweb.chrome.WebViewClient;
+
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
@@ -25,12 +32,6 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.mogoweb.chrome.HttpAuthHandler;
-import com.mogoweb.chrome.WebChromeClient;
-import com.mogoweb.chrome.WebView;
-import com.mogoweb.chrome.WebViewClient;
 
 /*
  * This is a lightweight activity for tests that only require WebView functionality.

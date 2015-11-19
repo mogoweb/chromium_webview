@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
+import fileinput
 import optparse
 import os
+import re
 import shutil
 import sys
 
@@ -34,6 +36,21 @@ def SyncSos(options):
   for so in chromium_sos:
     shutil.copy(chromium_sos_dir + so, options.chromeview_java + "/libs/armeabi-v7a/")
 
+def SyncNativeLibraries(options):
+  generated_dir = options.chromium_root + "/out/" + options.build_type + "/system_webview_apk/native_libraries_java/"
+  nativelibraries_java = options.chromeview_java + "/src/org/chromium/base/library_loader/NativeLibraries.java"
+
+  if not os.path.exists(os.path.dirname(nativelibraries_java)):
+    os.makedirs(os.path.dirname(nativelibraries_java))
+
+  shutil.copy(generated_dir + "NativeLibraries.java", nativelibraries_java)
+
+  # replace webviewchromium with chromeview
+  for line in fileinput.input(nativelibraries_java, inplace=True):
+    if re.search("webviewchromium", line):
+      line = line.replace("webviewchromium", "chromeview")
+    print line,
+
 def main(argv):
   parser = optparse.OptionParser()
   parser.set_usage("usage: %prog [options]")
@@ -46,8 +63,9 @@ def main(argv):
   if not options.chromeview_java:
     options.chromeview_java = os.path.abspath(os.path.join(os.path.dirname(__file__), 'java'))
 
-  SyncJars(options)
-  SyncSos(options)
+  #SyncJars(options)
+  #SyncSos(options)
+  SyncNativeLibraries(options)
 
 if __name__ == '__main__':
   sys.exit(main(sys.argv))
