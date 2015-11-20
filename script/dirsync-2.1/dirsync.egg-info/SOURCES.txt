@@ -1,0 +1,14 @@
+LICENSE.txt
+MANIFEST.in
+README.rst
+setup.py
+dirsync/__init__.py
+dirsync/options.py
+dirsync/run.py
+dirsync/syncer.py
+dirsync/version.py
+dirsync.egg-info/PKG-INFO
+dirsync.egg-info/SOURCES.txt
+dirsync.egg-info/dependency_links.txt
+dirsync.egg-info/entry_points.txt
+dirsync.egg-info/top_level.txt
