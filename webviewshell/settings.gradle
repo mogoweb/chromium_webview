@@ -1,2 +1,2 @@
-include ':chromeview'
-include ':java'
+include ':lib'
+include ':app'
