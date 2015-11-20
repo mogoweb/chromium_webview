@@ -54,7 +54,12 @@ import com.mogoweb.chrome.WebViewDatabase;
 
 public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
 
-    private static final String[] MANDATORY_PAKS = { "webviewchromium.pak" };
+    private static final String[] MANDATORY_PAKS = {
+            "webviewchromium.pak",
+            "icudtl.dat",
+            "natives_blob.bin",
+            "snapshot_blob.bin"
+    };
     private static final String CHROMIUM_PREFS_NAME = "WebViewChromiumPrefs";
     private static final String COMMAND_LINE_FILE = "/data/local/chromeview-command-line";
 
