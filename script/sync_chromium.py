@@ -146,6 +146,10 @@ def sync_data_files(options):
     webview_assets_dir = os.path.join(options.chromium_root, "out", options.buildtype, "android_webview_apk", "assets")
     sync(webview_assets_dir, assets_dir, "sync")
 
+def sync_chromeview_so(options):
+    strip = options.chromium_root + "/third_party/android_tools/ndk/toolchains/arm-linux-androideabi-4.8/prebuilt/linux-x86_64/bin/arm-linux-androideabi-strip"
+    os.system("%s --strip-unneeded -o %s/src/main/jniLibs/armeabi-v7a/libchromeview.so %s/out/%s/lib/libchromeview.so" % (strip, constants.DIR_CHROMEVIEW_ROOT, options.chromium_root, options.buildtype))
+
 def main(argv):
     parser = optparse.OptionParser(usage='Usage: %prog [options]', description=__doc__)
     parser.add_option('--chromium_root',
@@ -169,6 +173,7 @@ def main(argv):
     #sync_androidmedia_res_files(options)
     #sync_manifest_files(options)
     sync_data_files(options)
+    sync_chromeview_so(options)
 
 if __name__ == '__main__':
     main(sys.argv)
