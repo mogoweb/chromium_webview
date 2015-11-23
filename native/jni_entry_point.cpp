@@ -10,7 +10,7 @@
 #include "base/android/library_loader/library_loader_hooks.h"
 #include "components/navigation_interception/component_jni_registrar.h"
 #include "components/web_contents_delegate_android/component_jni_registrar.h"
-#include "content/public/app/android_library_loader_hooks.h"
+#include "content/app/android/library_loader_hooks.h"
 #include "content/public/app/content_main.h"
 #include "url/url_util.h"
 
@@ -59,7 +59,7 @@ JNI_EXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   // Initialize url_util here while we are still single-threaded, in case we use
   // CookieManager before initializing Chromium (which would normally have done
   // this). It's safe to call this multiple times.
-  url_util::Initialize();
+  url::Initialize();
 
   return JNI_VERSION_1_4;
 }

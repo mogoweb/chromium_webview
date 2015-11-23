@@ -81,27 +81,27 @@ class DrawGLFunctor : public Functor {
 
     // Also pre-initialize the output fields in case the implementation does
     // not modify them.
-    aw_info.status_mask = AwDrawGLInfo::kStatusMaskDone;
-    aw_info.dirty_left = gl_info->dirtyLeft;
-    aw_info.dirty_top = gl_info->dirtyTop;
-    aw_info.dirty_right = gl_info->dirtyRight;
-    aw_info.dirty_bottom = gl_info->dirtyBottom;
+    // aw_info.status_mask = AwDrawGLInfo::kStatusMaskDone;
+    // aw_info.dirty_left = gl_info->dirtyLeft;
+    // aw_info.dirty_top = gl_info->dirtyTop;
+    // aw_info.dirty_right = gl_info->dirtyRight;
+    // aw_info.dirty_bottom = gl_info->dirtyBottom;
 
     // Invoke the DrawGL method.
     g_aw_drawgl_function(view_context_, &aw_info, NULL);
 
     // Copy out the outputs.
-    gl_info->dirtyLeft = aw_info.dirty_left;
-    gl_info->dirtyTop = aw_info.dirty_top;
-    gl_info->dirtyRight = aw_info.dirty_right;
-    gl_info->dirtyBottom = aw_info.dirty_bottom;
+    // gl_info->dirtyLeft = aw_info.dirty_left;
+    // gl_info->dirtyTop = aw_info.dirty_top;
+    // gl_info->dirtyRight = aw_info.dirty_right;
+    // gl_info->dirtyBottom = aw_info.dirty_bottom;
 
     // Calculate the return code.
     status_t res = DrawGlInfo::kStatusDone;
-    if (aw_info.status_mask & AwDrawGLInfo::kStatusMaskDraw)
-      res |= DrawGlInfo::kStatusDraw;
-    if (aw_info.status_mask & AwDrawGLInfo::kStatusMaskInvoke)
-      res |= DrawGlInfo::kStatusInvoke;
+    // if (aw_info.status_mask & AwDrawGLInfo::kStatusMaskDraw)
+    //   res |= DrawGlInfo::kStatusDraw;
+    // if (aw_info.status_mask & AwDrawGLInfo::kStatusMaskInvoke)
+    //   res |= DrawGlInfo::kStatusInvoke;
 
     return res;
   }

@@ -5,8 +5,9 @@
   'variables': {
     # A hook that can be overridden in other repositories to add additional
     # compilation targets to 'All'
+    'app_targets%': [],
+    # For Android-specific targets.
     'android_app_targets%': [],
-    'chromium_code': 1,
   },
   'targets': [
     {
@@ -23,6 +24,9 @@
       'dependencies': [
         '../android_webview/android_webview.gyp:android_webview_common',
       ],
+      'variables': {
+        'use_native_jni_exports': 1,
+      },
       'sources': [
         'native/jni_entry_point.cpp',
         'native/draw_gl_functor.cpp',
