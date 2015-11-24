@@ -5,7 +5,7 @@ android {
     buildToolsVersion "23.0.2"
 
     defaultConfig {
-        minSdkVersion 13
+        minSdkVersion 16
         targetSdkVersion 17
     }
 
@@ -34,4 +34,6 @@ dependencies {
     compile files('libs/net_java.jar')
     compile files('libs/ui_java.jar')
     compile files('libs/web_contents_delegate_android_java.jar')
+    compile project(':libraries:content_res')
+    compile project(':libraries:ui_res')
 }

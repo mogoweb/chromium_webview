@@ -98,5 +98,7 @@
     <orderEntry type="library" exported="" name="support-v4-23.1.0" level="project" />
     <orderEntry type="library" exported="" name="web_contents_delegate_android_java" level="project" />
     <orderEntry type="library" exported="" name="media_java" level="project" />
+    <orderEntry type="module" module-name="ui_res" exported="" />
+    <orderEntry type="module" module-name="content_res" exported="" />
   </component>
 </module>

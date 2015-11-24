@@ -1,2 +1,4 @@
 include ':lib'
 include ':app'
+include ':libraries:content_res'
+include ':libraries:ui_res'
