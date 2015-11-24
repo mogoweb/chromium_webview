@@ -63,29 +63,6 @@ def sync_jar_files(options):
     args = {'only':['\w+_java\\.jar$', 'jsr_305_javalib\\.jar$']}
     sync(chrome_java_lib_dir, chromeview_lib_dir, "sync", **args)
 
-def sync_chromium_res_files(options):
-    library_res_dir = os.path.join(constants.DIR_LIBRARIES_ROOT, "chrome_res", "src", "main", "res")
-    chrome_res_dir = os.path.join(options.chromium_root, "chrome", "android", "java", "res")
-    sync(chrome_res_dir, library_res_dir, "sync")
-
-    chrome_res_dir = os.path.join(options.chromium_root, "chrome", "android", "java", "res_chromium")
-    sync(chrome_res_dir, library_res_dir, "sync")
-
-    # sync chrome generated string resources
-    chrome_gen_res_dir = os.path.join(options.chromium_root, "out", options.buildtype,
-                                      "gen", "chrome", "java", "res")
-    sync(chrome_gen_res_dir, library_res_dir, "sync")
-
-    # sync grd generated string resources
-    chrome_grd_res_dir = os.path.join(options.chromium_root, "out", options.buildtype,
-                                      "obj", "chrome", "chrome_strings_grd.gen", "chrome_strings_grd", "res_grit")
-    args = {'exclude': ['values-\S+'], 'include': ['values-zh-rCN']}
-    sync(chrome_grd_res_dir, library_res_dir, "sync", **args)
-
-    # remove duplicate strings in android_chrome_strings.xml and generated_resources.xml
-    resource_util.remove_duplicated_strings(library_res_dir + '/values/android_chrome_strings.xml',
-                                            library_res_dir + '/values/generated_resources.xml')
-
 def sync_ui_res_files(options):
     library_res_dir = os.path.join(constants.DIR_LIBRARIES_ROOT, "ui_res", "src", "main", "res")
     ui_res_dir = os.path.join(options.chromium_root, "ui", "android", "java", "res")
@@ -163,10 +140,9 @@ def main(argv):
         exit(0)
 
     #sync_java_files(options)
-    sync_jar_files(options)
-    #sync_chromium_res_files(options)
-    #sync_ui_res_files(options)
-    #sync_content_res_files(options)
+    #sync_jar_files(options)
+    sync_ui_res_files(options)
+    sync_content_res_files(options)
     #sync_datausagechart_res_files(options)
     #sync_androidmedia_res_files(options)
     #sync_manifest_files(options)
