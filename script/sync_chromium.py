@@ -58,12 +58,10 @@ def sync_so_files(options):
     sync(chrome_so_lib_dir, app_lib_dir, "sync", **args)
 
 def sync_jar_files(options):
-    app_lib_dir = os.path.join(constants.DIR_APP_ROOT, "libs")
+    chromeview_lib_dir = os.path.join(constants.DIR_CHROMEVIEW_ROOT, "libs")
     chrome_java_lib_dir = os.path.join(options.chromium_root, "out", options.buildtype, "lib.java")
-    args = {'only':['\w+_java\\.jar$', 'cacheinvalidation_javalib\\.jar$', 'jsr_305_javalib\\.jar$',
-                'protobuf_nano_javalib\\.jar$', 'web_contents_delegate_android_java\\.jar$'],
-            'ignore': ['chrome_java\\.jar$']}
-    sync(chrome_java_lib_dir, app_lib_dir, "sync", **args)
+    args = {'only':['\w+_java\\.jar$', 'jsr_305_javalib\\.jar$']}
+    sync(chrome_java_lib_dir, chromeview_lib_dir, "sync", **args)
 
 def sync_chromium_res_files(options):
     library_res_dir = os.path.join(constants.DIR_LIBRARIES_ROOT, "chrome_res", "src", "main", "res")
@@ -165,15 +163,15 @@ def main(argv):
         exit(0)
 
     #sync_java_files(options)
-    #sync_jar_files(options)
+    sync_jar_files(options)
     #sync_chromium_res_files(options)
     #sync_ui_res_files(options)
     #sync_content_res_files(options)
     #sync_datausagechart_res_files(options)
     #sync_androidmedia_res_files(options)
     #sync_manifest_files(options)
-    sync_data_files(options)
-    sync_chromeview_so(options)
+    #sync_data_files(options)
+    #sync_chromeview_so(options)
 
 if __name__ == '__main__':
     main(sys.argv)

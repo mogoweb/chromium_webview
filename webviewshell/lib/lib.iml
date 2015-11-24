@@ -81,14 +81,19 @@
     </content>
     <orderEntry type="jdk" jdkName="Android API 23 Platform" jdkType="Android SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" exported="" name="android_webview_java" level="project" />
     <orderEntry type="library" exported="" name="support-annotations-23.1.0" level="project" />
+    <orderEntry type="library" exported="" name="navigation_interception_java" level="project" />
     <orderEntry type="library" exported="" name="content_java" level="project" />
+    <orderEntry type="library" exported="" name="jsr_305_javalib" level="project" />
     <orderEntry type="library" exported="" name="base_java" level="project" />
+    <orderEntry type="library" exported="" name="device_battery_java" level="project" />
+    <orderEntry type="library" exported="" name="blink_headers_java" level="project" />
     <orderEntry type="library" exported="" name="net_java" level="project" />
-    <orderEntry type="library" exported="" name="mojo_bindings_java" level="project" />
-    <orderEntry type="library" exported="" name="ui_java" level="project" />
     <orderEntry type="library" exported="" name="mojo_public_java" level="project" />
+    <orderEntry type="library" exported="" name="ui_java" level="project" />
+    <orderEntry type="library" exported="" name="device_vibration_java" level="project" />
+    <orderEntry type="library" exported="" name="android_webview_java" level="project" />
+    <orderEntry type="library" exported="" name="mojo_bindings_java" level="project" />
     <orderEntry type="library" exported="" name="mojo_system_java" level="project" />
     <orderEntry type="library" exported="" name="support-v4-23.1.0" level="project" />
     <orderEntry type="library" exported="" name="web_contents_delegate_android_java" level="project" />
