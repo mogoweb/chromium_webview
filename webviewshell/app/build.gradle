@@ -6,7 +6,7 @@ android {
 
     defaultConfig {
         applicationId "com.mogoweb.chrome.shell"
-        minSdkVersion 14
+        minSdkVersion 16
         targetSdkVersion 17
 
         testApplicationId "com.mogoweb.chrome.shell.test"
@@ -18,6 +18,10 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
         }
+    }
+
+    aaptOptions {
+        noCompress "dat", "bin", "pak"
     }
 }
 
